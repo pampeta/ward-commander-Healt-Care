@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { consultarGeminiConArchivo } from "../services/gemini";
+import { consultarGeminiConArchivo } from "../Services/gemini";
 
 interface Mensaje {
   remitente: "usuario" | "ia";

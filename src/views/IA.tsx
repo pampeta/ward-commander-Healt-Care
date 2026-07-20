@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { generateClinicalDocumentWithGemini } from '../services/gemini';
-import { sanitizeClinicalText } from '../services/sanitizer';
+import { generateClinicalDocumentWithGemini } from '../Services/gemini';
+import { sanitizeClinicalText } from '../Services/sanitizer';
 
 // Plantillas base editables según las exigencias de cada médico/servicio
 const PLANTILLAS_POR_DEFECTO: Record<string, string> = {

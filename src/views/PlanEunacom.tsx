@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { consultarGeminiConArchivo } from "../services/gemini";
+import { consultarGeminiConArchivo } from "../Services/gemini";
 import { TEMARIO_BASE } from "../data/temasEunacom"; // <-- AQUí SE IMPORTAN LOS 99 TEMAS
 
 interface Flashcard {
