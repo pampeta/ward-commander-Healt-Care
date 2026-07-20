@@ -78,7 +78,6 @@ export default function PlanEunacom() {
     setCargando(false);
   };
 
-  const actualizarEstado = (nuevoEstado: Tema['estado']) => setTemas(temas.map(t => t.id === temaSeleccionado.id ? { ...t, estado: nuevoEstado } : t));
   const actualizarApuntes = (texto: string) => setTemas(temas.map(t => t.id === temaSeleccionado.id ? { ...t, apuntes: texto } : t));
   const calculoProgreso = Math.round((temas.filter(t => t.estado === "🟢 Dominado").length / temas.length) * 100);
 
