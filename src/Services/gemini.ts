@@ -1,12 +1,30 @@
 // Configuración base de servicios para Gemini con el modelo oficial vigente
 const MODELO_GEMINI = "gemini-3.5-flash"; 
 
+// Función auxiliar interna para obtener la API Key desde cualquier módulo donde se haya guardado
+const obtenerApiKeyGuardada = (apiKeyDada?: string): string => {
+  if (apiKeyDada && apiKeyDada.trim()) return apiKeyDada.trim();
+  
+  return (
+    localStorage.getItem("gemini_api_key") ||
+    localStorage.getItem("google_ai_key") ||
+    localStorage.getItem("wardcommander_gemini_key") ||
+    ""
+  ).trim();
+};
+
 export const generateClinicalDocumentWithGemini = async (formData: {
   tipoDocumento: string;
   esqueletoFormat: string;
   preferenciasEstilo: string;
   rawData: string;
-}, apiKey: string) => {
+}, apiKeyDada?: string) => {
+  const apiKey = obtenerApiKeyGuardada(apiKeyDada);
+  
+  if (!apiKey) {
+    throw new Error("No hay API Key configurada. Por favor regístrala en el módulo 'Control & Métricas' o 'Generador IA Gemini'.");
+  }
+
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODELO_GEMINI}:generateContent?key=${apiKey}`;
 
   const prompt = `
@@ -39,11 +57,13 @@ export const generateClinicalDocumentWithGemini = async (formData: {
 // FUNCIÓN DE CONSULTA GENERAL Y MULTIMODAL
 export const consultarGeminiConArchivo = async (
   prompt: string,
-  apiKey: string,
+  apiKeyDada?: string,
   archivo?: { base64: string; mimeType: string } | null
 ) => {
-  if (!apiKey || !apiKey.trim()) {
-    throw new Error("No hay API Key configurada. Por favor regístrala en el módulo Generador IA.");
+  const apiKey = obtenerApiKeyGuardada(apiKeyDada);
+
+  if (!apiKey) {
+    throw new Error("No hay API Key configurada. Por favor regístrala en el módulo 'Control & Métricas' o 'Generador IA Gemini'.");
   }
 
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODELO_GEMINI}:generateContent?key=${apiKey}`;
