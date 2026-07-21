@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { consultarGeminiConArchivo } from "../Services/gemini";
 
 interface Mensaje {
@@ -7,14 +7,22 @@ interface Mensaje {
 }
 
 export default function TutorClinico() {
-  // Lee la API key guardada en segundo plano de forma automática
-  const [apiKey] = useState(() => localStorage.getItem("gemini_api_key") || "");
+  const [apiKey, setApiKey] = useState(() => localStorage.getItem("google_ai_key") || localStorage.getItem("gemini_api_key") || "");
   const [promptUsuario, setPromptUsuario] = useState("");
   const [historial, setHistorial] = useState<Mensaje[]>([
     { remitente: "ia", texto: "¡Hola! Soy tu Instructor Clínico IA. Puedes preguntarme dudas, pegarme transcripciones o adjuntar PDFs para que los analicemos." }
   ]);
   const [cargando, setCargando] = useState(false);
   const [archivoAdjunto, setArchivoAdjunto] = useState<{ nombre: string, base64: string, mimeType: string } | null>(null);
+
+  useEffect(() => {
+    const handleStorage = () => {
+      const key = localStorage.getItem("google_ai_key") || localStorage.getItem("gemini_api_key") || "";
+      setApiKey(key);
+    };
+    window.addEventListener("storage", handleStorage);
+    return () => window.removeEventListener("storage", handleStorage);
+  }, []);
 
   const handleSubirArchivo = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -31,8 +39,9 @@ export default function TutorClinico() {
   };
 
   const enviarConsulta = async () => {
-    if (!apiKey.trim()) {
-      alert("⚠️ No se encontró una API Key de Gemini configurada. Por favor ve al módulo 'Generador IA Gemini' e ingrésala por única vez.");
+    const currentKey = localStorage.getItem("google_ai_key") || localStorage.getItem("gemini_api_key") || apiKey;
+    if (!currentKey.trim()) {
+      alert("⚠️ No se encontró una API Key de Gemini configurada. Por favor ve al módulo 'Control & Métricas' e ingrésala.");
       return;
     }
     if (!promptUsuario.trim() && !archivoAdjunto) return;
@@ -48,8 +57,7 @@ export default function TutorClinico() {
       
       Consulta del usuario: ${textoPregunta}`;
 
-      // Enviamos el archivo SOLO si existe de verdad
-      const respuestaIA = await consultarGeminiConArchivo(promptSistema, apiKey, archivoAdjunto || undefined);
+      const respuestaIA = await consultarGeminiConArchivo(promptSistema, currentKey, archivoAdjunto || undefined);
 
       setHistorial(prev => [...prev, { remitente: "ia", texto: respuestaIA }]);
       setArchivoAdjunto(null); 
@@ -61,16 +69,12 @@ export default function TutorClinico() {
 
   return (
     <div className="p-6 max-w-7xl mx-auto h-[85vh] flex flex-col">
-      {/* HEADER LIMPIO (Sin cajón de API Key estorbando) */}
       <div className="mb-4">
         <h1 className="text-2xl font-bold text-gray-800">Instructor Clínico IA</h1>
         <p className="text-sm text-gray-500">Resuelve casos, analiza transcripciones, procesa PDFs y aclara dudas complejas.</p>
       </div>
 
-      {/* CONTENEDOR DE CHAT */}
       <div className="flex-1 bg-white rounded-lg shadow-sm border border-gray-200 flex flex-col overflow-hidden">
-        
-        {/* HISTORIAL */}
         <div className="flex-1 p-6 overflow-y-auto space-y-4 bg-[#fafafa]">
           {historial.map((msg, index) => (
             <div key={index} className={`flex ${msg.remitente === 'usuario' ? 'justify-end' : 'justify-start'}`}>
@@ -88,7 +92,6 @@ export default function TutorClinico() {
           )}
         </div>
 
-        {/* BARRA INFERIOR */}
         <div className="p-4 bg-white border-t border-gray-200 flex flex-col gap-2">
           {archivoAdjunto && (
             <div className="flex items-center gap-2 bg-blue-50 text-blue-700 px-3 py-1 rounded text-xs border border-blue-200 w-fit">

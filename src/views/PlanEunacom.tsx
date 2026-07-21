@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { consultarGeminiConArchivo } from "../Services/gemini";
-import { TEMARIO_BASE } from "../data/temasEunacom"; // <-- AQUí SE IMPORTAN LOS 99 TEMAS
+import { TEMARIO_BASE } from "../data/temasEunacom";
 
 interface Flashcard {
   pregunta: string;
@@ -29,7 +29,7 @@ export default function PlanEunacom() {
   const [temaSeleccionado, setTemaSeleccionado] = useState<Tema>(temas[0]);
   const [modo, setModo] = useState<"apuntes" | "flashcards">("apuntes");
   const [cargando, setCargando] = useState(false);
-  const [apiKey, setApiKey] = useState(localStorage.getItem("gemini_api_key") || "");
+  const [apiKey] = useState(() => localStorage.getItem("google_ai_key") || localStorage.getItem("gemini_api_key") || "");
   const [archivoAdjunto, setArchivoAdjunto] = useState<{ nombre: string, base64: string, mimeType: string } | null>(null);
   const [indiceTarjeta, setIndiceTarjeta] = useState(0);
   const [mostrarRespuesta, setMostrarRespuesta] = useState(false);
@@ -54,8 +54,16 @@ export default function PlanEunacom() {
     reader.readAsDataURL(file);
   };
 
+  const cambiarEstadoTema = (nuevoEstado: "🔴 Pendiente" | "🟡 Repasando" | "🟢 Dominado") => {
+    setTemas(temas.map(t => t.id === temaSeleccionado.id ? { ...t, estado: nuevoEstado } : t));
+  };
+
   const generarFlashcards = async () => {
-    if (!apiKey.trim()) return alert("Falta tu API Key");
+    const currentKey = localStorage.getItem("google_ai_key") || localStorage.getItem("gemini_api_key") || apiKey;
+    if (!currentKey.trim()) {
+      alert("⚠️ No se encontró una API Key de Gemini configurada. Por favor ve al módulo 'Control & Métricas' e ingrésala.");
+      return;
+    }
     setCargando(true);
     try {
       let prompt = `Actúa como tutor EUNACOM. Genera 5 flashcards avanzadas sobre: "${temaSeleccionado.titulo}". Apuntes previos: "${temaSeleccionado.apuntes}". `;
@@ -64,7 +72,7 @@ export default function PlanEunacom() {
       }
       prompt += `REGLA: Devuelve ÚNICAMENTE un arreglo JSON válido (sin markdown): [{"pregunta": "...", "respuesta": "..."}]`;
       
-      const resText = await consultarGeminiConArchivo(prompt, apiKey, archivoAdjunto || undefined);
+      const resText = await consultarGeminiConArchivo(prompt, currentKey, archivoAdjunto || undefined);
       const textoLimpio = resText.replace(/```json/g, '').replace(/```/g, '').trim();
       const nuevasFlashcards: Flashcard[] = JSON.parse(textoLimpio);
       
@@ -106,25 +114,48 @@ export default function PlanEunacom() {
           </div>
         </div>
         <div className="w-2/3 bg-white rounded-lg shadow-sm border border-gray-200 flex flex-col overflow-hidden">
-          <div className="bg-slate-50 p-4 border-b flex justify-between items-center">
+          <div className="bg-slate-50 p-4 border-b flex justify-between items-center flex-wrap gap-2">
             <h2 className="font-bold text-lg text-gray-800">{temaSeleccionado.titulo}</h2>
+            
+            {/* SELECTOR DE ESTADO DEL TEMA */}
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-gray-500">Estado:</span>
+              <select 
+                value={temaSeleccionado.estado} 
+                onChange={(e) => cambiarEstadoTema(e.target.value as any)}
+                className="text-xs font-bold px-2 py-1.5 border rounded-lg bg-white shadow-sm outline-none cursor-pointer"
+              >
+                <option value="🔴 Pendiente">🔴 Pendiente</option>
+                <option value="🟡 Repasando">🟡 Repasando</option>
+                <option value="🟢 Dominado">🟢 Dominado</option>
+              </select>
+            </div>
+
             <div className="flex gap-2">
               <button onClick={() => setModo("apuntes")} className={`px-4 py-1 rounded text-sm font-bold ${modo === "apuntes" ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>📝 Apuntes</button>
               <button onClick={() => setModo("flashcards")} className={`px-4 py-1 rounded text-sm font-bold ${modo === "flashcards" ? 'bg-purple-600 text-white' : 'bg-gray-200'}`}>🧠 Flashcards IA</button>
             </div>
           </div>
-          <div className="flex-1 p-6 overflow-y-auto bg-[#fafafa]">
+
+          <div className="flex-1 p-6 overflow-y-auto bg-[#fafafa] flex flex-col">
             {modo === "apuntes" ? (
-              <textarea value={temaSeleccionado.apuntes} onChange={(e) => actualizarApuntes(e.target.value)} className="w-full h-full resize-none outline-none bg-transparent" placeholder="Escribe tus apuntes o mnemotecnias..." />
+              <div className="flex flex-col h-full">
+                <p className="text-xs text-gray-400 mb-2 font-medium">Escribe tus apuntes, perlas clínicas o mnemotecnias (se guardan automáticamente):</p>
+                <textarea 
+                  value={temaSeleccionado.apuntes} 
+                  onChange={(e) => actualizarApuntes(e.target.value)} 
+                  className="flex-1 w-full p-4 border border-gray-300 rounded-lg outline-none bg-white shadow-sm resize-none focus:ring-2 focus:ring-blue-500 text-gray-800 text-sm leading-relaxed" 
+                  placeholder="Escribe aquí tus apuntes del tema..." 
+                />
+              </div>
             ) : (
               <div className="flex flex-col h-full items-center">
                  <div className="flex flex-col gap-2 w-full mb-6 bg-white p-4 rounded border shadow-sm">
-                    <div className="flex gap-2">
-                      <input type="password" placeholder="🔑 API Key Gemini..." value={apiKey} onChange={(e) => { setApiKey(e.target.value); localStorage.setItem("gemini_api_key", e.target.value); }} className="flex-1 px-3 py-2 border rounded text-sm" />
+                    <div className="flex gap-2 items-center">
                       <input type="file" id="subir-pdf" accept=".pdf, image/*" onChange={handleSubirArchivo} className="hidden" />
-                      <label htmlFor="subir-pdf" className="bg-gray-200 hover:bg-gray-300 px-4 py-2 rounded text-sm font-bold cursor-pointer flex items-center">📎 Adjuntar</label>
-                      <button onClick={generarFlashcards} disabled={cargando} className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-2 rounded text-sm font-bold disabled:opacity-50">
-                        {cargando ? "Leyendo..." : "Generar ⚡"}
+                      <label htmlFor="subir-pdf" className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded text-sm font-bold cursor-pointer flex items-center border">📎 Adjuntar Documento</label>
+                      <button onClick={generarFlashcards} disabled={cargando} className="bg-purple-600 hover:bg-purple-700 text-white ml-auto px-6 py-2 rounded text-sm font-bold disabled:opacity-50">
+                        {cargando ? "Generando..." : "Generar Flashcards ⚡"}
                       </button>
                     </div>
                     {archivoAdjunto && (
@@ -135,7 +166,7 @@ export default function PlanEunacom() {
                     )}
                  </div>
                  {temaSeleccionado.flashcards.length > 0 ? (
-                    <div className="w-full max-w-lg flex flex-col items-center">
+                    <div className="w-full max-w-lg flex flex-col items-center my-auto">
                       <div className="text-gray-500 font-bold mb-4">Tarjeta {indiceTarjeta + 1} de {temaSeleccionado.flashcards.length}</div>
                       <div onClick={() => setMostrarRespuesta(!mostrarRespuesta)} className={`w-full h-64 p-8 rounded-xl shadow-lg flex items-center justify-center text-center cursor-pointer transition-all ${mostrarRespuesta ? 'bg-purple-50 border-2 border-purple-200' : 'bg-white border-2 border-gray-200'}`}>
                         <p className={`text-xl font-medium ${mostrarRespuesta ? 'text-purple-800' : 'text-gray-800'}`}>{mostrarRespuesta ? temaSeleccionado.flashcards[indiceTarjeta].respuesta : temaSeleccionado.flashcards[indiceTarjeta].pregunta}</p>
@@ -146,7 +177,7 @@ export default function PlanEunacom() {
                         <button onClick={() => { setIndiceTarjeta(Math.min(temaSeleccionado.flashcards.length - 1, indiceTarjeta + 1)); setMostrarRespuesta(false); }} disabled={indiceTarjeta === temaSeleccionado.flashcards.length - 1} className="px-4 py-2 bg-blue-600 text-white rounded font-bold disabled:opacity-50">Siguiente ▶</button>
                       </div>
                     </div>
-                 ) : <div className="flex-1 flex items-center justify-center text-gray-400">No hay flashcards para este tema todavía. ¡Genera algunas!</div>}
+                 ) : <div className="flex-1 flex items-center justify-center text-gray-400">No hay flashcards para este tema todavía. ¡Genera algunas con IA!</div>}
               </div>
             )}
           </div>
