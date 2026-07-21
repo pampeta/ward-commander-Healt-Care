@@ -16,7 +16,7 @@ export default function Login() {
       if (error) {
         alert(`Error al registrarse: ${error.message}`);
       } else {
-        alert('¡Registro exitoso! Revisa tu correo para confirmar o inicia sesión.');
+        alert('¡Registro exitoso! Revisa tu correo o inicia sesión.');
         setEsRegistro(false);
       }
     } else {

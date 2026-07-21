@@ -15,13 +15,11 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<string>("ia");
 
   useEffect(() => {
-    // 1. Obtener la sesión actual al cargar la app
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setCargandoSesion(false);
     });
 
-    // 2. Escuchar cambios de sesión (login, logout)
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
@@ -40,7 +38,6 @@ export default function App() {
     );
   }
 
-  // Si no ha iniciado sesión, mostramos la pantalla de Login
   if (!session) {
     return <Login />;
   }
@@ -67,7 +64,6 @@ export default function App() {
   return (
     <DesktopLayout activeTab={activeTab} setActiveTab={setActiveTab}>
       <div className="relative h-full flex flex-col">
-        {/* Botón flotante para cerrar sesión de forma segura */}
         <div className="absolute top-2 right-4 z-50">
           <button
             onClick={() => supabase.auth.signOut()}
