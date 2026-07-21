@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { consultarGeminiConArchivo } from "../Services/gemini";
 
 interface Mensaje {
@@ -7,22 +7,12 @@ interface Mensaje {
 }
 
 export default function TutorClinico() {
-  const [apiKey, setApiKey] = useState(() => localStorage.getItem("google_ai_key") || localStorage.getItem("gemini_api_key") || "");
   const [promptUsuario, setPromptUsuario] = useState("");
   const [historial, setHistorial] = useState<Mensaje[]>([
     { remitente: "ia", texto: "¡Hola! Soy tu Instructor Clínico IA. Puedes preguntarme dudas, pegarme transcripciones o adjuntar PDFs para que los analicemos." }
   ]);
   const [cargando, setCargando] = useState(false);
   const [archivoAdjunto, setArchivoAdjunto] = useState<{ nombre: string, base64: string, mimeType: string } | null>(null);
-
-  useEffect(() => {
-    const handleStorage = () => {
-      const key = localStorage.getItem("google_ai_key") || localStorage.getItem("gemini_api_key") || "";
-      setApiKey(key);
-    };
-    window.addEventListener("storage", handleStorage);
-    return () => window.removeEventListener("storage", handleStorage);
-  }, []);
 
   const handleSubirArchivo = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -39,9 +29,10 @@ export default function TutorClinico() {
   };
 
   const enviarConsulta = async () => {
-    const currentKey = localStorage.getItem("google_ai_key") || localStorage.getItem("gemini_api_key") || apiKey;
+    // Unificado exactamente con el nombre que usa el Generador IA Gemini
+    const currentKey = localStorage.getItem("gemini_api_key") || "";
     if (!currentKey.trim()) {
-      alert("⚠️ No se encontró una API Key de Gemini configurada. Por favor ve al módulo 'Control & Métricas' e ingrésala.");
+      alert("⚠️ No se encontró una API Key de Gemini configurada. Por favor ve al módulo 'Generador IA Gemini' e ingrésala.");
       return;
     }
     if (!promptUsuario.trim() && !archivoAdjunto) return;

@@ -29,7 +29,6 @@ export default function PlanEunacom() {
   const [temaSeleccionado, setTemaSeleccionado] = useState<Tema>(temas[0]);
   const [modo, setModo] = useState<"apuntes" | "flashcards">("apuntes");
   const [cargando, setCargando] = useState(false);
-  const [apiKey] = useState(() => localStorage.getItem("google_ai_key") || localStorage.getItem("gemini_api_key") || "");
   const [archivoAdjunto, setArchivoAdjunto] = useState<{ nombre: string, base64: string, mimeType: string } | null>(null);
   const [indiceTarjeta, setIndiceTarjeta] = useState(0);
   const [mostrarRespuesta, setMostrarRespuesta] = useState(false);
@@ -59,9 +58,10 @@ export default function PlanEunacom() {
   };
 
   const generarFlashcards = async () => {
-    const currentKey = localStorage.getItem("google_ai_key") || localStorage.getItem("gemini_api_key") || apiKey;
+    // Unificado exactamente con el nombre que usa el Generador IA Gemini
+    const currentKey = localStorage.getItem("gemini_api_key") || "";
     if (!currentKey.trim()) {
-      alert("⚠️ No se encontró una API Key de Gemini configurada. Por favor ve al módulo 'Control & Métricas' e ingrésala.");
+      alert("⚠️ No se encontró una API Key de Gemini configurada. Por favor ve al módulo 'Generador IA Gemini' e ingrésala.");
       return;
     }
     setCargando(true);
@@ -117,7 +117,6 @@ export default function PlanEunacom() {
           <div className="bg-slate-50 p-4 border-b flex justify-between items-center flex-wrap gap-2">
             <h2 className="font-bold text-lg text-gray-800">{temaSeleccionado.titulo}</h2>
             
-            {/* SELECTOR DE ESTADO DEL TEMA */}
             <div className="flex items-center gap-2">
               <span className="text-xs font-bold text-gray-500">Estado:</span>
               <select 
