@@ -1,10 +1,6 @@
 import { useState } from "react";
 import { consultarGeminiConArchivo } from "../Services/gemini";
 
-interface Mensaje {
-  remitente: "usuario" | "ia";
-}
-
 export default function TutorClinico() {
   const [apiKey, setApiKey] = useState(() => localStorage.getItem("gemini_api_key") || "");
   const [promptUsuario, setPromptUsuario] = useState("");
@@ -70,7 +66,6 @@ export default function TutorClinico() {
           <h1 className="text-2xl font-bold text-gray-800">Instructor Clínico IA</h1>
           <p className="text-sm text-gray-500">Resuelve casos, analiza transcripciones, procesa PDFs y aclara dudas complejas.</p>
         </div>
-        {/* BARRA DISCRETA PARA CONFIGURAR LA API KEY SI FALTA */}
         <div className="flex items-center gap-2 bg-white p-2 rounded-lg border shadow-sm">
           <span className="text-xs font-bold text-gray-600">🔑 API Key:</span>
           <input 
