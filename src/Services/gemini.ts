@@ -1,10 +1,21 @@
-// Configuración base de servicios para Gemini con el modelo oficial vigente
 const MODELO_GEMINI = "gemini-3.5-flash"; 
 
-// Función auxiliar interna para obtener la API Key desde cualquier módulo donde se haya guardado
 const obtenerApiKeyGuardada = (apiKeyDada?: string): string => {
   if (apiKeyDada && apiKeyDada.trim()) return apiKeyDada.trim();
   
+  // Revisamos todas las posibles llaves donde se haya podido guardar en localStorage
+  if (typeof window !== "undefined") {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && (key.includes("gemini") || key.includes("google") || key.includes("ai_key"))) {
+        const val = localStorage.getItem(key);
+        if (val && val.trim().startsWith("AIza")) {
+          return val.trim();
+        }
+      }
+    }
+  }
+
   return (
     localStorage.getItem("gemini_api_key") ||
     localStorage.getItem("google_ai_key") ||
@@ -54,7 +65,6 @@ export const generateClinicalDocumentWithGemini = async (formData: {
   };
 };
 
-// FUNCIÓN DE CONSULTA GENERAL Y MULTIMODAL
 export const consultarGeminiConArchivo = async (
   prompt: string,
   apiKeyDada?: string,
