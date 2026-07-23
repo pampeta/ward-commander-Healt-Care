@@ -30,14 +30,31 @@ export default function PlanEunacom() {
   const [modo, setModo] = useState<"apuntes" | "flashcards">("apuntes");
   const [cargando, setCargando] = useState(false);
   const [archivoAdjunto, setArchivoAdjunto] = useState<{ nombre: string, base64: string, mimeType: string } | null>(null);
+  
+  // Navegación del mazo guardado
   const [indiceTarjeta, setIndiceTarjeta] = useState(0);
   const [mostrarRespuesta, setMostrarRespuesta] = useState(false);
+
+  // Lote pendiente de nuevas tarjetas generadas por IA antes de guardarlas
+  const [loteNuevo, setLoteNuevo] = useState<Flashcard[]>([]);
+  const [indiceLoteNuevo, setIndiceLoteNuevo] = useState(0);
+  const [mostrarRespuestaLote, setMostrarRespuestaLote] = useState(false);
 
   useEffect(() => {
     localStorage.setItem("wardcommander_temas_eunacom", JSON.stringify(temas));
     const temaActualizado = temas.find(t => t.id === temaSeleccionado.id);
     if (temaActualizado) setTemaSeleccionado(temaActualizado);
   }, [temas]);
+
+  // Al cambiar de tema, limpiamos el lote temporal generado
+  const seleccionarTema = (tema: Tema) => {
+    setTemaSeleccionado(tema);
+    setIndiceTarjeta(0);
+    setMostrarRespuesta(false);
+    setLoteNuevo([]);
+    setIndiceLoteNuevo(0);
+    setMostrarRespuestaLote(false);
+  };
 
   const handleSubirArchivo = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -68,16 +85,33 @@ export default function PlanEunacom() {
       
       const resText = await consultarGeminiConArchivo(prompt, undefined, archivoAdjunto || undefined);
       const textoLimpio = resText.replace(/```json/g, '').replace(/```/g, '').trim();
-      const nuevasFlashcards: Flashcard[] = JSON.parse(textoLimpio);
+      const nuevasGeneradas: Flashcard[] = JSON.parse(textoLimpio);
       
-      setTemas(temas.map(t => t.id === temaSeleccionado.id ? { ...t, flashcards: nuevasFlashcards } : t));
-      setIndiceTarjeta(0);
-      setMostrarRespuesta(false);
+      setLoteNuevo(nuevasGeneradas);
+      setIndiceLoteNuevo(0);
+      setMostrarRespuestaLote(false);
       setArchivoAdjunto(null);
     } catch (e: any) {
       alert(`Error al generar con Gemini: ${e.message}`);
     }
     setCargando(false);
+  };
+
+  // Botón para guardar las nuevas tarjetas al mazo principal evitando duplicadas
+  const guardarLoteEnMazo = () => {
+    if (loteNuevo.length === 0) return;
+
+    const existentes = temaSeleccionado.flashcards || [];
+    const preguntasExistentes = new Set(existentes.map(f => f.pregunta.trim().toLowerCase()));
+
+    // Filtramos para que no se repitan las que ya están guardadas
+    const tarjetasUnicas = loteNuevo.filter(nueva => !preguntasExistentes.has(nueva.pregunta.trim().toLowerCase()));
+
+    const combinadas = [...existentes, ...tarjetasUnicas];
+
+    setTemas(temas.map(t => t.id === temaSeleccionado.id ? { ...t, flashcards: combinadas } : t));
+    setLoteNuevo([]);
+    alert(`✅ Se han guardado ${tarjetasUnicas.length} tarjetas nuevas al mazo principal (${loteNuevo.length - tarjetasUnicas.length} omitidas por estar repetidas).`);
   };
 
   const actualizarApuntes = (texto: string) => setTemas(temas.map(t => t.id === temaSeleccionado.id ? { ...t, apuntes: texto } : t));
@@ -102,10 +136,13 @@ export default function PlanEunacom() {
           <div className="bg-slate-50 p-4 border-b font-semibold text-gray-700">Índice Temático</div>
           <div className="overflow-y-auto flex-1 p-2 space-y-2">
             {temas.map(tema => (
-              <button key={tema.id} onClick={() => { setTemaSeleccionado(tema); setIndiceTarjeta(0); setMostrarRespuesta(false); }} className={`w-full text-left p-3 rounded transition-all ${temaSeleccionado.id === tema.id ? 'bg-blue-50 border-blue-200 border shadow-sm' : 'hover:bg-slate-50 border border-transparent'}`}>
+              <button key={tema.id} onClick={() => seleccionarTema(tema)} className={`w-full text-left p-3 rounded transition-all ${temaSeleccionado.id === tema.id ? 'bg-blue-50 border-blue-200 border shadow-sm' : 'hover:bg-slate-50 border border-transparent'}`}>
                 <div className="text-xs text-gray-500 mb-1 font-semibold">{tema.categoria}</div>
                 <div className="font-medium text-gray-800 leading-tight">{tema.titulo}</div>
-                <div className="text-xs mt-2 font-bold">{tema.estado}</div>
+                <div className="flex justify-between items-center mt-2">
+                  <span className="text-xs font-bold">{tema.estado}</span>
+                  <span className="text-[10px] bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-bold">🧠 {tema.flashcards?.length || 0} guardadas</span>
+                </div>
               </button>
             ))}
           </div>
@@ -129,7 +166,7 @@ export default function PlanEunacom() {
 
             <div className="flex gap-2">
               <button onClick={() => setModo("apuntes")} className={`px-4 py-1 rounded text-sm font-bold ${modo === "apuntes" ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>📝 Apuntes</button>
-              <button onClick={() => setModo("flashcards")} className={`px-4 py-1 rounded text-sm font-bold ${modo === "flashcards" ? 'bg-purple-600 text-white' : 'bg-gray-200'}`}>🧠 Flashcards IA</button>
+              <button onClick={() => setModo("flashcards")} className={`px-4 py-1 rounded text-sm font-bold ${modo === "flashcards" ? 'bg-purple-600 text-white' : 'bg-gray-200'}`}>🧠 Flashcards IA ({temaSeleccionado.flashcards?.length || 0})</button>
             </div>
           </div>
 
@@ -147,11 +184,11 @@ export default function PlanEunacom() {
             ) : (
               <div className="flex flex-col h-full items-center">
                  <div className="flex flex-col gap-2 w-full mb-6 bg-white p-4 rounded border shadow-sm">
-                    <div className="flex gap-2 items-center">
+                    <div className="flex gap-2 items-center flex-wrap">
                       <input type="file" id="subir-pdf" accept=".pdf, image/*" onChange={handleSubirArchivo} className="hidden" />
                       <label htmlFor="subir-pdf" className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded text-sm font-bold cursor-pointer flex items-center border">📎 Adjuntar Documento</label>
                       <button onClick={generarFlashcards} disabled={cargando} className="bg-purple-600 hover:bg-purple-700 text-white ml-auto px-6 py-2 rounded text-sm font-bold disabled:opacity-50">
-                        {cargando ? "Generando..." : "Generar Flashcards ⚡"}
+                        {cargando ? "Generando..." : "Generar Nuevas ⚡"}
                       </button>
                     </div>
                     {archivoAdjunto && (
@@ -161,9 +198,34 @@ export default function PlanEunacom() {
                       </div>
                     )}
                  </div>
-                 {temaSeleccionado.flashcards.length > 0 ? (
+
+                 {/* SECCIÓN DE TARJETAS RECIÉN GENERADAS (LOTE NUEVO PENDIENTE DE GUARDAR) */}
+                 {loteNuevo.length > 0 && (
+                   <div className="w-full bg-amber-50 border-2 border-amber-300 rounded-xl p-4 mb-6 shadow-md flex flex-col items-center">
+                      <div className="flex justify-between items-center w-full mb-2">
+                        <span className="text-xs font-bold text-amber-800 uppercase tracking-wide">✨ Lote Nuevo Generado (Pendiente de Guardar)</span>
+                        <button onClick={guardarLoteEnMazo} className="bg-green-600 hover:bg-green-700 text-white px-4 py-1.5 rounded-lg text-xs font-bold shadow transition-all">
+                          💾 Guardar en el Mazo ({loteNuevo.length})
+                        </button>
+                      </div>
+                      
+                      <div className="text-xs text-gray-500 font-semibold mb-2">Tarjeta {indiceLoteNuevo + 1} de {loteNuevo.length}</div>
+                      <div onClick={() => setMostrarRespuestaLote(!mostrarRespuestaLote)} className={`w-full max-w-md h-36 p-4 rounded-lg shadow bg-white border border-amber-200 flex items-center justify-center text-center cursor-pointer transition-all`}>
+                        <p className={`text-sm font-medium ${mostrarRespuestaLote ? 'text-purple-800' : 'text-gray-800'}`}>
+                          {mostrarRespuestaLote ? loteNuevo[indiceLoteNuevo].respuesta : loteNuevo[indiceLoteNuevo].pregunta}
+                        </p>
+                      </div>
+                      <div className="flex justify-center gap-3 mt-3">
+                        <button onClick={() => { setIndiceLoteNuevo(Math.max(0, indiceLoteNuevo - 1)); setMostrarRespuestaLote(false); }} disabled={indiceLoteNuevo === 0} className="px-3 py-1 bg-white border rounded text-xs font-bold disabled:opacity-50">◀ Anterior</button>
+                        <button onClick={() => { setIndiceLoteNuevo(Math.min(loteNuevo.length - 1, indiceLoteNuevo + 1)); setMostrarRespuestaLote(false); }} disabled={indiceLoteNuevo === loteNuevo.length - 1} className="px-3 py-1 bg-amber-600 text-white rounded text-xs font-bold disabled:opacity-50">Siguiente ▶</button>
+                      </div>
+                   </div>
+                 )}
+
+                 {/* MAZO PRINCIPAL DE TARJETAS GUARDADAS */}
+                 {temaSeleccionado.flashcards && temaSeleccionado.flashcards.length > 0 ? (
                     <div className="w-full max-w-lg flex flex-col items-center my-auto">
-                      <div className="text-gray-500 font-bold mb-4">Tarjeta {indiceTarjeta + 1} de {temaSeleccionado.flashcards.length}</div>
+                      <div className="text-gray-500 font-bold mb-2">Mazo Guardado - Tarjeta {indiceTarjeta + 1} de {temaSeleccionado.flashcards.length}</div>
                       <div onClick={() => setMostrarRespuesta(!mostrarRespuesta)} className={`w-full h-64 p-8 rounded-xl shadow-lg flex items-center justify-center text-center cursor-pointer transition-all ${mostrarRespuesta ? 'bg-purple-50 border-2 border-purple-200' : 'bg-white border-2 border-gray-200'}`}>
                         <p className={`text-xl font-medium ${mostrarRespuesta ? 'text-purple-800' : 'text-gray-800'}`}>{mostrarRespuesta ? temaSeleccionado.flashcards[indiceTarjeta].respuesta : temaSeleccionado.flashcards[indiceTarjeta].pregunta}</p>
                       </div>
@@ -173,7 +235,9 @@ export default function PlanEunacom() {
                         <button onClick={() => { setIndiceTarjeta(Math.min(temaSeleccionado.flashcards.length - 1, indiceTarjeta + 1)); setMostrarRespuesta(false); }} disabled={indiceTarjeta === temaSeleccionado.flashcards.length - 1} className="px-4 py-2 bg-blue-600 text-white rounded font-bold disabled:opacity-50">Siguiente ▶</button>
                       </div>
                     </div>
-                 ) : <div className="flex-1 flex items-center justify-center text-gray-400">No hay flashcards para este tema todavía. ¡Genera algunas con IA!</div>}
+                 ) : (
+                   !loteNuevo.length && <div className="flex-1 flex items-center justify-center text-gray-400 text-center">No hay flashcards guardadas en este tema todavía. ¡Genera algunas nuevas con IA!</div>
+                 )}
               </div>
             )}
           </div>
