@@ -28,13 +28,7 @@ export default function TutorClinico() {
     reader.readAsDataURL(file);
   };
 
-  const enviarConsulta = async () => {
-    // Unificado exactamente con el nombre que usa el Generador IA Gemini
-    const currentKey = localStorage.getItem("gemini_api_key") || "";
-    if (!currentKey.trim()) {
-      alert("⚠️ No se encontró una API Key de Gemini configurada. Por favor ve al módulo 'Generador IA Gemini' e ingrésala.");
-      return;
-    }
+const enviarConsulta = async () => {
     if (!promptUsuario.trim() && !archivoAdjunto) return;
 
     const textoPregunta = promptUsuario;
@@ -48,7 +42,8 @@ export default function TutorClinico() {
       
       Consulta del usuario: ${textoPregunta}`;
 
-      const respuestaIA = await consultarGeminiConArchivo(promptSistema, currentKey, archivoAdjunto || undefined);
+      // Pasamos undefined como apiKey para que gemini.ts la tome automáticamente de localStorage
+      const respuestaIA = await consultarGeminiConArchivo(promptSistema, undefined, archivoAdjunto || undefined);
 
       setHistorial(prev => [...prev, { remitente: "ia", texto: respuestaIA }]);
       setArchivoAdjunto(null); 

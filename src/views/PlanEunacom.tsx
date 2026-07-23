@@ -57,13 +57,7 @@ export default function PlanEunacom() {
     setTemas(temas.map(t => t.id === temaSeleccionado.id ? { ...t, estado: nuevoEstado } : t));
   };
 
-  const generarFlashcards = async () => {
-    // Unificado exactamente con el nombre que usa el Generador IA Gemini
-    const currentKey = localStorage.getItem("gemini_api_key") || "";
-    if (!currentKey.trim()) {
-      alert("⚠️ No se encontró una API Key de Gemini configurada. Por favor ve al módulo 'Generador IA Gemini' e ingrésala.");
-      return;
-    }
+const generarFlashcards = async () => {
     setCargando(true);
     try {
       let prompt = `Actúa como tutor EUNACOM. Genera 5 flashcards avanzadas sobre: "${temaSeleccionado.titulo}". Apuntes previos: "${temaSeleccionado.apuntes}". `;
@@ -72,7 +66,8 @@ export default function PlanEunacom() {
       }
       prompt += `REGLA: Devuelve ÚNICAMENTE un arreglo JSON válido (sin markdown): [{"pregunta": "...", "respuesta": "..."}]`;
       
-      const resText = await consultarGeminiConArchivo(prompt, currentKey, archivoAdjunto || undefined);
+      // Pasamos undefined para que gemini.ts busque la clave guardada en el navegador
+      const resText = await consultarGeminiConArchivo(prompt, undefined, archivoAdjunto || undefined);
       const textoLimpio = resText.replace(/```json/g, '').replace(/```/g, '').trim();
       const nuevasFlashcards: Flashcard[] = JSON.parse(textoLimpio);
       
