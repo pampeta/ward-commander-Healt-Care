@@ -57,7 +57,7 @@ export default function PlanEunacom() {
     setTemas(temas.map(t => t.id === temaSeleccionado.id ? { ...t, estado: nuevoEstado } : t));
   };
 
-const generarFlashcards = async () => {
+  const generarFlashcards = async () => {
     setCargando(true);
     try {
       let prompt = `Actúa como tutor EUNACOM. Genera 5 flashcards avanzadas sobre: "${temaSeleccionado.titulo}". Apuntes previos: "${temaSeleccionado.apuntes}". `;
@@ -66,7 +66,6 @@ const generarFlashcards = async () => {
       }
       prompt += `REGLA: Devuelve ÚNICAMENTE un arreglo JSON válido (sin markdown): [{"pregunta": "...", "respuesta": "..."}]`;
       
-      // Pasamos undefined para que gemini.ts busque la clave guardada en el navegador
       const resText = await consultarGeminiConArchivo(prompt, undefined, archivoAdjunto || undefined);
       const textoLimpio = resText.replace(/```json/g, '').replace(/```/g, '').trim();
       const nuevasFlashcards: Flashcard[] = JSON.parse(textoLimpio);
@@ -76,7 +75,7 @@ const generarFlashcards = async () => {
       setMostrarRespuesta(false);
       setArchivoAdjunto(null);
     } catch (e: any) {
-      alert(`Error: ${e.message}`);
+      alert(`Error al generar con Gemini: ${e.message}`);
     }
     setCargando(false);
   };
@@ -86,15 +85,18 @@ const generarFlashcards = async () => {
 
   return (
     <div className="p-6 max-w-7xl mx-auto h-[85vh] flex flex-col">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-800 mb-2">Plan EUNACOM - {temas.length} Temas</h1>
-        <div className="flex items-center gap-4">
-          <div className="w-full bg-gray-200 rounded-full h-4 flex-1 overflow-hidden">
-            <div className="bg-green-500 h-full rounded-full transition-all duration-500" style={{ width: `${calculoProgreso}%` }}></div>
+      <div className="mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-800 mb-1">Plan EUNACOM - {temas.length} Temas</h1>
+          <div className="flex items-center gap-4 w-72 md:w-96">
+            <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden flex-1">
+              <div className="bg-green-500 h-full rounded-full transition-all duration-500" style={{ width: `${calculoProgreso}%` }}></div>
+            </div>
+            <span className="text-xs font-bold text-gray-700">{calculoProgreso}% Dominado</span>
           </div>
-          <span className="font-bold text-gray-700">{calculoProgreso}% Dominado</span>
         </div>
       </div>
+
       <div className="flex gap-6 flex-1 min-h-0">
         <div className="w-1/3 bg-white rounded-lg shadow-sm border border-gray-200 flex flex-col overflow-hidden">
           <div className="bg-slate-50 p-4 border-b font-semibold text-gray-700">Índice Temático</div>
