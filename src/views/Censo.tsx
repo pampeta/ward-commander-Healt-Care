@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Users, Plus, Trash2, Edit3, Save, CheckCircle2, Circle, FileText, Calendar } from "lucide-react";
+import { Users, Plus, Trash2, Edit3, Save, CheckCircle2, Circle, FileText, Calendar, AlertTriangle } from "lucide-react";
 
 interface Pendiente {
   id: string;
@@ -25,13 +25,112 @@ interface PacienteCenso {
   ultimaEvolucionFecha?: string;
 }
 
+interface PatologiaGes {
+  numero: number;
+  nombre: string;
+  keywords: string[];
+}
+
+// 📋 CATÁLOGO COMPLETO GES (1 a 90)
+const LISTA_GES: PatologiaGes[] = [
+  { numero: 1, nombre: "Insuficiencia renal crónica terminal", keywords: ["insuficiencia renal cronica terminal", "irc terminal", "dialisis"] },
+  { numero: 2, nombre: "Cardiopatías congénitas operables", keywords: ["cardiopatia congenita operable"] },
+  { numero: 3, nombre: "Cáncer cervicouterino", keywords: ["cancer cervicouterino", "cacu"] },
+  { numero: 4, nombre: "Alivio del dolor y cuidados paliativos por cáncer avanzado", keywords: ["cuidados paliativos", "alivio del dolor cancer"] },
+  { numero: 5, nombre: "Infarto al corazón", keywords: ["iam", "infarto", "infarto agudo de miocardio", "iamst", "iamsec"] },
+  { numero: 6, nombre: "Diabetes Mellitus tipo 1", keywords: ["dm1", "diabetes mellitus tipo 1", "diabetes tipo 1"] },
+  { numero: 7, nombre: "Diabetes mellitus tipo 2", keywords: ["dm2", "diabetes mellitus tipo 2", "diabetes tipo 2", "diabetico"] },
+  { numero: 8, nombre: "Cáncer de mama", keywords: ["cancer de mama", "neoplasia de mama"] },
+  { numero: 9, nombre: "Disrafias espinales", keywords: ["disrafia espinal", "mielomeningocele"] },
+  { numero: 10, nombre: "Tratamiento quirúrgico de escoliosis en menores de 25 años", keywords: ["escoliosis quirurgica"] },
+  { numero: 11, nombre: "Tratamiento quirúrgico de cataratas", keywords: ["cataratas", "catarata senil"] },
+  { numero: 12, nombre: "Endoprótesis total de cadera en artrosis severa", keywords: ["artrosis de cadera severa", "endoprotesis cadera"] },
+  { numero: 13, nombre: "Fisura labiopalatina", keywords: ["fisura labiopalatina", "labio leporino"] },
+  { numero: 14, nombre: "Cáncer en menores de 15 años", keywords: ["cancer infantil", "cancer pediatrico"] },
+  { numero: 15, nombre: "Esquizofrenia", keywords: ["esquizofrenia", "trastorno esquizofrenico"] },
+  { numero: 16, nombre: "Cáncer de testículo", keywords: ["cancer de testiculo"] },
+  { numero: 17, nombre: "Linfomas", keywords: ["linfoma", "linfoma de hodgkin", "linfoma no hodgkin"] },
+  { numero: 18, nombre: "Síndrome de Inmunodeficiencia Adquirida (VIH/SIDA)", keywords: ["vih", "sida", "vih/sida"] },
+  { numero: 19, nombre: "Infección respiratoria aguda (IRA) en menores de 5 años", keywords: ["ira baja"] },
+  { numero: 20, nombre: "Neumonía en mayores de 65 años", keywords: ["neumonia adquirida en la comunidad", "nac ambulatoria"] },
+  { numero: 21, nombre: "Hipertensión arterial primaria o esencial", keywords: ["hta", "hipertension", "hipertenso"] },
+  { numero: 22, nombre: "Epilepsia no refractaria en menores de 15 años", keywords: ["epilepsia infantil"] },
+  { numero: 23, nombre: "Salud oral integral niños de 6 años", keywords: ["salud oral 6 anos"] },
+  { numero: 24, nombre: "Prevención del parto prematuro", keywords: ["parto prematuro", "amenaza de parto prematuro"] },
+  { numero: 25, nombre: "Trastornos de conducción cardíaca que requieren marcapaso", keywords: ["marcapaso"] },
+  { numero: 26, nombre: "Colecistectomía preventiva cáncer de vesícula", keywords: ["colecistectomia preventiva", "vesicula biliar"] },
+  { numero: 27, nombre: "Cáncer gástrico", keywords: ["cancer gastrico", "adenocarcinoma gastrico"] },
+  { numero: 28, nombre: "Cáncer de próstata", keywords: ["cancer de prostata"] },
+  { numero: 29, nombre: "Vicios de refracción en mayores de 65 años", keywords: ["vicios de refraccion", "presbicia"] },
+  { numero: 30, nombre: "Estrabismo en menores de 9 años", keywords: ["estrabismo infantil"] },
+  { numero: 31, nombre: "Retinopatía diabética", keywords: ["retinopatia diabetica"] },
+  { numero: 32, nombre: "Desprendimiento de retina regmatógeno", keywords: ["desprendimiento de retina"] },
+  { numero: 33, nombre: "Hemofilia", keywords: ["hemofilia"] },
+  { numero: 34, nombre: "Depresión", keywords: ["depresion", "trastorno depresivo"] },
+  { numero: 35, nombre: "Hiperplasia benigna de próstata sintomática", keywords: ["hiperplasia prostatica benigna", "hpb"] },
+  { numero: 36, nombre: "Ayudas técnicas adulto mayor", keywords: ["ayudas tecnicas", "silla de ruedas"] },
+  { numero: 37, nombre: "Ataque Cerebrovascular Isquémico", keywords: ["acv", "accv", "infarto cerebral", "avc isquemico"] },
+  { numero: 38, nombre: "Enfermedad Pulmonar Obstructiva Crónica (EPOC)", keywords: ["epoc", "bronquitis cronica", "enfisema"] },
+  { numero: 39, nombre: "Asma bronquial en menores de 15 años", keywords: ["asma infantil"] },
+  { numero: 40, nombre: "Síndrome de Dificultad Respiratoria en recién nacido", keywords: ["sindrome de dificultad respiratoria neonatal"] },
+  { numero: 41, nombre: "Artrosis de cadera y/o rodilla leve o moderada", keywords: ["artrosis de rodilla", "artrosis de cadera"] },
+  { numero: 42, nombre: "Hemorragia Subaracnoidea por aneurisma", keywords: ["hemorragia subaracnoidea", "hsa"] },
+  { numero: 43, nombre: "Tumores Primarios del Sistema Nervioso Central", keywords: ["tumor cerebral", "glioma", "meningioma"] },
+  { numero: 44, nombre: "Hernia del Núcleo Pulposo Lumbar", keywords: ["hernia del nucleo pulposo", "hnp lumbar"] },
+  { numero: 45, nombre: "Leucemia", keywords: ["leucemia"] },
+  { numero: 46, nombre: "Urgencia Odontológica Ambulatoria", keywords: ["urgencia odontologica"] },
+  { numero: 47, nombre: "Salud Oral Integral de personas de 60 años", keywords: ["salud oral 60 anos"] },
+  { numero: 48, nombre: "Politraumatizado Grave", keywords: ["politraumatizado"] },
+  { numero: 49, nombre: "Traumatismo Cráneo Encefálico moderado o grave", keywords: ["tec moderado", "tec grave"] },
+  { numero: 50, nombre: "Trauma Ocular Grave", keywords: ["trauma ocular grave"] },
+  { numero: 51, nombre: "Fibrosis Quística", keywords: ["fibrosis quistica"] },
+  { numero: 52, nombre: "Artritis Reumatoídea", keywords: ["artritis reumatoide", "ar"] },
+  { numero: 53, nombre: "Consumo perjudicial alcohol y drogas en menores de 20 años", keywords: ["consumo perjudicial alcohol"] },
+  { numero: 54, nombre: "Analgesia del parto", keywords: ["analgesia del parto"] },
+  { numero: 55, nombre: "Gran Quemado", keywords: ["gran quemado"] },
+  { numero: 56, nombre: "Hipoacusia en mayores de 65 años (audífono)", keywords: ["hipoacusia adulto mayor", "audifono"] },
+  { numero: 57, nombre: "Retinopatía del prematuro", keywords: ["retinopatia del prematuro", "rop"] },
+  { numero: 58, nombre: "Displasia broncopulmonar del prematuro", keywords: ["displasia broncopulmonar"] },
+  { numero: 59, nombre: "Hipoacusia neurosensorial bilateral del prematuro", keywords: ["hipoacusia prematuro"] },
+  { numero: 60, nombre: "Epilepsia en mayores de 15 años", keywords: ["epilepsia adulto"] },
+  { numero: 61, nombre: "Asma en mayores de 15 años", keywords: ["asma bronquial adulto"] },
+  { numero: 62, nombre: "Enfermedad de Parkinson", keywords: ["parkinson"] },
+  { numero: 63, nombre: "Artritis idiopática juvenil", keywords: ["artritis idiopatica juvenil"] },
+  { numero: 64, nombre: "Enfermedad renal crónica", keywords: ["enfermedad renal cronica", "erc"] },
+  { numero: 65, nombre: "Displasia luxante de caderas", keywords: ["displasia luxante de cadera", "dlc"] },
+  { numero: 66, nombre: "Salud oral integral de la gestante", keywords: ["salud oral gestante"] },
+  { numero: 67, nombre: "Esclerosis múltiple", keywords: ["esclerosis multiple"] },
+  { numero: 68, nombre: "Hepatitis B", keywords: ["hepatitis b"] },
+  { numero: 69, nombre: "Hepatitis C", keywords: ["hepatitis c"] },
+  { numero: 70, nombre: "Cáncer Colorectal", keywords: ["cancer colorrectal", "cancer de colon"] },
+  { numero: 71, nombre: "Cáncer de Ovario Epitelial", keywords: ["cancer de ovario"] },
+  { numero: 72, nombre: "Cáncer Vesical", keywords: ["cancer vesical", "cancer de vejiga"] },
+  { numero: 73, nombre: "Osteosarcoma", keywords: ["osteosarcoma"] },
+  { numero: 74, nombre: "Lesiones crónicas válvula aórtica", keywords: ["valvulopatia aortica"] },
+  { numero: 75, nombre: "Trastorno Bipolar", keywords: ["trastorno bipolar", "bipolaridad"] },
+  { numero: 76, nombre: "Hipotiroidismo", keywords: ["hipotiroidismo"] },
+  { numero: 77, nombre: "Hipoacusia en menores de 4 años", keywords: ["hipoacusia infantil"] },
+  { numero: 78, nombre: "Lupus Eritematoso Sistémico", keywords: ["lupus", "les"] },
+  { numero: 79, nombre: "Lesiones válvulas mitral y tricúspide", keywords: ["valvulopatia mitral"] },
+  { numero: 80, nombre: "Erradicación del Helicobacter Pylori", keywords: ["helicobacter pylori"] },
+  { numero: 81, nombre: "Cáncer de pulmón", keywords: ["cancer de pulmon"] },
+  { numero: 82, nombre: "Cáncer de Tiroides", keywords: ["cancer de tiroides"] },
+  { numero: 83, nombre: "Cáncer Renal", keywords: ["cancer renal"] },
+  { numero: 84, nombre: "Mieloma Múltiple", keywords: ["mieloma"] },
+  { numero: 85, nombre: "Enfermedad de Alzheimer y otras demencias", keywords: ["alzheimer", "demencia"] },
+  { numero: 86, nombre: "Agresión sexual aguda", keywords: ["agresion sexual"] },
+  { numero: 87, nombre: "Rehabilitación SARS-CoV-2", keywords: ["rehabilitacion covid", "post covid"] },
+  { numero: 88, nombre: "Cirrosis hepática", keywords: ["cirrosis hepatica"] },
+  { numero: 89, nombre: "Depresión grave adolescente con riesgo suicida", keywords: ["depresion grave adolescente", "intento suicida"] },
+  { numero: 90, nombre: "Cesación del consumo de tabaco", keywords: ["cesacion tabaquismo", "tabaquismo"] }
+];
+
 export default function Censo() {
   const [pacientes, setPacientes] = useState<PacienteCenso[]>(() => {
     try {
       const guardados = localStorage.getItem("ward_commander_censo");
       if (guardados) {
         const parsed = JSON.parse(guardados);
-        // Blindaje: aseguramos que cada paciente traiga arrays válidos
         return parsed.map((p: any) => ({
           ...p,
           pendientes: Array.isArray(p.pendientes) ? p.pendientes : [],
@@ -44,7 +143,7 @@ export default function Censo() {
           cama: "12A",
           nombre: "Juan Pérez",
           edad: "68",
-          diagnostico: "Neumonía adquirida en la comunidad",
+          diagnostico: "Neumonía adquirida en la comunidad, HTA y Diabetes tipo 2",
           anamnesis: "Cuadro de 4 días con tos productiva y disnea.",
           pendientes: [
             { id: "p1", texto: "Control de PCR y hemograma", completado: false },
@@ -189,6 +288,12 @@ export default function Censo() {
         {pacientes.map((p) => {
           const evolucionadoHoy = p.ultimaEvolucionFecha === hoyStr;
           const listaPendientes = Array.isArray(p.pendientes) ? p.pendientes : [];
+          const textoBusqueda = `${p.diagnostico || ""} ${p.anamnesis || ""}`.toLowerCase();
+
+          // Autodetección de patologías GES
+          const gesDetectados = LISTA_GES.filter(g => 
+            g.keywords.some(kw => textoBusqueda.includes(kw))
+          );
 
           return (
             <div key={p.id} className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex flex-col justify-between space-y-4">
@@ -220,6 +325,11 @@ export default function Censo() {
 
                 <h3 className="font-bold text-gray-900 text-base">{p.nombre} {p.edad ? `(${p.edad} años)` : ""}</h3>
                 <p className="text-xs font-semibold text-purple-700 mt-0.5">Dx: {p.diagnostico || "Sin diagnóstico principal"}</p>
+
+                {/* 🚨 COMPONENTE DE ALERTA GES INTEGRADO */}
+                {gesDetectados.length > 0 && (
+                  <AlertaGesCard pacienteId={p.id} gesDetectados={gesDetectados} />
+                )}
 
                 <div className="mt-3 bg-slate-50 p-2.5 rounded text-xs border">
                   <span className="font-bold text-slate-700 block mb-0.5">Anamnesis / Base:</span>
@@ -401,6 +511,68 @@ export default function Censo() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// 🔔 COMPONENTE INTERNO PARA GESTIONAR LAS ALERTAS GES DE CADA PACIENTE
+function AlertaGesCard({ pacienteId, gesDetectados }: { pacienteId: string; gesDetectados: PatologiaGes[] }) {
+  const [estadoGes, setEstadoGes] = useState<Record<number, string>>(() => {
+    try {
+      const guardado = localStorage.getItem(`ges_estado_${pacienteId}`);
+      return guardado ? JSON.parse(guardado) : {};
+    } catch {
+      return {};
+    }
+  });
+
+  const cambiarEstado = (numeroGes: number, respuesta: "Sí" | "No") => {
+    const nuevo = { ...estadoGes, [numeroGes]: respuesta };
+    setEstadoGes(nuevo);
+    localStorage.setItem(`ges_estado_${pacienteId}`, JSON.stringify(nuevo));
+  };
+
+  return (
+    <div className="mt-3 bg-amber-50 border border-amber-300 rounded-xl p-3 shadow-sm space-y-2">
+      <div className="flex items-center gap-1.5 text-amber-800 font-bold text-xs">
+        <AlertTriangle className="w-4 h-4 shrink-0 text-amber-600" />
+        <span>Alerta GES Detectada:</span>
+      </div>
+
+      <div className="space-y-2">
+        {gesDetectados.map(ges => {
+          const resp = estadoGes[ges.numero];
+          return (
+            <div key={ges.numero} className="bg-white p-2 rounded-lg border border-amber-200 flex flex-col gap-1.5 text-xs">
+              <div>
+                <span className="font-extrabold text-gray-900">GES Nº {ges.numero}:</span>{" "}
+                <span className="text-gray-700">{ges.nombre}</span>
+              </div>
+              <div className="flex justify-between items-center pt-1 border-t border-amber-50">
+                <span className="text-[11px] text-gray-500 font-medium">¿Activado GES?</span>
+                <div className="flex gap-1.5">
+                  <button
+                    onClick={() => cambiarEstado(ges.numero, "Sí")}
+                    className={`px-2.5 py-0.5 rounded text-xs font-bold transition-all ${
+                      resp === "Sí" ? "bg-green-600 text-white shadow" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                    }`}
+                  >
+                    Sí
+                  </button>
+                  <button
+                    onClick={() => cambiarEstado(ges.numero, "No")}
+                    className={`px-2.5 py-0.5 rounded text-xs font-bold transition-all ${
+                      resp === "No" ? "bg-red-600 text-white shadow" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                    }`}
+                  >
+                    No
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
