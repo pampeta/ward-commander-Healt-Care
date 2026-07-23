@@ -3,16 +3,22 @@ import { consultarGeminiConArchivo } from "../Services/gemini";
 
 interface Mensaje {
   remitente: "usuario" | "ia";
-  texto: string;
 }
 
 export default function TutorClinico() {
+  const [apiKey, setApiKey] = useState(() => localStorage.getItem("gemini_api_key") || "");
   const [promptUsuario, setPromptUsuario] = useState("");
-  const [historial, setHistorial] = useState<Mensaje[]>([
+  const [historial, setHistorial] = useState<{ remitente: "usuario" | "ia", texto: string }[]>([
     { remitente: "ia", texto: "¡Hola! Soy tu Instructor Clínico IA. Puedes preguntarme dudas, pegarme transcripciones o adjuntar PDFs para que los analicemos." }
   ]);
   const [cargando, setCargando] = useState(false);
   const [archivoAdjunto, setArchivoAdjunto] = useState<{ nombre: string, base64: string, mimeType: string } | null>(null);
+
+  const guardarKeyLocal = (nuevaKey: string) => {
+    setApiKey(nuevaKey);
+    localStorage.setItem("gemini_api_key", nuevaKey);
+    localStorage.setItem("google_ai_key", nuevaKey);
+  };
 
   const handleSubirArchivo = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -28,7 +34,12 @@ export default function TutorClinico() {
     reader.readAsDataURL(file);
   };
 
-const enviarConsulta = async () => {
+  const enviarConsulta = async () => {
+    const currentKey = apiKey || localStorage.getItem("gemini_api_key") || localStorage.getItem("google_ai_key") || "";
+    if (!currentKey.trim()) {
+      alert("⚠️ Por favor ingresa tu API Key de Gemini en la barra superior de este módulo.");
+      return;
+    }
     if (!promptUsuario.trim() && !archivoAdjunto) return;
 
     const textoPregunta = promptUsuario;
@@ -42,8 +53,7 @@ const enviarConsulta = async () => {
       
       Consulta del usuario: ${textoPregunta}`;
 
-      // Pasamos undefined como apiKey para que gemini.ts la tome automáticamente de localStorage
-      const respuestaIA = await consultarGeminiConArchivo(promptSistema, undefined, archivoAdjunto || undefined);
+      const respuestaIA = await consultarGeminiConArchivo(promptSistema, currentKey, archivoAdjunto || undefined);
 
       setHistorial(prev => [...prev, { remitente: "ia", texto: respuestaIA }]);
       setArchivoAdjunto(null); 
@@ -55,9 +65,22 @@ const enviarConsulta = async () => {
 
   return (
     <div className="p-6 max-w-7xl mx-auto h-[85vh] flex flex-col">
-      <div className="mb-4">
-        <h1 className="text-2xl font-bold text-gray-800">Instructor Clínico IA</h1>
-        <p className="text-sm text-gray-500">Resuelve casos, analiza transcripciones, procesa PDFs y aclara dudas complejas.</p>
+      <div className="mb-4 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-800">Instructor Clínico IA</h1>
+          <p className="text-sm text-gray-500">Resuelve casos, analiza transcripciones, procesa PDFs y aclara dudas complejas.</p>
+        </div>
+        {/* BARRA DISCRETA PARA CONFIGURAR LA API KEY SI FALTA */}
+        <div className="flex items-center gap-2 bg-white p-2 rounded-lg border shadow-sm">
+          <span className="text-xs font-bold text-gray-600">🔑 API Key:</span>
+          <input 
+            type="password" 
+            value={apiKey} 
+            onChange={(e) => guardarKeyLocal(e.target.value)} 
+            placeholder="Pega tu clave de Gemini aquí..." 
+            className="text-xs px-2 py-1 border rounded outline-none w-48 focus:ring-1 focus:ring-blue-500"
+          />
+        </div>
       </div>
 
       <div className="flex-1 bg-white rounded-lg shadow-sm border border-gray-200 flex flex-col overflow-hidden">
