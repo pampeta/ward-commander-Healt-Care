@@ -1,4 +1,4 @@
-const MODELO_GEMINI = "gemini-2.5-flash"; 
+const MODELO_GEMINI = "gemini-3.5-flash"; 
 
 const obtenerApiKeyGuardada = (apiKeyDada?: string): string => {
   if (apiKeyDada && apiKeyDada.trim()) return apiKeyDada.trim();
