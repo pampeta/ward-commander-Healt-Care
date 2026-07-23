@@ -3,25 +3,15 @@ const MODELO_GEMINI = "gemini-3.5-flash";
 const obtenerApiKeyGuardada = (apiKeyDada?: string): string => {
   if (apiKeyDada && apiKeyDada.trim()) return apiKeyDada.trim();
   
-  // Revisamos todas las posibles llaves donde se haya podido guardar en localStorage
   if (typeof window !== "undefined") {
-    for (let i = 0; i < localStorage.length; i++) {
-      const key = localStorage.key(i);
-      if (key && (key.includes("gemini") || key.includes("google") || key.includes("ai_key"))) {
-        const val = localStorage.getItem(key);
-        if (val && val.trim().startsWith("AIza")) {
-          return val.trim();
-        }
-      }
-    }
+    return (
+      localStorage.getItem("gemini_api_key") ||
+      localStorage.getItem("google_ai_key") ||
+      localStorage.getItem("wardcommander_gemini_key") ||
+      ""
+    ).trim();
   }
-
-  return (
-    localStorage.getItem("gemini_api_key") ||
-    localStorage.getItem("google_ai_key") ||
-    localStorage.getItem("wardcommander_gemini_key") ||
-    ""
-  ).trim();
+  return "";
 };
 
 export const generateClinicalDocumentWithGemini = async (formData: {
