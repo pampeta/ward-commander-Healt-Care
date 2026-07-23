@@ -1,10 +1,9 @@
-const MODELO_GEMINI = "gemini-1.5-flash"; 
+const MODELO_GEMINI = "gemini-2.5-flash"; 
 
 const obtenerApiKeyGuardada = (apiKeyDada?: string): string => {
   if (apiKeyDada && apiKeyDada.trim()) return apiKeyDada.trim();
   
   if (typeof window !== "undefined") {
-    // 1. Intentamos leer desde el objeto de configuración 'wc_config' que usa Control & Métricas
     try {
       const configRaw = localStorage.getItem("wc_config");
       if (configRaw) {
@@ -13,11 +12,8 @@ const obtenerApiKeyGuardada = (apiKeyDada?: string): string => {
           return parsed.apiKey.trim();
         }
       }
-    } catch (e) {
-      // Si falla el parseo json, ignoramos y seguimos buscando
-    }
+    } catch (e) {}
 
-    // 2. Respaldo por si está guardada en otras variables sueltas
     return (
       localStorage.getItem("wardcommander_gemini_key") ||
       localStorage.getItem("gemini_api_key") ||
