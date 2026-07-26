@@ -16,7 +16,7 @@ interface Evolucion {
 interface DispositivoInvasivo {
   id: string;
   nombre: string;
-  fechaInstalacion: string; // YYYY-MM-DD
+  fechaInstalacion: string;
 }
 
 interface Curacion {
@@ -223,6 +223,8 @@ export default function Censo() {
       return;
     }
 
+    const curacionFinal: Curacion = pacienteEditando.curacion || { activo: false, ultimaFecha: hoyStr, frecuenciaDias: 3, tipo: "" };
+
     if (pacienteEditando.id) {
       setPacientes(prev => prev.map(p => p.id === pacienteEditando.id ? { 
         ...p, 
@@ -230,7 +232,7 @@ export default function Censo() {
         pendientes: Array.isArray(p.pendientes) ? p.pendientes : [],
         evoluciones: Array.isArray(p.evoluciones) ? p.evoluciones : [],
         invasivos: Array.isArray(p.invasivos) ? p.invasivos : [],
-        curacion: pacienteEditando.curacion || { activo: false, ultimaFecha: "", frecuenciaDias: 0, tipo: "" }
+        curacion: curacionFinal
       } : p));
     } else {
       const nuevo: PacienteCenso = {
@@ -245,7 +247,7 @@ export default function Censo() {
         atbDias: pacienteEditando.atbDias || "",
         incobertura: pacienteEditando.incobertura || "",
         invasivos: [],
-        curacion: pacienteEditando.curacion || { activo: false, ultimaFecha: "", frecuenciaDias: 0, tipo: "" },
+        curacion: curacionFinal,
         pendientes: [],
         evoluciones: []
       };
@@ -405,7 +407,6 @@ export default function Censo() {
                   </div>
                 </div>
 
-                {/* 🏥 CONTROL CLÍNICO MODIFICABLE Y CON FECHAS EDITABLES */}
                 <ControlClinicoCard paciente={p} />
 
                 {gesDetectados.length > 0 && (
@@ -477,7 +478,6 @@ export default function Censo() {
         )}
       </div>
 
-      {/* MODAL NUEVO / EDITAR PACIENTE */}
       {modalAbierto && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl max-w-lg w-full p-6 space-y-4 shadow-xl max-h-[90vh] overflow-y-auto">
@@ -492,7 +492,7 @@ export default function Censo() {
                   type="text"
                   placeholder="Ej. 12A"
                   value={pacienteEditando?.cama || ""}
-                  onChange={e => setPacienteEditando(prev => ({ ...prev, cama: e.target.value }))}
+                  onChange={e => setPacienteEditando(prev => ({ ...(prev || {}), cama: e.target.value }))}
                   className="w-full p-2 border rounded text-sm"
                 />
               </div>
@@ -502,7 +502,7 @@ export default function Censo() {
                   type="text"
                   placeholder="Ej. 65"
                   value={pacienteEditando?.edad || ""}
-                  onChange={e => setPacienteEditando(prev => ({ ...prev, edad: e.target.value }))}
+                  onChange={e => setPacienteEditando(prev => ({ ...(prev || {}), edad: e.target.value }))}
                   className="w-full p-2 border rounded text-sm"
                 />
               </div>
@@ -511,7 +511,7 @@ export default function Censo() {
                 <input
                   type="date"
                   value={pacienteEditando?.fechaIngreso || hoyStr}
-                  onChange={e => setPacienteEditando(prev => ({ ...prev, fechaIngreso: e.target.value }))}
+                  onChange={e => setPacienteEditando(prev => ({ ...(prev || {}), fechaIngreso: e.target.value }))}
                   className="w-full p-2 border rounded text-sm"
                 />
               </div>
@@ -523,7 +523,7 @@ export default function Censo() {
                 type="text"
                 placeholder="Ej. Juan Pérez"
                 value={pacienteEditando?.nombre || ""}
-                onChange={e => setPacienteEditando(prev => ({ ...prev, nombre: e.target.value }))}
+                onChange={e => setPacienteEditando(prev => ({ ...(prev || {}), nombre: e.target.value }))}
                 className="w-full p-2 border rounded text-sm"
               />
             </div>
@@ -534,7 +534,7 @@ export default function Censo() {
                 type="text"
                 placeholder="Ej. Neumonía grave"
                 value={pacienteEditando?.diagnostico || ""}
-                onChange={e => setPacienteEditando(prev => ({ ...prev, diagnostico: e.target.value }))}
+                onChange={e => setPacienteEditando(prev => ({ ...(prev || {}), diagnostico: e.target.value }))}
                 className="w-full p-2 border rounded text-sm"
               />
             </div>
@@ -544,9 +544,9 @@ export default function Censo() {
                 <label className="block text-xs font-bold uppercase text-gray-600 mb-1">Antibiótico (ATB)</label>
                 <input
                   type="text"
-                  placeholder="Ej. Ceftriaxona (Dejar en blanco si no usa)"
+                  placeholder="Ej. Ceftriaxona"
                   value={pacienteEditando?.atbNombre || ""}
-                  onChange={e => setPacienteEditando(prev => ({ ...prev, atbNombre: e.target.value }))}
+                  onChange={e => setPacienteEditando(prev => ({ ...(prev || {}), atbNombre: e.target.value }))}
                   className="w-full p-2 border rounded text-sm bg-white"
                 />
               </div>
@@ -556,7 +556,7 @@ export default function Censo() {
                   type="text"
                   placeholder="Ej. 5 días"
                   value={pacienteEditando?.atbDias || ""}
-                  onChange={e => setPacienteEditando(prev => ({ ...prev, atbDias: e.target.value }))}
+                  onChange={e => setPacienteEditando(prev => ({ ...(prev || {}), atbDias: e.target.value }))}
                   className="w-full p-2 border rounded text-sm bg-white"
                 />
               </div>
@@ -568,7 +568,7 @@ export default function Censo() {
                 type="text"
                 placeholder="Ej. NAC / ITU / Foco urinario"
                 value={pacienteEditando?.incobertura || ""}
-                onChange={e => setPacienteEditando(prev => ({ ...prev, incobertura: e.target.value }))}
+                onChange={e => setPacienteEditando(prev => ({ ...(prev || {}), incobertura: e.target.value }))}
                 className="w-full p-2 border rounded text-sm"
               />
             </div>
@@ -582,13 +582,13 @@ export default function Censo() {
                 <input
                   type="checkbox"
                   checked={pacienteEditando?.curacion?.activo || false}
-                  onChange={e => setPacienteEditando(prev => ({
-                    ...prev,
-                    curacion: {
-                      ...(prev?.curacion || { ultimaFecha: hoyStr, frecuenciaDias: 3, tipo: "" }),
-                      activo: e.target.checked
-                    }
-                  }))}
+                  onChange={e => {
+                    const curacionActual = pacienteEditando?.curacion || { ultimaFecha: hoyStr, frecuenciaDias: 3, tipo: "" };
+                    setPacienteEditando(prev => ({
+                      ...(prev || {}),
+                      curacion: { ...curacionActual, activo: e.target.checked }
+                    }));
+                  }}
                   className="w-4 h-4 text-blue-600 rounded"
                 />
               </div>
@@ -599,12 +599,15 @@ export default function Censo() {
                     <label className="block text-[11px] font-bold text-gray-600">Tipo de Herida / Curación</label>
                     <input
                       type="text"
-                      placeholder="Ej. Herida operatoria, Úlcera por presión..."
+                      placeholder="Ej. Herida operatoria, Úlcera..."
                       value={pacienteEditando?.curacion?.tipo || ""}
-                      onChange={e => setPacienteEditando(prev => ({
-                        ...prev,
-                        curacion: { ...(prev?.curacion || { ultimaFecha: hoyStr, frecuenciaDias: 3, tipo: "" }), tipo: e.target.value }
-                      }))}
+                      onChange={e => {
+                        const curacionActual = pacienteEditando?.curacion || { activo: true, ultimaFecha: hoyStr, frecuenciaDias: 3, tipo: "" };
+                        setPacienteEditando(prev => ({
+                          ...(prev || {}),
+                          curacion: { ...curacionActual, tipo: e.target.value }
+                        }));
+                      }}
                       className="w-full p-1.5 border rounded text-xs bg-white"
                     />
                   </div>
@@ -614,10 +617,13 @@ export default function Censo() {
                       <input
                         type="date"
                         value={pacienteEditando?.curacion?.ultimaFecha || hoyStr}
-                        onChange={e => setPacienteEditando(prev => ({
-                          ...prev,
-                          curacion: { ...(prev?.curacion || { ultimaFecha: hoyStr, frecuenciaDias: 3, tipo: "" }), ultimaFecha: e.target.value }
-                        }))}
+                        onChange={e => {
+                          const curacionActual = pacienteEditando?.curacion || { activo: true, ultimaFecha: hoyStr, frecuenciaDias: 3, tipo: "" };
+                          setPacienteEditando(prev => ({
+                            ...(prev || {}),
+                            curacion: { ...curacionActual, ultimaFecha: e.target.value }
+                          }));
+                        }}
                         className="w-full p-1.5 border rounded text-xs bg-white"
                       />
                     </div>
@@ -627,10 +633,13 @@ export default function Censo() {
                         type="number"
                         min="1"
                         value={pacienteEditando?.curacion?.frecuenciaDias || 3}
-                        onChange={e => setPacienteEditando(prev => ({
-                          ...prev,
-                          curacion: { ...(prev?.curacion || { ultimaFecha: hoyStr, frecuenciaDias: 3, tipo: "" }), frecuenciaDias: Number(e.target.value) }
-                        }))}
+                        onChange={e => {
+                          const curacionActual = pacienteEditando?.curacion || { activo: true, ultimaFecha: hoyStr, frecuenciaDias: 3, tipo: "" };
+                          setPacienteEditando(prev => ({
+                            ...(prev || {}),
+                            curacion: { ...curacionActual, frecuenciaDias: Number(e.target.value) }
+                          }));
+                        }}
                         className="w-full p-1.5 border rounded text-xs bg-white"
                       />
                     </div>
@@ -645,7 +654,7 @@ export default function Censo() {
                 rows={2}
                 placeholder="Historia clínica inicial..."
                 value={pacienteEditando?.anamnesis || ""}
-                onChange={e => setPacienteEditando(prev => ({ ...prev, anamnesis: e.target.value }))}
+                onChange={e => setPacienteEditando(prev => ({ ...(prev || {}), anamnesis: e.target.value }))}
                 className="w-full p-2 border rounded text-sm"
               />
             </div>
@@ -660,7 +669,6 @@ export default function Censo() {
         </div>
       )}
 
-      {/* MODAL EVOLUCIÓN */}
       {modalEvolucionAbierto && pacienteSeleccionadoEvolucion && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl max-w-2xl w-full p-6 space-y-4 shadow-xl max-h-[90vh] flex flex-col">
@@ -716,7 +724,6 @@ export default function Censo() {
   );
 }
 
-// 🩺 COMPONENTE CLÍNICO CON EDICIÓN DE FECHAS Y ELIMINACIÓN DE INVASIVOS Y CURACIONES
 function ControlClinicoCard({ paciente }: { paciente: PacienteCenso }) {
   const [minimizado, setMinimizado] = useState(false);
   const [nombreInv, setNombreInv] = useState("");
@@ -806,7 +813,6 @@ function ControlClinicoCard({ paciente }: { paciente: PacienteCenso }) {
 
       {!minimizado && (
         <div className="space-y-2 pt-1 text-xs">
-          {/* ATB e Infección */}
           {tieneAtb && (
             <div className="bg-white p-2 rounded-lg border border-indigo-100 space-y-1">
               <div className="flex items-center gap-1 text-indigo-800 font-bold">
@@ -824,7 +830,6 @@ function ControlClinicoCard({ paciente }: { paciente: PacienteCenso }) {
             </div>
           )}
 
-          {/* Dispositivos Invasivos con fecha editable */}
           <div className="bg-white p-2 rounded-lg border border-indigo-100 space-y-1.5">
             <span className="font-bold text-indigo-800 block">Dispositivos Invasivos:</span>
             <div className="space-y-1.5">
@@ -879,7 +884,6 @@ function ControlClinicoCard({ paciente }: { paciente: PacienteCenso }) {
             </div>
           </div>
 
-          {/* Curaciones con opción de eliminar */}
           {tieneCuracion && (
             <div className="bg-white p-2 rounded-lg border border-indigo-100 flex justify-between items-start">
               <div className="space-y-1">
