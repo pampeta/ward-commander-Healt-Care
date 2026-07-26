@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Users, Plus, Trash2, Edit3, Save, CheckCircle2, Circle, FileText, Calendar, AlertTriangle, ChevronDown, ChevronUp, X, ShieldAlert, Activity, Syringe, Bandage } from "lucide-react";
+import { Users, Plus, Trash2, Edit3, Save, CheckCircle2, Circle, FileText, Calendar, AlertTriangle, ChevronDown, ChevronUp, X, ShieldAlert, Activity, Syringe, Bandage, Stethoscope } from "lucide-react";
 
 interface Pendiente {
   id: string;
@@ -11,6 +11,9 @@ interface Evolucion {
   id: string;
   fecha: string;
   texto: string;
+  tipo?: "normal" | "ic";
+  especialidad?: string;
+  medico?: string;
 }
 
 interface DispositivoInvasivo {
@@ -179,16 +182,14 @@ export default function Censo() {
         atbDias: "5 días",
         incobertura: "NAC / Foco pulmonar",
         invasivos: [
-          { id: "inv1", nombre: "Vía Venosa Periférica (VVP)", fechaInstalacion: "2026-07-21" },
-          { id: "inv2", nombre: "Sonda Foley", fechaInstalacion: "2026-07-23" }
+          { id: "inv1", nombre: "Vía Venosa Periférica (VVP)", fechaInstalacion: "2026-07-21" }
         ],
-        curacion: { activo: true, ultimaFecha: "2026-07-25", frecuenciaDias: 3, tipo: "Herida operatoria / Úlcera" },
+        curacion: { activo: false, ultimaFecha: hoyStr, frecuenciaDias: 3, tipo: "" },
         pendientes: [
-          { id: "p1", texto: "Control de PCR y hemograma", completado: false },
-          { id: "p2", texto: "Resultado de cultivo sputum", completado: true }
+          { id: "p1", texto: "Control de PCR y hemograma", completado: false }
         ],
         evoluciones: [
-          { id: "e1", fecha: "2026-07-18", texto: "Paciente estable, tolera régimen liviano. SatO2 96%." }
+          { id: "e1", fecha: "2026-07-18", texto: "Paciente estable, tolera régimen liviano. SatO2 96%.", tipo: "normal" }
         ],
         ultimaEvolucionFecha: "2026-07-18"
       }
@@ -200,7 +201,12 @@ export default function Censo() {
 
   const [modalEvolucionAbierto, setModalEvolucionAbierto] = useState(false);
   const [pacienteSeleccionadoEvolucion, setPacienteSeleccionadoEvolucion] = useState<PacienteCenso | null>(null);
+  
+  // Estados para nueva evolución o IC
+  const [tipoNota, setTipoNota] = useState<"normal" | "ic">("normal");
   const [nuevoTextoEvolucion, setNuevoTextoEvolucion] = useState("");
+  const [especialidadIC, setEspecialidadIC] = useState("");
+  const [medicoIC, setMedicoIC] = useState("");
   
   const [textoNuevoPendiente, setTextoNuevoPendiente] = useState<{ [key: string]: string }>({});
 
@@ -305,11 +311,18 @@ export default function Censo() {
 
   const guardarEvolucion = () => {
     if (!pacienteSeleccionadoEvolucion || !nuevoTextoEvolucion.trim()) return;
+    if (tipoNota === "ic" && (!especialidadIC.trim() || !medicoIC.trim())) {
+      alert("Por favor ingresa la especialidad y el nombre del doctor.");
+      return;
+    }
 
     const nuevaEvo: Evolucion = {
       id: Date.now().toString(),
       fecha: hoyStr,
-      texto: nuevoTextoEvolucion.trim()
+      texto: nuevoTextoEvolucion.trim(),
+      tipo: tipoNota,
+      especialidad: tipoNota === "ic" ? especialidadIC.trim() : undefined,
+      medico: tipoNota === "ic" ? medicoIC.trim() : undefined
     };
 
     setPacientes(prev => prev.map(p => {
@@ -325,6 +338,9 @@ export default function Censo() {
     }));
 
     setNuevoTextoEvolucion("");
+    setEspecialidadIC("");
+    setMedicoIC("");
+    setTipoNota("normal");
     setModalEvolucionAbierto(false);
     setPacienteSeleccionadoEvolucion(null);
   };
@@ -573,7 +589,6 @@ export default function Censo() {
               />
             </div>
 
-            {/* SECCIÓN CURACIONES OPCIONAL EN MODAL */}
             <div className="bg-slate-50 p-3 rounded-xl border space-y-2">
               <div className="flex items-center justify-between">
                 <label className="text-xs font-bold uppercase text-gray-700 flex items-center gap-1">
@@ -669,6 +684,7 @@ export default function Censo() {
         </div>
       )}
 
+      {/* 📝 MODAL DE EVOLUCIÓN E INTERCONSULTA (IC) */}
       {modalEvolucionAbierto && pacienteSeleccionadoEvolucion && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl max-w-2xl w-full p-6 space-y-4 shadow-xl max-h-[90vh] flex flex-col">
@@ -680,35 +696,103 @@ export default function Censo() {
               <button onClick={() => setModalEvolucionAbierto(false)} className="text-gray-400 hover:text-gray-700 font-bold text-lg">✕</button>
             </div>
 
-            <div className="bg-blue-50 p-4 rounded-xl border border-blue-200 space-y-2">
-              <label className="block text-xs font-bold uppercase text-blue-900">Agregar Evolución de Hoy ({hoyStr})</label>
-              <textarea
-                rows={3}
-                placeholder="Escribe la evolución clínica, notas de turno o plan del día..."
-                value={nuevoTextoEvolucion}
-                onChange={e => setNuevoTextoEvolucion(e.target.value)}
-                className="w-full p-2.5 border rounded-lg text-sm bg-white outline-none focus:ring-1 focus:ring-blue-500"
-              />
+            <div className="bg-slate-50 p-4 rounded-xl border space-y-3">
+              {/* Selector de Tipo de Nota */}
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setTipoNota("normal")}
+                  className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                    tipoNota === "normal" ? "bg-blue-600 text-white shadow" : "bg-white text-gray-700 border hover:bg-gray-100"
+                  }`}
+                >
+                  <FileText className="w-3.5 h-3.5" /> Evolución Médica Normal
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setTipoNota("ic")}
+                  className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
+                    tipoNota === "ic" ? "bg-purple-600 text-white shadow" : "bg-white text-gray-700 border hover:bg-gray-100"
+                  }`}
+                >
+                  <Stethoscope className="w-3.5 h-3.5" /> Respuesta de Interconsulta (IC)
+                </button>
+              </div>
+
+              {/* Campos adicionales si es Interconsulta */}
+              {tipoNota === "ic" && (
+                <div className="grid grid-cols-2 gap-2 bg-purple-50 p-3 rounded-lg border border-purple-200">
+                  <div>
+                    <label className="block text-[11px] font-bold text-purple-900 uppercase mb-1">Especialidad</label>
+                    <input
+                      type="text"
+                      placeholder="Ej. Gastroenterología"
+                      value={especialidadIC}
+                      onChange={e => setEspecialidadIC(e.target.value)}
+                      className="w-full p-2 border rounded text-xs bg-white outline-none focus:ring-1 focus:ring-purple-500"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-bold text-purple-900 uppercase mb-1">Médico Especialista</label>
+                    <input
+                      type="text"
+                      placeholder="Ej. Dr. Karelovic"
+                      value={medicoIC}
+                      onChange={e => setMedicoIC(e.target.value)}
+                      className="w-full p-2 border rounded text-xs bg-white outline-none focus:ring-1 focus:ring-purple-500"
+                    />
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <label className="block text-xs font-bold uppercase text-gray-700 mb-1">
+                  {tipoNota === "ic" ? "Sugerencias, Evaluación y Comentarios del Especialista:" : `Agregar Evolución de Hoy (${hoyStr})`}
+                </label>
+                <textarea
+                  rows={3}
+                  placeholder={tipoNota === "ic" ? "Pega aquí lo que recomendó el especialista..." : "Escribe la evolución clínica, notas de turno o plan del día..."}
+                  value={nuevoTextoEvolucion}
+                  onChange={e => setNuevoTextoEvolucion(e.target.value)}
+                  className="w-full p-2.5 border rounded-lg text-sm bg-white outline-none focus:ring-1 focus:ring-blue-500"
+                />
+              </div>
+
               <div className="flex justify-end">
                 <button
                   onClick={guardarEvolucion}
-                  className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-xs font-bold shadow"
+                  className={`px-4 py-2 rounded-lg text-xs font-bold text-white shadow ${tipoNota === "ic" ? "bg-purple-600 hover:bg-purple-700" : "bg-blue-600 hover:bg-blue-700"}`}
                 >
-                  Guardar y Marcar Evolucionado Hoy 🚀
+                  {tipoNota === "ic" ? "Guardar Respuesta de IC 🩺" : "Guardar y Marcar Evolucionado Hoy 🚀"}
                 </button>
               </div>
             </div>
 
             <div className="flex-1 overflow-y-auto space-y-3 pr-1">
-              <h3 className="text-xs font-bold uppercase text-gray-500 tracking-wider">Historial Clínico de Evoluciones</h3>
-              {Array.isArray(pacienteSeleccionadoEvolucion.evoluciones) && pacienteSeleccionadoEvolucion.evoluciones.map((evo) => (
-                <div key={evo.id} className="bg-gray-50 border p-3 rounded-lg space-y-1 text-xs">
-                  <div className="flex items-center gap-1 text-gray-400 font-mono">
-                    <Calendar className="w-3.5 h-3.5" /> {evo.fecha}
+              <h3 className="text-xs font-bold uppercase text-gray-500 tracking-wider">Historial Clínico de Evoluciones e Interconsultas</h3>
+              {Array.isArray(pacienteSeleccionadoEvolucion.evoluciones) && pacienteSeleccionadoEvolucion.evoluciones.map((evo) => {
+                const esIC = evo.tipo === "ic";
+                return (
+                  <div 
+                    key={evo.id} 
+                    className={`border p-3 rounded-lg space-y-1.5 text-xs ${
+                      esIC ? "bg-purple-50/70 border-purple-300" : "bg-gray-50 border-gray-200"
+                    }`}
+                  >
+                    <div className="flex justify-between items-center">
+                      <div className="flex items-center gap-1.5 text-gray-500 font-mono">
+                        <Calendar className="w-3.5 h-3.5" /> {evo.fecha}
+                      </div>
+                      {esIC && (
+                        <span className="bg-purple-200 text-purple-900 font-bold px-2 py-0.5 rounded text-[10px] uppercase flex items-center gap-1">
+                          <Stethoscope className="w-3 h-3" /> IC: {evo.especialidad} ({evo.medico})
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-gray-800 font-sans whitespace-pre-wrap leading-relaxed">{evo.texto}</p>
                   </div>
-                  <p className="text-gray-800 font-sans whitespace-pre-wrap leading-relaxed">{evo.texto}</p>
-                </div>
-              ))}
+                );
+              })}
               {(!pacienteSeleccionadoEvolucion.evoluciones || pacienteSeleccionadoEvolucion.evoluciones.length === 0) && (
                 <p className="text-center text-gray-400 text-xs py-6">No hay evoluciones anteriores registradas para este paciente.</p>
               )}
