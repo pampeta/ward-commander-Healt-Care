@@ -21,7 +21,7 @@ interface DispositivoInvasivo {
 
 interface Curacion {
   ultimaFecha: string;
-  frecuenciaDias: number; // Ej. cada 2 días, cada 48 hrs, etc.
+  frecuenciaDias: number;
   tipo: string;
 }
 
@@ -32,7 +32,7 @@ interface PacienteCenso {
   edad: string;
   diagnostico: string;
   anamnesis: string;
-  fechaIngreso: string; // YYYY-MM-DD
+  fechaIngreso: string;
   atbNombre: string;
   atbDias: string;
   incobertura: string;
@@ -200,7 +200,6 @@ export default function Censo() {
   const [nuevoTextoEvolucion, setNuevoTextoEvolucion] = useState("");
   
   const [textoNuevoPendiente, setTextoNuevoPendiente] = useState<{ [key: string]: string }>({});
-  const [nuevoInvasivoNombre, setNuevoInvasivoNombre] = useState<{ [key: string]: string }>({});
 
   const hoyStr = new Date().toISOString().split("T")[0];
 
@@ -300,33 +299,6 @@ export default function Censo() {
     setTextoNuevoPendiente(prev => ({ ...prev, [pacienteId]: "" }));
   };
 
-  const agregarInvasivo = (pacienteId: string) => {
-    const nombre = nuevoInvasivoNombre[pacienteId];
-    if (!nombre || !nombre.trim()) return;
-
-    setPacientes(prev => prev.map(p => {
-      if (p.id === pacienteId) {
-        const lista = Array.isArray(p.invasivos) ? p.invasivos : [];
-        return {
-          ...p,
-          invasivos: [...lista, { id: Date.now().toString(), nombre: nombre.trim(), dias: 1 }]
-        };
-      }
-      return p;
-    }));
-    setNuevoInvasivoNombre(prev => ({ ...prev, [pacienteId]: "" }));
-  };
-
-  const eliminarInvasivo = (pacienteId: string, invasivoId: string) => {
-    setPacientes(prev => prev.map(p => {
-      if (p.id === pacienteId) {
-        const lista = Array.isArray(p.invasivos) ? p.invasivos : [];
-        return { ...p, invasivos: lista.filter(i => i.id !== invasivoId) };
-      }
-      return p;
-    }));
-  };
-
   const guardarEvolucion = () => {
     if (!pacienteSeleccionadoEvolucion || !nuevoTextoEvolucion.trim()) return;
 
@@ -412,7 +384,6 @@ export default function Censo() {
                 <h3 className="font-bold text-gray-900 text-base">{p.nombre} {p.edad ? `(${p.edad} años)` : ""}</h3>
                 <p className="text-xs font-semibold text-purple-700 mt-0.5">Dx: {p.diagnostico || "Sin diagnóstico principal"}</p>
 
-                {/* 🏥 ESTADÍA E INGRESO */}
                 <div className="mt-2.5 bg-slate-50 border p-2 rounded-lg flex justify-between items-center text-xs">
                   <div>
                     <span className="text-gray-500 block text-[10px] uppercase font-bold">Fecha de Ingreso:</span>
@@ -426,10 +397,8 @@ export default function Censo() {
                   </div>
                 </div>
 
-                {/* 💊 ATB, INFECCIÓN E INVASIVOS (CON ACORDEÓN PARA MINIMIZAR) */}
                 <ControlClinicoCard paciente={p} />
 
-                {/* 🚨 ALERTA GES */}
                 {gesDetectados.length > 0 && (
                   <AlertaGesCard pacienteId={p.id} gesDetectados={gesDetectados} />
                 )}
@@ -499,7 +468,6 @@ export default function Censo() {
         )}
       </div>
 
-      {/* MODAL NUEVO / EDITAR PACIENTE */}
       {modalAbierto && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl max-w-lg w-full p-6 space-y-4 shadow-xl max-h-[90vh] overflow-y-auto">
@@ -616,7 +584,6 @@ export default function Censo() {
         </div>
       )}
 
-      {/* MODAL EVOLUCIÓN */}
       {modalEvolucionAbierto && pacienteSeleccionadoEvolucion && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl max-w-2xl w-full p-6 space-y-4 shadow-xl max-h-[90vh] flex flex-col">
@@ -672,7 +639,6 @@ export default function Censo() {
   );
 }
 
-// 🛡️ COMPONENTE PARA CONTROL CLÍNICO (ATB, INFECCIÓN, INVASIVOS Y CURACIONES) CON OPCIÓN DE MINIMIZAR Y ELIMINAR
 function ControlClinicoCard({ paciente }: { paciente: PacienteCenso }) {
   const [minimizado, setMinimizado] = useState(false);
   const [nombreInv, setNombreInv] = useState("");
@@ -729,7 +695,6 @@ function ControlClinicoCard({ paciente }: { paciente: PacienteCenso }) {
 
       {!minimizado && (
         <div className="space-y-2 pt-1 text-xs">
-          {/* ATB e Infección */}
           <div className="bg-white p-2 rounded-lg border border-indigo-100 space-y-1">
             <div className="flex items-center gap-1 text-indigo-800 font-bold">
               <Syringe className="w-3.5 h-3.5 text-indigo-600" /> Antibiótico (ATB):
@@ -743,7 +708,6 @@ function ControlClinicoCard({ paciente }: { paciente: PacienteCenso }) {
             </div>
           </div>
 
-          {/* Dispositivos Invasivos */}
           <div className="bg-white p-2 rounded-lg border border-indigo-100 space-y-1.5">
             <span className="font-bold text-indigo-800 block">Dispositivos Invasivos (Días totales):</span>
             <div className="space-y-1">
@@ -778,7 +742,6 @@ function ControlClinicoCard({ paciente }: { paciente: PacienteCenso }) {
             </div>
           </div>
 
-          {/* Curaciones */}
           <div className="bg-white p-2 rounded-lg border border-indigo-100 space-y-1">
             <div className="flex items-center gap-1 text-indigo-800 font-bold">
               <Bandage className="w-3.5 h-3.5 text-indigo-600" /> Control de Curaciones:
@@ -799,7 +762,6 @@ function ControlClinicoCard({ paciente }: { paciente: PacienteCenso }) {
   );
 }
 
-// 🔔 ALERTA GES CARD
 function AlertaGesCard({ pacienteId, gesDetectados }: { pacienteId: string; gesDetectados: PatologiaGes[] }) {
   const [minimizado, setMinimizado] = useState(false);
   const [estadoGes, setEstadoGes] = useState<Record<number, string>>(() => {
