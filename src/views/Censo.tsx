@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Users, Plus, Trash2, Edit3, Save, CheckCircle2, Circle, FileText, Calendar, AlertTriangle, ChevronDown, ChevronUp, X } from "lucide-react";
+import { Users, Plus, Trash2, Edit3, Save, CheckCircle2, Circle, FileText, Calendar, AlertTriangle, ChevronDown, ChevronUp, X, ShieldAlert, Activity, Syringe, Bandage } from "lucide-react";
 
 interface Pendiente {
   id: string;
@@ -13,6 +13,18 @@ interface Evolucion {
   texto: string;
 }
 
+interface DispositivoInvasivo {
+  id: string;
+  nombre: string;
+  dias: number;
+}
+
+interface Curacion {
+  ultimaFecha: string;
+  frecuenciaDias: number; // Ej. cada 2 días, cada 48 hrs, etc.
+  tipo: string;
+}
+
 interface PacienteCenso {
   id: string;
   cama: string;
@@ -20,6 +32,12 @@ interface PacienteCenso {
   edad: string;
   diagnostico: string;
   anamnesis: string;
+  fechaIngreso: string; // YYYY-MM-DD
+  atbNombre: string;
+  atbDias: string;
+  incobertura: string;
+  invasivos: DispositivoInvasivo[];
+  curacion: Curacion;
   pendientes: Pendiente[];
   evoluciones: Evolucion[];
   ultimaEvolucionFecha?: string;
@@ -133,14 +151,18 @@ export default function Censo() {
         if (Array.isArray(parsed) && parsed.length > 0) {
           return parsed.map((p: any) => ({
             ...p,
+            fechaIngreso: p.fechaIngreso || new Date().toISOString().split("T")[0],
+            atbNombre: p.atbNombre || "",
+            atbDias: p.atbDias || "",
+            incobertura: p.incobertura || "",
+            invasivos: Array.isArray(p.invasivos) ? p.invasivos : [],
+            curacion: p.curacion || { ultimaFecha: "", frecuenciaDias: 0, tipo: "" },
             pendientes: Array.isArray(p.pendientes) ? p.pendientes : [],
             evoluciones: Array.isArray(p.evoluciones) ? p.evoluciones : []
           }));
         }
       }
-    } catch (e) {
-      console.error("Error leyendo censo", e);
-    }
+    } catch (e) {}
     return [
       {
         id: "1",
@@ -149,6 +171,15 @@ export default function Censo() {
         edad: "68",
         diagnostico: "Neumonía adquirida en la comunidad, HTA y Diabetes tipo 2",
         anamnesis: "Cuadro de 4 días con tos productiva y disnea.",
+        fechaIngreso: "2026-07-10",
+        atbNombre: "Ceftriaxona + Azitromicina",
+        atbDias: "5 días",
+        incobertura: "NAC / Foco pulmonar",
+        invasivos: [
+          { id: "inv1", nombre: "Vía Venosa Periférica (VVP)", dias: 5 },
+          { id: "inv2", nombre: "Sonda Foley", dias: 3 }
+        ],
+        curacion: { ultimaFecha: "2026-07-25", frecuenciaDias: 3, tipo: "Herida operatoria / Úlcera" },
         pendientes: [
           { id: "p1", texto: "Control de PCR y hemograma", completado: false },
           { id: "p2", texto: "Resultado de cultivo sputum", completado: true }
@@ -169,12 +200,22 @@ export default function Censo() {
   const [nuevoTextoEvolucion, setNuevoTextoEvolucion] = useState("");
   
   const [textoNuevoPendiente, setTextoNuevoPendiente] = useState<{ [key: string]: string }>({});
+  const [nuevoInvasivoNombre, setNuevoInvasivoNombre] = useState<{ [key: string]: string }>({});
 
   const hoyStr = new Date().toISOString().split("T")[0];
 
   useEffect(() => {
     localStorage.setItem("ward_commander_censo", JSON.stringify(pacientes));
   }, [pacientes]);
+
+  const calcularDiasEstadia = (fechaIngreso: string) => {
+    if (!fechaIngreso) return 0;
+    const ingreso = new Date(fechaIngreso);
+    const hoy = new Date(hoyStr);
+    const diffTime = hoy.getTime() - ingreso.getTime();
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays >= 0 ? diffDays : 0;
+  };
 
   const guardarPaciente = () => {
     if (!pacienteEditando?.cama || !pacienteEditando?.nombre) {
@@ -187,7 +228,8 @@ export default function Censo() {
         ...p, 
         ...(pacienteEditando as PacienteCenso),
         pendientes: Array.isArray(p.pendientes) ? p.pendientes : [],
-        evoluciones: Array.isArray(p.evoluciones) ? p.evoluciones : []
+        evoluciones: Array.isArray(p.evoluciones) ? p.evoluciones : [],
+        invasivos: Array.isArray(p.invasivos) ? p.invasivos : []
       } : p));
     } else {
       const nuevo: PacienteCenso = {
@@ -197,6 +239,12 @@ export default function Censo() {
         edad: pacienteEditando.edad || "",
         diagnostico: pacienteEditando.diagnostico || "",
         anamnesis: pacienteEditando.anamnesis || "",
+        fechaIngreso: pacienteEditando.fechaIngreso || hoyStr,
+        atbNombre: pacienteEditando.atbNombre || "",
+        atbDias: pacienteEditando.atbDias || "",
+        incobertura: pacienteEditando.incobertura || "",
+        invasivos: [],
+        curacion: pacienteEditando.curacion || { ultimaFecha: "", frecuenciaDias: 0, tipo: "" },
         pendientes: [],
         evoluciones: []
       };
@@ -252,6 +300,33 @@ export default function Censo() {
     setTextoNuevoPendiente(prev => ({ ...prev, [pacienteId]: "" }));
   };
 
+  const agregarInvasivo = (pacienteId: string) => {
+    const nombre = nuevoInvasivoNombre[pacienteId];
+    if (!nombre || !nombre.trim()) return;
+
+    setPacientes(prev => prev.map(p => {
+      if (p.id === pacienteId) {
+        const lista = Array.isArray(p.invasivos) ? p.invasivos : [];
+        return {
+          ...p,
+          invasivos: [...lista, { id: Date.now().toString(), nombre: nombre.trim(), dias: 1 }]
+        };
+      }
+      return p;
+    }));
+    setNuevoInvasivoNombre(prev => ({ ...prev, [pacienteId]: "" }));
+  };
+
+  const eliminarInvasivo = (pacienteId: string, invasivoId: string) => {
+    setPacientes(prev => prev.map(p => {
+      if (p.id === pacienteId) {
+        const lista = Array.isArray(p.invasivos) ? p.invasivos : [];
+        return { ...p, invasivos: lista.filter(i => i.id !== invasivoId) };
+      }
+      return p;
+    }));
+  };
+
   const guardarEvolucion = () => {
     if (!pacienteSeleccionadoEvolucion || !nuevoTextoEvolucion.trim()) return;
 
@@ -283,12 +358,12 @@ export default function Censo() {
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-            <Users className="w-7 h-7 text-blue-600" /> Censo de Pacientes & Evoluciones
+            <Users className="w-7 h-7 text-blue-600" /> Censo de Pacientes & Control Clínico
           </h1>
-          <p className="text-sm text-gray-500">Gestiona turnos, marca pendientes diarios y registra evoluciones sincronizadas con la IA.</p>
+          <p className="text-sm text-gray-500">Gestiona estancias, antibióticos, dispositivos invasivos, curaciones y alertas GES.</p>
         </div>
         <button
-          onClick={() => { setPacienteEditando({}); setModalAbierto(true); }}
+          onClick={() => { setPacienteEditando({ fechaIngreso: hoyStr }); setModalAbierto(true); }}
           className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 shadow"
         >
           <Plus className="w-4 h-4" /> Nuevo Paciente
@@ -300,6 +375,7 @@ export default function Censo() {
           const evolucionadoHoy = p.ultimaEvolucionFecha === hoyStr;
           const listaPendientes = Array.isArray(p.pendientes) ? p.pendientes : [];
           const textoBusqueda = `${p.diagnostico || ""} ${p.anamnesis || ""}`.toLowerCase();
+          const diasHospitalizacion = calcularDiasEstadia(p.fechaIngreso);
 
           const gesDetectados = LISTA_GES.filter(g => 
             g.keywords.some(kw => textoBusqueda.includes(kw))
@@ -336,6 +412,24 @@ export default function Censo() {
                 <h3 className="font-bold text-gray-900 text-base">{p.nombre} {p.edad ? `(${p.edad} años)` : ""}</h3>
                 <p className="text-xs font-semibold text-purple-700 mt-0.5">Dx: {p.diagnostico || "Sin diagnóstico principal"}</p>
 
+                {/* 🏥 ESTADÍA E INGRESO */}
+                <div className="mt-2.5 bg-slate-50 border p-2 rounded-lg flex justify-between items-center text-xs">
+                  <div>
+                    <span className="text-gray-500 block text-[10px] uppercase font-bold">Fecha de Ingreso:</span>
+                    <span className="font-semibold text-gray-800">{p.fechaIngreso || "No definida"}</span>
+                  </div>
+                  <div className="text-right">
+                    <span className="text-gray-500 block text-[10px] uppercase font-bold">Estadía:</span>
+                    <span className="font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-100">
+                      {diasHospitalizacion} días hospitalizado
+                    </span>
+                  </div>
+                </div>
+
+                {/* 💊 ATB, INFECCIÓN E INVASIVOS (CON ACORDEÓN PARA MINIMIZAR) */}
+                <ControlClinicoCard paciente={p} />
+
+                {/* 🚨 ALERTA GES */}
                 {gesDetectados.length > 0 && (
                   <AlertaGesCard pacienteId={p.id} gesDetectados={gesDetectados} />
                 )}
@@ -405,14 +499,15 @@ export default function Censo() {
         )}
       </div>
 
+      {/* MODAL NUEVO / EDITAR PACIENTE */}
       {modalAbierto && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl max-w-lg w-full p-6 space-y-4 shadow-xl">
+          <div className="bg-white rounded-xl max-w-lg w-full p-6 space-y-4 shadow-xl max-h-[90vh] overflow-y-auto">
             <h2 className="text-lg font-bold text-gray-800 border-b pb-2">
               {pacienteEditando?.id ? "Editar Paciente" : "Agregar Paciente al Censo"}
             </h2>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-3 gap-3">
               <div>
                 <label className="block text-xs font-bold uppercase text-gray-500 mb-1">Cama *</label>
                 <input
@@ -430,6 +525,15 @@ export default function Censo() {
                   placeholder="Ej. 65"
                   value={pacienteEditando?.edad || ""}
                   onChange={e => setPacienteEditando(prev => ({ ...prev, edad: e.target.value }))}
+                  className="w-full p-2 border rounded text-sm"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold uppercase text-gray-500 mb-1">F. Ingreso *</label>
+                <input
+                  type="date"
+                  value={pacienteEditando?.fechaIngreso || hoyStr}
+                  onChange={e => setPacienteEditando(prev => ({ ...prev, fechaIngreso: e.target.value }))}
                   className="w-full p-2 border rounded text-sm"
                 />
               </div>
@@ -457,10 +561,44 @@ export default function Censo() {
               />
             </div>
 
+            <div className="grid grid-cols-2 gap-3 bg-slate-50 p-3 rounded-xl border">
+              <div>
+                <label className="block text-xs font-bold uppercase text-gray-600 mb-1">Antibiótico (ATB)</label>
+                <input
+                  type="text"
+                  placeholder="Ej. Ceftriaxona"
+                  value={pacienteEditando?.atbNombre || ""}
+                  onChange={e => setPacienteEditando(prev => ({ ...prev, atbNombre: e.target.value }))}
+                  className="w-full p-2 border rounded text-sm bg-white"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-bold uppercase text-gray-600 mb-1">Días ATB</label>
+                <input
+                  type="text"
+                  placeholder="Ej. 5 días"
+                  value={pacienteEditando?.atbDias || ""}
+                  onChange={e => setPacienteEditando(prev => ({ ...prev, atbDias: e.target.value }))}
+                  className="w-full p-2 border rounded text-sm bg-white"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold uppercase text-gray-500 mb-1">Posible Infección / Foco o Cobertura</label>
+              <input
+                type="text"
+                placeholder="Ej. NAC / ITU / Foco urinario"
+                value={pacienteEditando?.incobertura || ""}
+                onChange={e => setPacienteEditando(prev => ({ ...prev, incobertura: e.target.value }))}
+                className="w-full p-2 border rounded text-sm"
+              />
+            </div>
+
             <div>
               <label className="block text-xs font-bold uppercase text-gray-500 mb-1">Anamnesis / Antecedentes Base</label>
               <textarea
-                rows={3}
+                rows={2}
                 placeholder="Historia clínica inicial..."
                 value={pacienteEditando?.anamnesis || ""}
                 onChange={e => setPacienteEditando(prev => ({ ...prev, anamnesis: e.target.value }))}
@@ -478,6 +616,7 @@ export default function Censo() {
         </div>
       )}
 
+      {/* MODAL EVOLUCIÓN */}
       {modalEvolucionAbierto && pacienteSeleccionadoEvolucion && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl max-w-2xl w-full p-6 space-y-4 shadow-xl max-h-[90vh] flex flex-col">
@@ -533,6 +672,134 @@ export default function Censo() {
   );
 }
 
+// 🛡️ COMPONENTE PARA CONTROL CLÍNICO (ATB, INFECCIÓN, INVASIVOS Y CURACIONES) CON OPCIÓN DE MINIMIZAR Y ELIMINAR
+function ControlClinicoCard({ paciente }: { paciente: PacienteCenso }) {
+  const [minimizado, setMinimizado] = useState(false);
+  const [nombreInv, setNombreInv] = useState("");
+  const [pacienteState, setPacienteState] = useState(paciente);
+
+  useEffect(() => {
+    setPacienteState(paciente);
+  }, [paciente]);
+
+  const agregarDispositivo = () => {
+    if (!nombreInv.trim()) return;
+    const listaActual = Array.isArray(pacienteState.invasivos) ? pacienteState.invasivos : [];
+    const actualizado = {
+      ...pacienteState,
+      invasivos: [...listaActual, { id: Date.now().toString(), nombre: nombreInv.trim(), dias: 1 }]
+    };
+    setPacienteState(actualizado);
+    actualizarStoragePaciente(actualizado);
+    setNombreInv("");
+  };
+
+  const eliminarDispositivo = (id: string) => {
+    const listaActual = Array.isArray(pacienteState.invasivos) ? pacienteState.invasivos : [];
+    const actualizado = {
+      ...pacienteState,
+      invasivos: listaActual.filter(i => i.id !== id)
+    };
+    setPacienteState(actualizado);
+    actualizarStoragePaciente(actualizado);
+  };
+
+  const actualizarStoragePaciente = (pacienteActualizado: PacienteCenso) => {
+    try {
+      const guardados = localStorage.getItem("ward_commander_censo");
+      if (guardados) {
+        const parsed = JSON.parse(guardados);
+        const nuevos = parsed.map((p: any) => p.id === pacienteActualizado.id ? pacienteActualizado : p);
+        localStorage.setItem("ward_commander_censo", JSON.stringify(nuevos));
+      }
+    } catch (e) {}
+  };
+
+  return (
+    <div className="mt-2.5 bg-indigo-50/60 border border-indigo-200 rounded-xl p-3 shadow-xs space-y-2">
+      <div className="flex items-center justify-between text-indigo-900 font-bold text-xs cursor-pointer" onClick={() => setMinimizado(!minimizado)}>
+        <div className="flex items-center gap-1.5">
+          <Activity className="w-4 h-4 text-indigo-600 shrink-0" />
+          <span>Control ATB, Infección & Invasivos</span>
+        </div>
+        <button className="p-1 hover:bg-indigo-100 rounded transition-colors" title={minimizado ? "Expandir" : "Minimizar"}>
+          {minimizado ? <ChevronDown className="w-4 h-4 text-indigo-700" /> : <ChevronUp className="w-4 h-4 text-indigo-700" />}
+        </button>
+      </div>
+
+      {!minimizado && (
+        <div className="space-y-2 pt-1 text-xs">
+          {/* ATB e Infección */}
+          <div className="bg-white p-2 rounded-lg border border-indigo-100 space-y-1">
+            <div className="flex items-center gap-1 text-indigo-800 font-bold">
+              <Syringe className="w-3.5 h-3.5 text-indigo-600" /> Antibiótico (ATB):
+            </div>
+            <p className="text-gray-800 font-medium">
+              {pacienteState.atbNombre ? `${pacienteState.atbNombre} (${pacienteState.atbDias || "Sin días especificados"})` : "Sin ATB activo"}
+            </p>
+            <div className="pt-1 border-t border-indigo-50 flex items-center gap-1 text-amber-800 font-semibold">
+              <ShieldAlert className="w-3.5 h-3.5 text-amber-600" /> Posible Infección / Foco:
+              <span className="text-gray-700 font-normal">{pacienteState.incobertura || "No especificado"}</span>
+            </div>
+          </div>
+
+          {/* Dispositivos Invasivos */}
+          <div className="bg-white p-2 rounded-lg border border-indigo-100 space-y-1.5">
+            <span className="font-bold text-indigo-800 block">Dispositivos Invasivos (Días totales):</span>
+            <div className="space-y-1">
+              {Array.isArray(pacienteState.invasivos) && pacienteState.invasivos.map(inv => (
+                <div key={inv.id} className="flex justify-between items-center bg-slate-50 p-1 px-2 rounded border">
+                  <span className="text-gray-700 font-medium">{inv.nombre}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="bg-blue-100 text-blue-800 font-bold px-1.5 py-0.5 rounded text-[10px]">
+                      {inv.dias} días
+                    </span>
+                    <button onClick={() => eliminarDispositivo(inv.id)} className="text-gray-300 hover:text-red-600" title="Eliminar dispositivo">
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+              ))}
+              {(!pacienteState.invasivos || pacienteState.invasivos.length === 0) && (
+                <p className="text-gray-400 text-[11px] italic">Sin dispositivos invasivos registrados.</p>
+              )}
+            </div>
+
+            <div className="flex gap-1 pt-1">
+              <input
+                type="text"
+                placeholder="Ej. CVC, Sonda Foley..."
+                value={nombreInv}
+                onChange={e => setNombreInv(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') agregarDispositivo(); }}
+                className="w-full text-xs p-1 border rounded bg-white outline-none"
+              />
+              <button onClick={agregarDispositivo} className="bg-indigo-600 hover:bg-indigo-700 text-white px-2 py-1 text-xs rounded font-bold">+</button>
+            </div>
+          </div>
+
+          {/* Curaciones */}
+          <div className="bg-white p-2 rounded-lg border border-indigo-100 space-y-1">
+            <div className="flex items-center gap-1 text-indigo-800 font-bold">
+              <Bandage className="w-3.5 h-3.5 text-indigo-600" /> Control de Curaciones:
+            </div>
+            <p className="text-gray-700">
+              {pacienteState.curacion?.tipo ? (
+                <>
+                  <span className="font-semibold text-gray-900">{pacienteState.curacion.tipo}</span> • Última: {pacienteState.curacion.ultimaFecha || "N/A"} (Frecuencia: cada {pacienteState.curacion.frecuenciaDias} días)
+                </>
+              ) : (
+                "Sin curaciones programadas"
+              )}
+            </p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// 🔔 ALERTA GES CARD
 function AlertaGesCard({ pacienteId, gesDetectados }: { pacienteId: string; gesDetectados: PatologiaGes[] }) {
   const [minimizado, setMinimizado] = useState(false);
   const [estadoGes, setEstadoGes] = useState<Record<number, string>>(() => {
