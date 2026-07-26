@@ -16,10 +16,11 @@ interface Evolucion {
 interface DispositivoInvasivo {
   id: string;
   nombre: string;
-  dias: number;
+  fechaInstalacion: string; // YYYY-MM-DD
 }
 
 interface Curacion {
+  activo: boolean;
   ultimaFecha: string;
   frecuenciaDias: number;
   tipo: string;
@@ -143,6 +144,8 @@ const LISTA_GES: PatologiaGes[] = [
 ];
 
 export default function Censo() {
+  const hoyStr = new Date().toISOString().split("T")[0];
+
   const [pacientes, setPacientes] = useState<PacienteCenso[]>(() => {
     try {
       const guardados = localStorage.getItem("ward_commander_censo");
@@ -151,12 +154,12 @@ export default function Censo() {
         if (Array.isArray(parsed) && parsed.length > 0) {
           return parsed.map((p: any) => ({
             ...p,
-            fechaIngreso: p.fechaIngreso || new Date().toISOString().split("T")[0],
+            fechaIngreso: p.fechaIngreso || hoyStr,
             atbNombre: p.atbNombre || "",
             atbDias: p.atbDias || "",
             incobertura: p.incobertura || "",
             invasivos: Array.isArray(p.invasivos) ? p.invasivos : [],
-            curacion: p.curacion || { ultimaFecha: "", frecuenciaDias: 0, tipo: "" },
+            curacion: p.curacion || { activo: false, ultimaFecha: "", frecuenciaDias: 0, tipo: "" },
             pendientes: Array.isArray(p.pendientes) ? p.pendientes : [],
             evoluciones: Array.isArray(p.evoluciones) ? p.evoluciones : []
           }));
@@ -176,10 +179,10 @@ export default function Censo() {
         atbDias: "5 días",
         incobertura: "NAC / Foco pulmonar",
         invasivos: [
-          { id: "inv1", nombre: "Vía Venosa Periférica (VVP)", dias: 5 },
-          { id: "inv2", nombre: "Sonda Foley", dias: 3 }
+          { id: "inv1", nombre: "Vía Venosa Periférica (VVP)", fechaInstalacion: "2026-07-21" },
+          { id: "inv2", nombre: "Sonda Foley", fechaInstalacion: "2026-07-23" }
         ],
-        curacion: { ultimaFecha: "2026-07-25", frecuenciaDias: 3, tipo: "Herida operatoria / Úlcera" },
+        curacion: { activo: true, ultimaFecha: "2026-07-25", frecuenciaDias: 3, tipo: "Herida operatoria / Úlcera" },
         pendientes: [
           { id: "p1", texto: "Control de PCR y hemograma", completado: false },
           { id: "p2", texto: "Resultado de cultivo sputum", completado: true }
@@ -201,17 +204,15 @@ export default function Censo() {
   
   const [textoNuevoPendiente, setTextoNuevoPendiente] = useState<{ [key: string]: string }>({});
 
-  const hoyStr = new Date().toISOString().split("T")[0];
-
   useEffect(() => {
     localStorage.setItem("ward_commander_censo", JSON.stringify(pacientes));
   }, [pacientes]);
 
-  const calcularDiasEstadia = (fechaIngreso: string) => {
-    if (!fechaIngreso) return 0;
-    const ingreso = new Date(fechaIngreso);
+  const calcularDias = (fechaInicio: string) => {
+    if (!fechaInicio) return 0;
+    const inicio = new Date(fechaInicio);
     const hoy = new Date(hoyStr);
-    const diffTime = hoy.getTime() - ingreso.getTime();
+    const diffTime = hoy.getTime() - inicio.getTime();
     const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
     return diffDays >= 0 ? diffDays : 0;
   };
@@ -228,7 +229,8 @@ export default function Censo() {
         ...(pacienteEditando as PacienteCenso),
         pendientes: Array.isArray(p.pendientes) ? p.pendientes : [],
         evoluciones: Array.isArray(p.evoluciones) ? p.evoluciones : [],
-        invasivos: Array.isArray(p.invasivos) ? p.invasivos : []
+        invasivos: Array.isArray(p.invasivos) ? p.invasivos : [],
+        curacion: pacienteEditando.curacion || { activo: false, ultimaFecha: "", frecuenciaDias: 0, tipo: "" }
       } : p));
     } else {
       const nuevo: PacienteCenso = {
@@ -243,7 +245,7 @@ export default function Censo() {
         atbDias: pacienteEditando.atbDias || "",
         incobertura: pacienteEditando.incobertura || "",
         invasivos: [],
-        curacion: pacienteEditando.curacion || { ultimaFecha: "", frecuenciaDias: 0, tipo: "" },
+        curacion: pacienteEditando.curacion || { activo: false, ultimaFecha: "", frecuenciaDias: 0, tipo: "" },
         pendientes: [],
         evoluciones: []
       };
@@ -335,7 +337,13 @@ export default function Censo() {
           <p className="text-sm text-gray-500">Gestiona estancias, antibióticos, dispositivos invasivos, curaciones y alertas GES.</p>
         </div>
         <button
-          onClick={() => { setPacienteEditando({ fechaIngreso: hoyStr }); setModalAbierto(true); }}
+          onClick={() => { 
+            setPacienteEditando({ 
+              fechaIngreso: hoyStr, 
+              curacion: { activo: false, ultimaFecha: hoyStr, frecuenciaDias: 3, tipo: "" } 
+            }); 
+            setModalAbierto(true); 
+          }}
           className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 shadow"
         >
           <Plus className="w-4 h-4" /> Nuevo Paciente
@@ -347,7 +355,7 @@ export default function Censo() {
           const evolucionadoHoy = p.ultimaEvolucionFecha === hoyStr;
           const listaPendientes = Array.isArray(p.pendientes) ? p.pendientes : [];
           const textoBusqueda = `${p.diagnostico || ""} ${p.anamnesis || ""}`.toLowerCase();
-          const diasHospitalizacion = calcularDiasEstadia(p.fechaIngreso);
+          const diasHospitalizacion = calcularDias(p.fechaIngreso);
 
           const gesDetectados = LISTA_GES.filter(g => 
             g.keywords.some(kw => textoBusqueda.includes(kw))
@@ -397,6 +405,7 @@ export default function Censo() {
                   </div>
                 </div>
 
+                {/* 🏥 CONTROL CLÍNICO MODIFICABLE Y CON FECHAS EDITABLES */}
                 <ControlClinicoCard paciente={p} />
 
                 {gesDetectados.length > 0 && (
@@ -468,6 +477,7 @@ export default function Censo() {
         )}
       </div>
 
+      {/* MODAL NUEVO / EDITAR PACIENTE */}
       {modalAbierto && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl max-w-lg w-full p-6 space-y-4 shadow-xl max-h-[90vh] overflow-y-auto">
@@ -534,7 +544,7 @@ export default function Censo() {
                 <label className="block text-xs font-bold uppercase text-gray-600 mb-1">Antibiótico (ATB)</label>
                 <input
                   type="text"
-                  placeholder="Ej. Ceftriaxona"
+                  placeholder="Ej. Ceftriaxona (Dejar en blanco si no usa)"
                   value={pacienteEditando?.atbNombre || ""}
                   onChange={e => setPacienteEditando(prev => ({ ...prev, atbNombre: e.target.value }))}
                   className="w-full p-2 border rounded text-sm bg-white"
@@ -563,6 +573,72 @@ export default function Censo() {
               />
             </div>
 
+            {/* SECCIÓN CURACIONES OPCIONAL EN MODAL */}
+            <div className="bg-slate-50 p-3 rounded-xl border space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold uppercase text-gray-700 flex items-center gap-1">
+                  <Bandage className="w-4 h-4 text-indigo-600" /> ¿Requiere Control de Curaciones?
+                </label>
+                <input
+                  type="checkbox"
+                  checked={pacienteEditando?.curacion?.activo || false}
+                  onChange={e => setPacienteEditando(prev => ({
+                    ...prev,
+                    curacion: {
+                      ...(prev?.curacion || { ultimaFecha: hoyStr, frecuenciaDias: 3, tipo: "" }),
+                      activo: e.target.checked
+                    }
+                  }))}
+                  className="w-4 h-4 text-blue-600 rounded"
+                />
+              </div>
+
+              {pacienteEditando?.curacion?.activo && (
+                <div className="space-y-2 pt-2 border-t">
+                  <div>
+                    <label className="block text-[11px] font-bold text-gray-600">Tipo de Herida / Curación</label>
+                    <input
+                      type="text"
+                      placeholder="Ej. Herida operatoria, Úlcera por presión..."
+                      value={pacienteEditando?.curacion?.tipo || ""}
+                      onChange={e => setPacienteEditando(prev => ({
+                        ...prev,
+                        curacion: { ...(prev?.curacion || { ultimaFecha: hoyStr, frecuenciaDias: 3, tipo: "" }), tipo: e.target.value }
+                      }))}
+                      className="w-full p-1.5 border rounded text-xs bg-white"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-[11px] font-bold text-gray-600">Última Curación</label>
+                      <input
+                        type="date"
+                        value={pacienteEditando?.curacion?.ultimaFecha || hoyStr}
+                        onChange={e => setPacienteEditando(prev => ({
+                          ...prev,
+                          curacion: { ...(prev?.curacion || { ultimaFecha: hoyStr, frecuenciaDias: 3, tipo: "" }), ultimaFecha: e.target.value }
+                        }))}
+                        className="w-full p-1.5 border rounded text-xs bg-white"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-bold text-gray-600">Frecuencia (cada X días)</label>
+                      <input
+                        type="number"
+                        min="1"
+                        value={pacienteEditando?.curacion?.frecuenciaDias || 3}
+                        onChange={e => setPacienteEditando(prev => ({
+                          ...prev,
+                          curacion: { ...(prev?.curacion || { ultimaFecha: hoyStr, frecuenciaDias: 3, tipo: "" }), frecuenciaDias: Number(e.target.value) }
+                        }))}
+                        className="w-full p-1.5 border rounded text-xs bg-white"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
             <div>
               <label className="block text-xs font-bold uppercase text-gray-500 mb-1">Anamnesis / Antecedentes Base</label>
               <textarea
@@ -584,6 +660,7 @@ export default function Censo() {
         </div>
       )}
 
+      {/* MODAL EVOLUCIÓN */}
       {modalEvolucionAbierto && pacienteSeleccionadoEvolucion && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
           <div className="bg-white rounded-xl max-w-2xl w-full p-6 space-y-4 shadow-xl max-h-[90vh] flex flex-col">
@@ -639,25 +716,46 @@ export default function Censo() {
   );
 }
 
+// 🩺 COMPONENTE CLÍNICO CON EDICIÓN DE FECHAS Y ELIMINACIÓN DE INVASIVOS Y CURACIONES
 function ControlClinicoCard({ paciente }: { paciente: PacienteCenso }) {
   const [minimizado, setMinimizado] = useState(false);
   const [nombreInv, setNombreInv] = useState("");
+  const [fechaInv, setFechaInv] = useState(new Date().toISOString().split("T")[0]);
   const [pacienteState, setPacienteState] = useState(paciente);
 
   useEffect(() => {
     setPacienteState(paciente);
   }, [paciente]);
 
+  const calcularDias = (fechaInicio: string) => {
+    if (!fechaInicio) return 0;
+    const inicio = new Date(fechaInicio);
+    const hoy = new Date();
+    const diffTime = hoy.getTime() - inicio.getTime();
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays >= 0 ? diffDays : 0;
+  };
+
   const agregarDispositivo = () => {
     if (!nombreInv.trim()) return;
     const listaActual = Array.isArray(pacienteState.invasivos) ? pacienteState.invasivos : [];
     const actualizado = {
       ...pacienteState,
-      invasivos: [...listaActual, { id: Date.now().toString(), nombre: nombreInv.trim(), dias: 1 }]
+      invasivos: [...listaActual, { id: Date.now().toString(), nombre: nombreInv.trim(), fechaInstalacion: fechaInv }]
     };
     setPacienteState(actualizado);
     actualizarStoragePaciente(actualizado);
     setNombreInv("");
+  };
+
+  const actualizarFechaInvasivo = (id: string, nuevaFecha: string) => {
+    const listaActual = Array.isArray(pacienteState.invasivos) ? pacienteState.invasivos : [];
+    const actualizado = {
+      ...pacienteState,
+      invasivos: listaActual.map(i => i.id === id ? { ...i, fechaInstalacion: nuevaFecha } : i)
+    };
+    setPacienteState(actualizado);
+    actualizarStoragePaciente(actualizado);
   };
 
   const eliminarDispositivo = (id: string) => {
@@ -665,6 +763,15 @@ function ControlClinicoCard({ paciente }: { paciente: PacienteCenso }) {
     const actualizado = {
       ...pacienteState,
       invasivos: listaActual.filter(i => i.id !== id)
+    };
+    setPacienteState(actualizado);
+    actualizarStoragePaciente(actualizado);
+  };
+
+  const eliminarCuracion = () => {
+    const actualizado = {
+      ...pacienteState,
+      curacion: { activo: false, ultimaFecha: "", frecuenciaDias: 0, tipo: "" }
     };
     setPacienteState(actualizado);
     actualizarStoragePaciente(actualizado);
@@ -681,6 +788,10 @@ function ControlClinicoCard({ paciente }: { paciente: PacienteCenso }) {
     } catch (e) {}
   };
 
+  const tieneAtb = Boolean(pacienteState.atbNombre && pacienteState.atbNombre.trim());
+  const tieneInvasivos = Array.isArray(pacienteState.invasivos) && pacienteState.invasivos.length > 0;
+  const tieneCuracion = Boolean(pacienteState.curacion?.activo && pacienteState.curacion?.tipo);
+
   return (
     <div className="mt-2.5 bg-indigo-50/60 border border-indigo-200 rounded-xl p-3 shadow-xs space-y-2">
       <div className="flex items-center justify-between text-indigo-900 font-bold text-xs cursor-pointer" onClick={() => setMinimizado(!minimizado)}>
@@ -695,36 +806,56 @@ function ControlClinicoCard({ paciente }: { paciente: PacienteCenso }) {
 
       {!minimizado && (
         <div className="space-y-2 pt-1 text-xs">
-          <div className="bg-white p-2 rounded-lg border border-indigo-100 space-y-1">
-            <div className="flex items-center gap-1 text-indigo-800 font-bold">
-              <Syringe className="w-3.5 h-3.5 text-indigo-600" /> Antibiótico (ATB):
-            </div>
-            <p className="text-gray-800 font-medium">
-              {pacienteState.atbNombre ? `${pacienteState.atbNombre} (${pacienteState.atbDias || "Sin días especificados"})` : "Sin ATB activo"}
-            </p>
-            <div className="pt-1 border-t border-indigo-50 flex items-center gap-1 text-amber-800 font-semibold">
-              <ShieldAlert className="w-3.5 h-3.5 text-amber-600" /> Posible Infección / Foco:
-              <span className="text-gray-700 font-normal">{pacienteState.incobertura || "No especificado"}</span>
-            </div>
-          </div>
-
-          <div className="bg-white p-2 rounded-lg border border-indigo-100 space-y-1.5">
-            <span className="font-bold text-indigo-800 block">Dispositivos Invasivos (Días totales):</span>
-            <div className="space-y-1">
-              {Array.isArray(pacienteState.invasivos) && pacienteState.invasivos.map(inv => (
-                <div key={inv.id} className="flex justify-between items-center bg-slate-50 p-1 px-2 rounded border">
-                  <span className="text-gray-700 font-medium">{inv.nombre}</span>
-                  <div className="flex items-center gap-2">
-                    <span className="bg-blue-100 text-blue-800 font-bold px-1.5 py-0.5 rounded text-[10px]">
-                      {inv.dias} días
-                    </span>
-                    <button onClick={() => eliminarDispositivo(inv.id)} className="text-gray-300 hover:text-red-600" title="Eliminar dispositivo">
-                      <X className="w-3.5 h-3.5" />
-                    </button>
-                  </div>
+          {/* ATB e Infección */}
+          {tieneAtb && (
+            <div className="bg-white p-2 rounded-lg border border-indigo-100 space-y-1">
+              <div className="flex items-center gap-1 text-indigo-800 font-bold">
+                <Syringe className="w-3.5 h-3.5 text-indigo-600" /> Antibiótico (ATB):
+              </div>
+              <p className="text-gray-800 font-medium">
+                {pacienteState.atbNombre} ({pacienteState.atbDias || "Sin días especificados"})
+              </p>
+              {pacienteState.incobertura && (
+                <div className="pt-1 border-t border-indigo-50 flex items-center gap-1 text-amber-800 font-semibold">
+                  <ShieldAlert className="w-3.5 h-3.5 text-amber-600" /> Posible Infección / Foco:
+                  <span className="text-gray-700 font-normal">{pacienteState.incobertura}</span>
                 </div>
-              ))}
-              {(!pacienteState.invasivos || pacienteState.invasivos.length === 0) && (
+              )}
+            </div>
+          )}
+
+          {/* Dispositivos Invasivos con fecha editable */}
+          <div className="bg-white p-2 rounded-lg border border-indigo-100 space-y-1.5">
+            <span className="font-bold text-indigo-800 block">Dispositivos Invasivos:</span>
+            <div className="space-y-1.5">
+              {tieneInvasivos && pacienteState.invasivos.map(inv => {
+                const diasCalculados = calcularDias(inv.fechaInstalacion);
+                return (
+                  <div key={inv.id} className="flex flex-col gap-1 bg-slate-50 p-2 rounded border">
+                    <div className="flex justify-between items-center">
+                      <span className="text-gray-800 font-bold">{inv.nombre}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="bg-blue-100 text-blue-800 font-bold px-2 py-0.5 rounded text-[10px]">
+                          {diasCalculados} días totales
+                        </span>
+                        <button onClick={() => eliminarDispositivo(inv.id)} className="text-gray-300 hover:text-red-600" title="Eliminar dispositivo">
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1 text-[11px] text-gray-500 pt-1 border-t border-slate-200">
+                      <span>Instalación:</span>
+                      <input 
+                        type="date" 
+                        value={inv.fechaInstalacion || new Date().toISOString().split("T")[0]}
+                        onChange={e => actualizarFechaInvasivo(inv.id, e.target.value)}
+                        className="bg-white border rounded px-1 text-[11px] font-mono text-gray-700 outline-none"
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+              {!tieneInvasivos && (
                 <p className="text-gray-400 text-[11px] italic">Sin dispositivos invasivos registrados.</p>
               )}
             </div>
@@ -738,24 +869,32 @@ function ControlClinicoCard({ paciente }: { paciente: PacienteCenso }) {
                 onKeyDown={e => { if (e.key === 'Enter') agregarDispositivo(); }}
                 className="w-full text-xs p-1 border rounded bg-white outline-none"
               />
+              <input
+                type="date"
+                value={fechaInv}
+                onChange={e => setFechaInv(e.target.value)}
+                className="text-xs p-1 border rounded bg-white outline-none font-mono"
+              />
               <button onClick={agregarDispositivo} className="bg-indigo-600 hover:bg-indigo-700 text-white px-2 py-1 text-xs rounded font-bold">+</button>
             </div>
           </div>
 
-          <div className="bg-white p-2 rounded-lg border border-indigo-100 space-y-1">
-            <div className="flex items-center gap-1 text-indigo-800 font-bold">
-              <Bandage className="w-3.5 h-3.5 text-indigo-600" /> Control de Curaciones:
-            </div>
-            <p className="text-gray-700">
-              {pacienteState.curacion?.tipo ? (
-                <>
+          {/* Curaciones con opción de eliminar */}
+          {tieneCuracion && (
+            <div className="bg-white p-2 rounded-lg border border-indigo-100 flex justify-between items-start">
+              <div className="space-y-1">
+                <div className="flex items-center gap-1 text-indigo-800 font-bold">
+                  <Bandage className="w-3.5 h-3.5 text-indigo-600" /> Control de Curaciones:
+                </div>
+                <p className="text-gray-700">
                   <span className="font-semibold text-gray-900">{pacienteState.curacion.tipo}</span> • Última: {pacienteState.curacion.ultimaFecha || "N/A"} (Frecuencia: cada {pacienteState.curacion.frecuenciaDias} días)
-                </>
-              ) : (
-                "Sin curaciones programadas"
-              )}
-            </p>
-          </div>
+                </p>
+              </div>
+              <button onClick={eliminarCuracion} className="text-gray-300 hover:text-red-600 p-1" title="Eliminar curación">
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          )}
         </div>
       )}
     </div>
