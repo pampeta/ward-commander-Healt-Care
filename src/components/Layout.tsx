@@ -1,5 +1,5 @@
 import React from 'react';
-import { Users, CheckSquare, BookOpen, Cpu, User, BrainCircuit } from 'lucide-react'; // 1. Agregué BrainCircuit
+import { Users, CheckSquare, BookOpen, Cpu, User, BrainCircuit, Calendar } from 'lucide-react'; // 1. Agregué Calendar
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -13,7 +13,8 @@ export const DesktopLayout: React.FC<LayoutProps> = ({ children, activeTab, setA
     { id: 'tareas', label: 'Tareas y Flujos', icon: CheckSquare },
     { id: 'estudio', label: 'Plan EUNACOM', icon: BookOpen },
     { id: 'ia', label: 'Generador IA Gemini', icon: Cpu },
-    { id: 'tutor', label: 'Instructor Clínico IA', icon: BrainCircuit }, // 2. Botón añadido
+    { id: 'tutor', label: 'Instructor Clínico IA', icon: BrainCircuit },
+    { id: 'calendario', label: 'Calendario y Pruebas', icon: Calendar }, // 2. Botón del calendario añadido
     { id: 'yo', label: 'Control & Métricas', icon: User },
   ];
 
