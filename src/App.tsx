@@ -8,6 +8,7 @@ import Censo from './views/Censo';
 import Tareas from './views/Tareas';
 import PlanEunacom from './views/PlanEunacom';
 import TutorClinico from "./views/TutorClinico";
+import CalendarioPruebas from "./views/CalendarioPruebas";
 
 export default function App() {
   const [session, setSession] = useState<any>(null);

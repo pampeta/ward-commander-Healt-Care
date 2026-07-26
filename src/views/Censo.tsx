@@ -130,33 +130,35 @@ export default function Censo() {
       const guardados = localStorage.getItem("ward_commander_censo");
       if (guardados) {
         const parsed = JSON.parse(guardados);
-        return parsed.map((p: any) => ({
-          ...p,
-          pendientes: Array.isArray(p.pendientes) ? p.pendientes : [],
-          evoluciones: Array.isArray(p.evoluciones) ? p.evoluciones : []
-        }));
-      }
-      return [
-        {
-          id: "1",
-          cama: "12A",
-          nombre: "Juan Pérez",
-          edad: "68",
-          diagnostico: "Neumonía adquirida en la comunidad, HTA y Diabetes tipo 2",
-          anamnesis: "Cuadro de 4 días con tos productiva y disnea.",
-          pendientes: [
-            { id: "p1", texto: "Control de PCR y hemograma", completado: false },
-            { id: "p2", texto: "Resultado de cultivo sputum", completado: true }
-          ],
-          evoluciones: [
-            { id: "e1", fecha: "2026-07-18", texto: "Paciente estable, tolera régimen liviano. SatO2 96%." }
-          ],
-          ultimaEvolucionFecha: "2026-07-18"
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          return parsed.map((p: any) => ({
+            ...p,
+            pendientes: Array.isArray(p.pendientes) ? p.pendientes : [],
+            evoluciones: Array.isArray(p.evoluciones) ? p.evoluciones : []
+          }));
         }
-      ];
-    } catch {
-      return [];
+      }
+    } catch (e) {
+      console.error("Error leyendo censo", e);
     }
+    return [
+      {
+        id: "1",
+        cama: "12A",
+        nombre: "Juan Pérez",
+        edad: "68",
+        diagnostico: "Neumonía adquirida en la comunidad, HTA y Diabetes tipo 2",
+        anamnesis: "Cuadro de 4 días con tos productiva y disnea.",
+        pendientes: [
+          { id: "p1", texto: "Control de PCR y hemograma", completado: false },
+          { id: "p2", texto: "Resultado de cultivo sputum", completado: true }
+        ],
+        evoluciones: [
+          { id: "e1", fecha: "2026-07-18", texto: "Paciente estable, tolera régimen liviano. SatO2 96%." }
+        ],
+        ultimaEvolucionFecha: "2026-07-18"
+      }
+    ];
   });
 
   const [modalAbierto, setModalAbierto] = useState(false);
@@ -334,7 +336,6 @@ export default function Censo() {
                 <h3 className="font-bold text-gray-900 text-base">{p.nombre} {p.edad ? `(${p.edad} años)` : ""}</h3>
                 <p className="text-xs font-semibold text-purple-700 mt-0.5">Dx: {p.diagnostico || "Sin diagnóstico principal"}</p>
 
-                {/* 🚨 ALERTA GES CON OPCIÓN DE MINIMIZAR */}
                 {gesDetectados.length > 0 && (
                   <AlertaGesCard pacienteId={p.id} gesDetectados={gesDetectados} />
                 )}
@@ -532,7 +533,6 @@ export default function Censo() {
   );
 }
 
-// 🔔 COMPONENTE INTERNO CON CAPACIDAD DE MINIMIZAR LAS ALERTAS GES
 function AlertaGesCard({ pacienteId, gesDetectados }: { pacienteId: string; gesDetectados: PatologiaGes[] }) {
   const [minimizado, setMinimizado] = useState(false);
   const [estadoGes, setEstadoGes] = useState<Record<number, string>>(() => {
