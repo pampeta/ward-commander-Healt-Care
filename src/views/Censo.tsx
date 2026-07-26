@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Users, Plus, Trash2, Edit3, Save, CheckCircle2, Circle, FileText, Calendar, AlertTriangle } from "lucide-react";
+import { Users, Plus, Trash2, Edit3, Save, CheckCircle2, Circle, FileText, Calendar, AlertTriangle, ChevronDown, ChevronUp, X } from "lucide-react";
 
 interface Pendiente {
   id: string;
@@ -31,7 +31,6 @@ interface PatologiaGes {
   keywords: string[];
 }
 
-// 📋 CATÁLOGO COMPLETO GES (1 a 90)
 const LISTA_GES: PatologiaGes[] = [
   { numero: 1, nombre: "Insuficiencia renal crónica terminal", keywords: ["insuficiencia renal cronica terminal", "irc terminal", "dialisis"] },
   { numero: 2, nombre: "Cardiopatías congénitas operables", keywords: ["cardiopatia congenita operable"] },
@@ -224,6 +223,16 @@ export default function Censo() {
     }));
   };
 
+  const eliminarPendiente = (pacienteId: string, pendienteId: string) => {
+    setPacientes(prev => prev.map(p => {
+      if (p.id === pacienteId) {
+        const listaPendientes = Array.isArray(p.pendientes) ? p.pendientes : [];
+        return { ...p, pendientes: listaPendientes.filter(pend => pend.id !== pendienteId) };
+      }
+      return p;
+    }));
+  };
+
   const agregarPendienteRapido = (pacienteId: string) => {
     const texto = textoNuevoPendiente[pacienteId];
     if (!texto || !texto.trim()) return;
@@ -290,7 +299,6 @@ export default function Censo() {
           const listaPendientes = Array.isArray(p.pendientes) ? p.pendientes : [];
           const textoBusqueda = `${p.diagnostico || ""} ${p.anamnesis || ""}`.toLowerCase();
 
-          // Autodetección de patologías GES
           const gesDetectados = LISTA_GES.filter(g => 
             g.keywords.some(kw => textoBusqueda.includes(kw))
           );
@@ -326,7 +334,7 @@ export default function Censo() {
                 <h3 className="font-bold text-gray-900 text-base">{p.nombre} {p.edad ? `(${p.edad} años)` : ""}</h3>
                 <p className="text-xs font-semibold text-purple-700 mt-0.5">Dx: {p.diagnostico || "Sin diagnóstico principal"}</p>
 
-                {/* 🚨 COMPONENTE DE ALERTA GES INTEGRADO */}
+                {/* 🚨 ALERTA GES CON OPCIÓN DE MINIMIZAR */}
                 {gesDetectados.length > 0 && (
                   <AlertaGesCard pacienteId={p.id} gesDetectados={gesDetectados} />
                 )}
@@ -340,13 +348,22 @@ export default function Censo() {
                   <span className="text-xs font-bold uppercase text-gray-500 block">Pendientes y Tareas:</span>
                   <div className="space-y-1 max-h-28 overflow-y-auto">
                     {listaPendientes.map((pend) => (
-                      <div key={pend.id} onClick={() => togglePendiente(p.id, pend.id)} className="flex items-center gap-2 text-xs cursor-pointer hover:bg-gray-50 p-1 rounded">
-                        {pend.completado ? (
-                          <CheckCircle2 className="w-4 h-4 text-green-600 shrink-0" />
-                        ) : (
-                          <Circle className="w-4 h-4 text-gray-300 shrink-0" />
-                        )}
-                        <span className={pend.completado ? "line-through text-gray-400" : "text-gray-700"}>{pend.texto}</span>
+                      <div key={pend.id} className="flex items-center justify-between text-xs hover:bg-gray-50 p-1 rounded group">
+                        <div onClick={() => togglePendiente(p.id, pend.id)} className="flex items-center gap-2 cursor-pointer flex-1">
+                          {pend.completado ? (
+                            <CheckCircle2 className="w-4 h-4 text-green-600 shrink-0" />
+                          ) : (
+                            <Circle className="w-4 h-4 text-gray-300 shrink-0" />
+                          )}
+                          <span className={pend.completado ? "line-through text-gray-400" : "text-gray-700"}>{pend.texto}</span>
+                        </div>
+                        <button 
+                          onClick={() => eliminarPendiente(p.id, pend.id)} 
+                          className="text-gray-300 hover:text-red-600 p-0.5 opacity-60 group-hover:opacity-100 transition-opacity" 
+                          title="Eliminar pendiente"
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
                       </div>
                     ))}
                   </div>
@@ -515,8 +532,9 @@ export default function Censo() {
   );
 }
 
-// 🔔 COMPONENTE INTERNO PARA GESTIONAR LAS ALERTAS GES DE CADA PACIENTE
+// 🔔 COMPONENTE INTERNO CON CAPACIDAD DE MINIMIZAR LAS ALERTAS GES
 function AlertaGesCard({ pacienteId, gesDetectados }: { pacienteId: string; gesDetectados: PatologiaGes[] }) {
+  const [minimizado, setMinimizado] = useState(false);
   const [estadoGes, setEstadoGes] = useState<Record<number, string>>(() => {
     try {
       const guardado = localStorage.getItem(`ges_estado_${pacienteId}`);
@@ -534,45 +552,52 @@ function AlertaGesCard({ pacienteId, gesDetectados }: { pacienteId: string; gesD
 
   return (
     <div className="mt-3 bg-amber-50 border border-amber-300 rounded-xl p-3 shadow-sm space-y-2">
-      <div className="flex items-center gap-1.5 text-amber-800 font-bold text-xs">
-        <AlertTriangle className="w-4 h-4 shrink-0 text-amber-600" />
-        <span>Alerta GES Detectada:</span>
+      <div className="flex items-center justify-between text-amber-800 font-bold text-xs cursor-pointer" onClick={() => setMinimizado(!minimizado)}>
+        <div className="flex items-center gap-1.5">
+          <AlertTriangle className="w-4 h-4 shrink-0 text-amber-600" />
+          <span>Alerta GES Detectada ({gesDetectados.length}):</span>
+        </div>
+        <button className="p-1 hover:bg-amber-100 rounded transition-colors" title={minimizado ? "Expandir" : "Minimizar"}>
+          {minimizado ? <ChevronDown className="w-4 h-4 text-amber-700" /> : <ChevronUp className="w-4 h-4 text-amber-700" />}
+        </button>
       </div>
 
-      <div className="space-y-2">
-        {gesDetectados.map(ges => {
-          const resp = estadoGes[ges.numero];
-          return (
-            <div key={ges.numero} className="bg-white p-2 rounded-lg border border-amber-200 flex flex-col gap-1.5 text-xs">
-              <div>
-                <span className="font-extrabold text-gray-900">GES Nº {ges.numero}:</span>{" "}
-                <span className="text-gray-700">{ges.nombre}</span>
-              </div>
-              <div className="flex justify-between items-center pt-1 border-t border-amber-50">
-                <span className="text-[11px] text-gray-500 font-medium">¿Activado GES?</span>
-                <div className="flex gap-1.5">
-                  <button
-                    onClick={() => cambiarEstado(ges.numero, "Sí")}
-                    className={`px-2.5 py-0.5 rounded text-xs font-bold transition-all ${
-                      resp === "Sí" ? "bg-green-600 text-white shadow" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                    }`}
-                  >
-                    Sí
-                  </button>
-                  <button
-                    onClick={() => cambiarEstado(ges.numero, "No")}
-                    className={`px-2.5 py-0.5 rounded text-xs font-bold transition-all ${
-                      resp === "No" ? "bg-red-600 text-white shadow" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
-                    }`}
-                  >
-                    No
-                  </button>
+      {!minimizado && (
+        <div className="space-y-2 pt-1">
+          {gesDetectados.map(ges => {
+            const resp = estadoGes[ges.numero];
+            return (
+              <div key={ges.numero} className="bg-white p-2 rounded-lg border border-amber-200 flex flex-col gap-1.5 text-xs">
+                <div>
+                  <span className="font-extrabold text-gray-900">GES Nº {ges.numero}:</span>{" "}
+                  <span className="text-gray-700">{ges.nombre}</span>
+                </div>
+                <div className="flex justify-between items-center pt-1 border-t border-amber-50">
+                  <span className="text-[11px] text-gray-500 font-medium">¿Activado GES?</span>
+                  <div className="flex gap-1.5">
+                    <button
+                      onClick={() => cambiarEstado(ges.numero, "Sí")}
+                      className={`px-2.5 py-0.5 rounded text-xs font-bold transition-all ${
+                        resp === "Sí" ? "bg-green-600 text-white shadow" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                      }`}
+                    >
+                      Sí
+                    </button>
+                    <button
+                      onClick={() => cambiarEstado(ges.numero, "No")}
+                      className={`px-2.5 py-0.5 rounded text-xs font-bold transition-all ${
+                        resp === "No" ? "bg-red-600 text-white shadow" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                      }`}
+                    >
+                      No
+                    </button>
+                  </div>
                 </div>
               </div>
-            </div>
-          );
-        })}
-      </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
