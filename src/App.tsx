@@ -57,6 +57,8 @@ export default function App() {
         return <PlanEunacom />;
       case "tutor":
         return <TutorClinico />;
+      case "calendario":
+        return <CalendarioPruebas />;
       default:
         return <IAModuleDesktop />;
     }
