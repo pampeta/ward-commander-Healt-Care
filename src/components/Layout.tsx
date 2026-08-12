@@ -22,26 +22,40 @@ export const DesktopLayout: React.FC<LayoutProps> = ({ children, activeTab, setA
     <div className="flex h-screen w-screen overflow-hidden bg-gray-100 text-gray-950 font-sans">
       <aside className="w-64 bg-slate-900 text-slate-200 flex flex-col justify-between shadow-xl z-20 shrink-0">
         <div>
-          {/* CABECERA CON FONDO AESTHETIC / PAPEL ANEXO VINTAGE MÉDICO */}
-          <div className="relative p-6 bg-slate-950 border-b border-slate-800 text-center overflow-hidden">
-            {/* Capa de textura aesthetic tipo papel de libro anatómico con sutil tono sepia/rosado */}
-            <div 
-              className="absolute inset-0 opacity-20 pointer-events-none mix-blend-overlay bg-cover bg-center"
-              style={{
-                backgroundImage: `url("https://images.unsplash.com/photo-1532012197267-da84d127e765?auto=format&fit=crop&q=80&w=400")`
-              }}
-            ></div>
+          {/* CABECERA AESTHETIC ABSTRACTA */}
+          <div className="relative pt-10 pb-12 bg-slate-950 text-center overflow-hidden">
             
-            {/* Marco decorativo sutil estilo vintage */}
-            <div className="absolute inset-1 border border-emerald-500/20 rounded pointer-events-none"></div>
+            {/* 1. Cuadrícula sutil inspirada en estética de diseño (Grid) */}
+            <div 
+              className="absolute inset-0 opacity-[0.04] pointer-events-none" 
+              style={{ backgroundImage: 'linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)', backgroundSize: '16px 16px' }}
+            ></div>
 
-            {/* Título Principal Estilizado */}
-            <h1 className="relative z-10 text-lg font-black tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-emerald-300 via-teal-200 to-cyan-300 font-serif italic drop-shadow-md leading-snug">
-              El Rincón del Interno
-            </h1>
+            {/* 2. Luces ambientales (Esmeralda clínico + Oro Rosado floral) */}
+            <div className="absolute -top-6 -left-6 w-32 h-32 bg-emerald-500/20 rounded-full blur-3xl pointer-events-none"></div>
+            <div className="absolute -bottom-6 -right-6 w-32 h-32 bg-rose-400/10 rounded-full blur-3xl pointer-events-none"></div>
+
+            {/* 3. Título en 2 líneas */}
+            <div className="relative z-10 px-4">
+              <h1 className="text-2xl font-black tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400 font-serif italic drop-shadow-xl leading-tight">
+                El Rincón del<br />Interno
+              </h1>
+            </div>
+
+            {/* 4. Ola geométrica en la parte inferior */}
+            <svg 
+              className="absolute bottom-0 left-0 w-full text-slate-900 pointer-events-none translate-y-[1px]" 
+              viewBox="0 0 1440 120" 
+              fill="currentColor" 
+              preserveAspectRatio="none" 
+              style={{ height: '28px' }}
+            >
+              <path d="M0,64L80,69.3C160,75,320,85,480,80C640,75,800,53,960,48C1120,43,1280,53,1360,58.7L1440,64L1440,120L1360,120C1280,120,1120,120,960,120C800,120,640,120,480,120C320,120,160,120,80,120L0,120Z"></path>
+            </svg>
           </div>
 
-          <nav className="p-3 space-y-1.5">
+          {/* MENÚ */}
+          <nav className="p-3 space-y-1.5 pt-4">
             {menuItems.map((item) => {
               const Icon = item.icon;
               const isActive = activeTab === item.id;
