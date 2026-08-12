@@ -22,9 +22,21 @@ export const DesktopLayout: React.FC<LayoutProps> = ({ children, activeTab, setA
     <div className="flex h-screen w-screen overflow-hidden bg-gray-100 text-gray-950 font-sans">
       <aside className="w-64 bg-slate-900 text-slate-200 flex flex-col justify-between shadow-xl z-20 shrink-0">
         <div>
-          {/* CABECERA: TÍTULO GRANDE Y LLAMATIVO */}
-          <div className="p-6 bg-slate-950 border-b border-slate-800 text-center">
-            <h1 className="text-lg font-black tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400 font-serif italic drop-shadow-md leading-tight">
+          {/* CABECERA CON FONDO AESTHETIC / PAPEL ANEXO VINTAGE MÉDICO */}
+          <div className="relative p-6 bg-slate-950 border-b border-slate-800 text-center overflow-hidden">
+            {/* Capa de textura aesthetic tipo papel de libro anatómico con sutil tono sepia/rosado */}
+            <div 
+              className="absolute inset-0 opacity-20 pointer-events-none mix-blend-overlay bg-cover bg-center"
+              style={{
+                backgroundImage: `url("https://images.unsplash.com/photo-1532012197267-da84d127e765?auto=format&fit=crop&q=80&w=400")`
+              }}
+            ></div>
+            
+            {/* Marco decorativo sutil estilo vintage */}
+            <div className="absolute inset-1 border border-emerald-500/20 rounded pointer-events-none"></div>
+
+            {/* Título Principal Estilizado */}
+            <h1 className="relative z-10 text-lg font-black tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-emerald-300 via-teal-200 to-cyan-300 font-serif italic drop-shadow-md leading-snug">
               El Rincón del Interno
             </h1>
           </div>
