@@ -12,10 +12,10 @@ export const DesktopLayout: React.FC<LayoutProps> = ({ children, activeTab, setA
     { id: 'censo', label: 'Censo Pacientes', icon: Users },
     { id: 'tareas', label: 'Tareas y Flujos', icon: CheckSquare },
     { id: 'estudio', label: 'Plan EUNACOM', icon: BookOpen },
-    { id: 'ia', label: 'Generador IA Gemini', icon: Cpu },
-    { id: 'tutor', label: 'Instructor Clínico IA', icon: BrainCircuit },
+    { id: 'ia', label: 'Generador Clínico', icon: Cpu },
+    { id: 'tutor', label: 'Instructor Clínico', icon: BrainCircuit },
     { id: 'calendario', label: 'Calendario y Pruebas', icon: Calendar },
-    { id: 'epicrisis', label: 'Generador de Epicrisis', icon: FileText },
+    { id: 'epicrisis', label: 'Generador de Documentos', icon: FileText },
     { id: 'yo', label: 'Control & Métricas', icon: User },
   ];
 
@@ -23,20 +23,14 @@ export const DesktopLayout: React.FC<LayoutProps> = ({ children, activeTab, setA
     <div className="flex h-screen w-screen overflow-hidden bg-gray-100 text-gray-950 font-sans">
       <aside className="w-64 bg-slate-900 text-slate-200 flex flex-col justify-between shadow-xl z-20 shrink-0">
         <div>
-          {/* CABECERA: TÍTULO Y SUBTÍTULO HUMILDE Y CERCANO */}
-          <div className="p-4 bg-slate-950 border-b border-slate-800 flex items-center gap-3">
-            <div className="w-3 h-3 rounded-full bg-emerald-500"></div>
-            <div>
-              <h1 className="text-sm font-extrabold tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-400 font-serif italic">
-                ☕ El Rincón del Interno
-              </h1>
-              <p className="text-[10px] text-slate-400 font-mono mt-0.5">
-                Aprendiendo día a día en clínica
-              </p>
-            </div>
+          {/* CABECERA: GRANDE, LLAMATIVA, SIN EMOJIS NI SUBTEXTO */}
+          <div className="p-5 bg-slate-950 border-b border-slate-800 text-center">
+            <h1 className="text-base font-black tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400 font-serif italic drop-shadow-sm">
+              El Rincón del Interno
+            </h1>
           </div>
 
-          <nav className="p-3 space-y-1">
+          <nav className="p-3 space-y-1.5">
             {menuItems.map((item) => {
               const Icon = item.icon;
               const isActive = activeTab === item.id;
@@ -56,7 +50,7 @@ export const DesktopLayout: React.FC<LayoutProps> = ({ children, activeTab, setA
           </nav>
         </div>
 
-        {/* PIE DE PÁGINA: SOLO MAGALLANES (SIN EL EMOJI DE HIELO NI FRASES ARROGANTES) */}
+        {/* PIE DE PÁGINA */}
         <div className="p-4 bg-slate-950 border-t border-slate-800 text-xs text-slate-400">
           <p className="font-semibold text-slate-300">Magallanes • Zona Austral</p>
         </div>
