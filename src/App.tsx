@@ -65,7 +65,7 @@ export default function App() {
   };
 
   return (
-    <DesktopLayout activeTab={activeTab} setActiveTab={setActiveTab}>
+    <Layout activeTab={activeTab} setActiveTab={setActiveTab}>
       <div className="relative h-full flex flex-col">
         <div className="absolute top-2 right-4 z-50">
           <button
@@ -77,6 +77,6 @@ export default function App() {
         </div>
         {renderContent()}
       </div>
-    </DesktopLayout>
+    </Layout>
   );
 }
