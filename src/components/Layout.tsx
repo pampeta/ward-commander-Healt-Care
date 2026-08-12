@@ -1,5 +1,5 @@
 import React from 'react';
-import { Users, CheckSquare, BookOpen, Cpu, User, BrainCircuit, Calendar } from 'lucide-react'; // 1. Agregué Calendar
+import { Users, CheckSquare, BookOpen, Cpu, User, BrainCircuit, Calendar, FileText } from 'lucide-react';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -14,7 +14,8 @@ export const DesktopLayout: React.FC<LayoutProps> = ({ children, activeTab, setA
     { id: 'estudio', label: 'Plan EUNACOM', icon: BookOpen },
     { id: 'ia', label: 'Generador IA Gemini', icon: Cpu },
     { id: 'tutor', label: 'Instructor Clínico IA', icon: BrainCircuit },
-    { id: 'calendario', label: 'Calendario y Pruebas', icon: Calendar }, // 2. Botón del calendario añadido
+    { id: 'calendario', label: 'Calendario y Pruebas', icon: Calendar },
+    { id: 'epicrisis', label: 'Generador de Epicrisis', icon: FileText },
     { id: 'yo', label: 'Control & Métricas', icon: User },
   ];
 
@@ -22,13 +23,19 @@ export const DesktopLayout: React.FC<LayoutProps> = ({ children, activeTab, setA
     <div className="flex h-screen w-screen overflow-hidden bg-gray-100 text-gray-950 font-sans">
       <aside className="w-64 bg-slate-900 text-slate-200 flex flex-col justify-between shadow-xl z-20 shrink-0">
         <div>
-          <div className="p-5 bg-slate-950 flex items-center gap-3 border-b border-slate-800">
-            <div className="w-3 h-3 rounded-full bg-blue-500 animate-pulse"></div>
+          {/* CABECERA: EL RINCÓN DEL INTERNO (LLAMATIVO Y GRACIOSO) */}
+          <div className="p-4 bg-slate-950 border-b border-slate-800 flex items-center gap-3">
+            <div className="w-3 h-3 rounded-full bg-emerald-500 animate-ping"></div>
             <div>
-              <h1 className="text-md font-black tracking-wider uppercase text-white">WardCommander</h1>
-              <p className="text-[10px] text-slate-400 font-mono">v2.0.0 • Internado HCM</p>
+              <h1 className="text-sm font-extrabold tracking-wide text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 to-cyan-400 font-serif italic">
+                ☕ El Rincón del Interno
+              </h1>
+              <p className="text-[10px] text-amber-400 font-mono mt-0.5">
+                ⚡ Sobreviviendo al turno 24/7
+              </p>
             </div>
           </div>
+
           <nav className="p-3 space-y-1">
             {menuItems.map((item) => {
               const Icon = item.icon;
@@ -38,7 +45,7 @@ export const DesktopLayout: React.FC<LayoutProps> = ({ children, activeTab, setA
                   key={item.id}
                   onClick={() => setActiveTab(item.id)}
                   className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-semibold rounded-lg transition-all ${
-                    isActive ? 'bg-blue-600 text-white shadow-md' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+                    isActive ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
                   }`}
                 >
                   <Icon className="w-5 h-5 shrink-0" />
@@ -48,11 +55,13 @@ export const DesktopLayout: React.FC<LayoutProps> = ({ children, activeTab, setA
             })}
           </nav>
         </div>
-        <div className="p-4 bg-slate-950 border-t border-slate-800 text-xs text-slate-400">
-          <p className="font-semibold text-slate-300">Residencia Magallanes</p>
-          <p className="opacity-75">Modo Local: IndexedDB</p>
+
+        <div className="p-4 bg-slate-950 border-t border-slate-800 text-xs text-slate-400 space-y-1">
+          <p className="font-semibold text-slate-300">Magallanes • Zona Austral 🧊</p>
+          <p className="text-[10px] text-slate-500 italic">"Café, fe y altas médicas"</p>
         </div>
       </aside>
+
       <main className="flex-1 h-full overflow-y-auto bg-gray-50">
         {children}
       </main>
