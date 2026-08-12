@@ -1,5 +1,5 @@
 import React from 'react';
-import { Users, CheckSquare, BookOpen, Cpu, User, BrainCircuit, Calendar, FileText } from 'lucide-react';
+import { Users, CheckSquare, BookOpen, User, BrainCircuit, Calendar, FileText } from 'lucide-react';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -12,7 +12,6 @@ export const DesktopLayout: React.FC<LayoutProps> = ({ children, activeTab, setA
     { id: 'censo', label: 'Censo Pacientes', icon: Users },
     { id: 'tareas', label: 'Tareas y Flujos', icon: CheckSquare },
     { id: 'estudio', label: 'Plan EUNACOM', icon: BookOpen },
-    { id: 'ia', label: 'Generador Clínico', icon: Cpu },
     { id: 'tutor', label: 'Instructor Clínico', icon: BrainCircuit },
     { id: 'calendario', label: 'Calendario y Pruebas', icon: Calendar },
     { id: 'epicrisis', label: 'Generador Docs', icon: FileText },
