@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "./Services/supabase";
 import Login from "./views/Login";
-import { DesktopLayout } from "./components/Layout";
+import { Layout } from './components/Layout';
 import { IAModuleDesktop } from "./views/IA";
 import { YoModule } from "./views/Yo";
 import Censo from './views/Censo';

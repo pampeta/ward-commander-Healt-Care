@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Users, CheckSquare, BookOpen, User, BrainCircuit, Calendar, FileText, Menu, X } from 'lucide-react';
 
 interface LayoutProps {
