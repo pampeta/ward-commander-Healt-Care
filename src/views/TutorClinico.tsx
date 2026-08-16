@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { consultarGeminiConArchivo } from "../Services/gemini";
-import { BrainCircuit, Paperclip, SendHorizontal, BotMessageSquare, UserRound, X, FileText, CloudCloud } from "lucide-react";
+import { BrainCircuit, Paperclip, SendHorizontal, BotMessageSquare, UserRound, X, FileText, Cloud } from "lucide-react";
 import { guardarEnNube, cargarDeNube } from "../Services/cloudSync";
 
 export default function TutorClinico() {
@@ -89,7 +89,7 @@ export default function TutorClinico() {
           </div>
           <div className="flex items-center gap-2 text-xs md:text-sm text-gray-500">
             <span>Resuelve casos, analiza transcripciones y aclara dudas.</span>
-            {!descargando && <span className="flex items-center gap-1 bg-emerald-50 text-emerald-700 font-semibold px-2 py-0.5 rounded-md border border-emerald-200 ml-2"><CloudCloud className="w-3 h-3"/> Nube</span>}
+            {!descargando && <span className="flex items-center gap-1 bg-emerald-50 text-emerald-700 font-semibold px-2 py-0.5 rounded-md border border-emerald-200 ml-2"><Cloud className="w-3 h-3"/> Nube</span>}
           </div>
         </div>
       </div>

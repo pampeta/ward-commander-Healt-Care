@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { CheckSquare, Trash2, PlusCircle, AlertCircle, ClipboardList, CloudCloud } from "lucide-react";
+import { CheckSquare, Trash2, PlusCircle, AlertCircle, ClipboardList, Cloud } from "lucide-react";
 import { guardarEnNube, cargarDeNube } from "../Services/cloudSync";
 
 interface Tarea {
@@ -70,7 +70,7 @@ export default function Tareas() {
           </div>
           <div className="flex items-center gap-2 text-xs md:text-sm text-gray-500">
             <span>Lista centralizada de procedimientos clínicos.</span>
-            {!descargando && <span className="flex items-center gap-1 bg-green-50 text-green-700 font-semibold px-2 py-0.5 rounded-md border border-green-200"><CloudCloud className="w-3 h-3"/> Nube</span>}
+            {!descargando && <span className="flex items-center gap-1 bg-green-50 text-green-700 font-semibold px-2 py-0.5 rounded-md border border-green-200"><Cloud className="w-3 h-3"/> Nube</span>}
           </div>
         </div>
 

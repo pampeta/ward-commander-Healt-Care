@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Users, Plus, Trash2, Edit3, Save, CheckCircle2, Circle, FileText, Calendar, AlertTriangle, ChevronDown, ChevronUp, X, ShieldAlert, Activity, Syringe, Bandage, Stethoscope, CloudCloud } from "lucide-react";
+import { Users, Plus, Trash2, Edit3, Save, CheckCircle2, Circle, FileText, Calendar, AlertTriangle, ChevronDown, ChevronUp, X, ShieldAlert, Activity, Syringe, Bandage, Stethoscope, Cloud } from "lucide-react";
 import { guardarEnNube, cargarDeNube } from "../Services/cloudSync";
 
 interface Pendiente { id: string; texto: string; completado: boolean; }
@@ -301,7 +301,7 @@ export default function Censo() {
           <div className="flex items-center gap-2 text-xs md:text-sm text-gray-500">
             <span>Gestiona estancias, curaciones y GES.</span>
             {/* Indicador visual de guardado en la nube */}
-            {!descargando && <span className="flex items-center gap-1 bg-green-50 text-green-700 font-semibold px-2 py-0.5 rounded-md border border-green-200 ml-2"><CloudCloud className="w-3 h-3"/> En la nube</span>}
+            {!descargando && <span className="flex items-center gap-1 bg-green-50 text-green-700 font-semibold px-2 py-0.5 rounded-md border border-green-200 ml-2"><Cloud className="w-3 h-3"/> En la nube</span>}
           </div>
         </div>
         <button

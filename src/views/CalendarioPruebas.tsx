@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Calendar as CalendarIcon, Plus, Trash2, BookOpen, Clock, AlertCircle, ChevronLeft, ChevronRight, CloudCloud } from "lucide-react";
+import { Calendar as CalendarIcon, Plus, Trash2, BookOpen, Clock, AlertCircle, ChevronLeft, ChevronRight, Cloud } from "lucide-react";
 import { guardarEnNube, cargarDeNube } from "../Services/cloudSync";
 
 interface EventoAcademico { id: string; titulo: string; fecha: string; tipo: "Prueba / Solemne" | "Rotación / Turno" | "Examen Beca / EUNACOM" | "Entrega / Tarea"; contenidos: string; }
@@ -75,7 +75,7 @@ export default function CalendarioPruebas() {
           </h1>
           <div className="flex items-center gap-2 text-xs md:text-sm text-gray-500">
             <span>Visualiza tus fechas importantes.</span>
-            {!descargando && <span className="flex items-center gap-1 bg-purple-50 text-purple-700 font-semibold px-2 py-0.5 rounded-md border border-purple-200 ml-2"><CloudCloud className="w-3 h-3"/> Nube</span>}
+            {!descargando && <span className="flex items-center gap-1 bg-purple-50 text-purple-700 font-semibold px-2 py-0.5 rounded-md border border-purple-200 ml-2"><Cloud className="w-3 h-3"/> Nube</span>}
           </div>
         </div>
         <button onClick={() => setModalAbierto(true)} className="w-full md:w-auto bg-purple-600 hover:bg-purple-700 text-white px-5 py-3 rounded-xl md:rounded-lg text-sm font-bold flex justify-center items-center gap-2 shadow transition-colors shrink-0"><Plus className="w-5 h-5 md:w-4 md:h-4" /> Agregar Prueba / Evento</button>

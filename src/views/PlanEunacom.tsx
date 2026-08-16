@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { consultarGeminiConArchivo } from "../Services/gemini";
 import { TEMARIO_BASE } from "../data/temasEunacom";
-import { BookOpen, FileText, BrainCircuit, Paperclip, CheckCircle, CloudCloud } from 'lucide-react';
+import { BookOpen, FileText, BrainCircuit, Paperclip, CheckCircle, Cloud } from 'lucide-react';
 import { guardarEnNube, cargarDeNube } from "../Services/cloudSync";
 
 interface Flashcard { pregunta: string; respuesta: string; }
@@ -21,9 +21,9 @@ export default function PlanEunacom() {
       } else {
         const guardado = localStorage.getItem("wardcommander_temas_eunacom");
         if (guardado) {
-          try { setTemas(JSON.parse(guardado)); } catch(e) { setTemas(TEMARIO_BASE); }
+          try { setTemas(JSON.parse(guardado)); } catch(e) { setTemas(TEMARIO_BASE as Tema[]); }
         } else {
-          setTemas(TEMARIO_BASE);
+          setTemas(TEMARIO_BASE as Tema[]);
         }
       }
       setDescargando(false);
@@ -39,7 +39,7 @@ export default function PlanEunacom() {
     }
   }, [temas, descargando]);
 
-  const [temaSeleccionado, setTemaSeleccionado] = useState<Tema>(TEMARIO_BASE[0]);
+  const [temaSeleccionado, setTemaSeleccionado] = useState<Tema>(TEMARIO_BASE[0] as Tema);
   const [modo, setModo] = useState<"apuntes" | "flashcards">("apuntes");
   const [cargando, setCargando] = useState(false);
   const [archivoAdjunto, setArchivoAdjunto] = useState<{ nombre: string, base64: string, mimeType: string } | null>(null);
@@ -124,7 +124,7 @@ export default function PlanEunacom() {
           </div>
           <div className="flex items-center gap-2 text-xs md:text-sm text-gray-500">
             <span>{temas.length} Temas • Gestión de estudio personal con IA.</span>
-            {!descargando && <span className="flex items-center gap-1 bg-emerald-50 text-emerald-700 font-semibold px-2 py-0.5 rounded-md border border-emerald-200 ml-2"><CloudCloud className="w-3 h-3"/> Nube</span>}
+            {!descargando && <span className="flex items-center gap-1 bg-emerald-50 text-emerald-700 font-semibold px-2 py-0.5 rounded-md border border-emerald-200 ml-2"><Cloud className="w-3 h-3"/> Nube</span>}
           </div>
         </div>
         <div className="flex items-center gap-3 bg-gray-100 p-2 rounded-full border border-gray-200 shrink-0 self-start sm:self-center">
