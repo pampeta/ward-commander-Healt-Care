@@ -3,7 +3,6 @@ import { generateClinicalDocumentWithGemini } from '../Services/gemini';
 import { sanitizeClinicalText } from '../Services/sanitizer';
 import { FileText, Wand2, Copy, CheckCircle2, ShieldAlert } from 'lucide-react';
 
-// Plantillas base editadas y adaptadas según las exigencias de cada médico/servicio
 const PLANTILLAS_POR_DEFECTO: Record<string, string> = {
   Ingreso: `**CR MEDICINA INTERNA - HOSPITAL CLÍNICO DE MAGALLANES**
 ---
@@ -45,7 +44,6 @@ const PLANTILLAS_POR_DEFECTO: Record<string, string> = {
 };
 
 export const IAModuleDesktop: React.FC = () => {
-  // 1. CARGAR PACIENTES REALES DESDE EL CENSO (localStorage)
   const [pacientes, setPacientes] = useState<any[]>([]);
 
   useEffect(() => {
@@ -212,23 +210,19 @@ export const IAModuleDesktop: React.FC = () => {
     }
   ];
 
-  // Estado del formulario
   const [selectedPacienteId, setSelectedPacienteId] = useState<string>('');
   const [selectedDoctorId, setSelectedDoctorId] = useState<string>('');
   const [tipoDoc, setTipoDoc] = useState<string>('Epicrisis');
   
-  // Plantilla editable en tiempo real según el tipo de documento o preferencia del doctor
   const [esqueletoActual, setEsqueletoActual] = useState<string>(PLANTILLAS_POR_DEFECTO['Epicrisis']);
   const [rawData, setRawData] = useState<string>('');
   
-  // Estado de la IA
   const [sanitizedPreview, setSanitizedPreview] = useState<any>(null);
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
   const [output, setOutput] = useState<string>('');
   const [error, setError] = useState<string>('');
   const [copied, setCopied] = useState<boolean>(false);
 
-  // Cambiar plantilla base automáticamente al cambiar de tipo de documento
   useEffect(() => {
     if (PLANTILLAS_POR_DEFECTO[tipoDoc]) {
       setEsqueletoActual(PLANTILLAS_POR_DEFECTO[tipoDoc]);
@@ -261,7 +255,6 @@ export const IAModuleDesktop: React.FC = () => {
         throw new Error('API Key de Gemini no encontrada. Por favor regístrala.');
       }
 
-      // Buscar paciente en el censo real (puede usar id o cama/nombre)
       const p = pacientes.find((x: any) => String(x.id) === String(selectedPacienteId) || String(x.cama) === String(selectedPacienteId));
       const doc = doctores.find(x => x.id === Number(selectedDoctorId));
       
@@ -301,11 +294,10 @@ export const IAModuleDesktop: React.FC = () => {
     });
   };
 
-  // --- DISEÑO OPTIMIZADO (MOBILE-FIRST) ---
   return (
-    <div className="p-3 md:p-6 max-w-[1600px] mx-auto space-y-4 md:space-y-6 bg-gray-50 min-h-full flex flex-col">
+    // CORRECCIÓN: Quitamos el flex/h-full rígido en móvil. Se acomodará libremente hacia abajo.
+    <div className="p-3 md:p-6 max-w-[1600px] mx-auto space-y-4 md:space-y-6 bg-gray-50 min-h-screen md:min-h-0 md:h-full flex flex-col">
       
-      {/* Banner Permanente Adaptativo */}
       <div className="bg-red-50/80 border-l-4 border-red-500 p-3 md:p-4 rounded-r-xl flex items-start gap-3 shadow-sm shrink-0">
         <ShieldAlert className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
         <p className="text-[11px] md:text-xs text-red-800 leading-relaxed">
@@ -313,17 +305,16 @@ export const IAModuleDesktop: React.FC = () => {
         </p>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 items-start flex-1 overflow-hidden">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 items-start flex-1 md:overflow-hidden">
         
-        {/* PANEL IZQUIERDO: Inputs y Formatos */}
-        <div className="space-y-4 md:space-y-5 bg-white p-4 md:p-6 rounded-2xl border border-gray-100 shadow-sm flex flex-col max-h-[85vh] lg:max-h-full overflow-y-auto">
+        {/* CORRECCIÓN: Quitamos max-h-[85vh] y overflow en móvil. Ahora se extenderá lo necesario */}
+        <div className="space-y-4 md:space-y-5 bg-white p-4 md:p-6 rounded-2xl border border-gray-100 shadow-sm flex flex-col lg:max-h-full md:overflow-y-auto">
           
           <div className="flex items-center gap-2 border-b border-gray-100 pb-3 shrink-0">
             <Wand2 className="w-5 h-5 text-blue-600" />
             <h2 className="text-lg md:text-xl font-bold text-gray-900">Generador por Médico Emisor</h2>
           </div>
           
-          {/* Grid responsivo: 1 columna en celular, 3 en PC */}
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4 shrink-0">
             <div>
               <label className="block text-[10px] md:text-[11px] font-bold uppercase text-gray-500 mb-1.5 tracking-wider">Paciente (Censo)</label>
@@ -353,7 +344,6 @@ export const IAModuleDesktop: React.FC = () => {
             </div>
           </div>
 
-          {/* CAJA EDITABLE PARA PERSONALIZAR EL FORMATO */}
           <div className="shrink-0">
             <div className="flex flex-col sm:flex-row sm:justify-between sm:items-end gap-1 mb-1.5">
               <label className="text-[10px] md:text-[11px] font-bold uppercase text-gray-500 tracking-wider">Esqueleto / Formato Base</label>
@@ -374,7 +364,7 @@ export const IAModuleDesktop: React.FC = () => {
           <div className="flex-1 min-h-[150px] flex flex-col">
             <label className="block text-[10px] md:text-[11px] font-bold uppercase text-gray-500 mb-1.5 tracking-wider shrink-0">Notas Sueltas, Laboratorios o Respuestas IC</label>
             <textarea 
-              className="w-full p-3 md:p-4 bg-gray-50 border border-gray-200 rounded-xl text-xs md:text-sm h-full font-mono outline-none focus:ring-2 focus:ring-blue-400 transition-shadow resize-none leading-relaxed text-gray-800 flex-1"
+              className="w-full p-3 md:p-4 bg-gray-50 border border-gray-200 rounded-xl text-xs md:text-sm h-full min-h-[150px] font-mono outline-none focus:ring-2 focus:ring-blue-400 transition-shadow resize-none leading-relaxed text-gray-800 flex-1"
               placeholder="Pega aquí laboratorios, evolución intrahospitalaria, notas de interconsulta..."
               value={rawData} 
               onChange={e => setRawData(e.target.value)}
@@ -391,7 +381,6 @@ export const IAModuleDesktop: React.FC = () => {
             </button>
           )}
 
-          {/* Diff Intermedio de Confirmación */}
           {sanitizedPreview && (
             <div className="bg-amber-50 border border-amber-200 p-3 md:p-4 rounded-xl space-y-3 shrink-0 shadow-sm animate-in fade-in duration-300">
               <div className="flex items-center gap-1.5">
@@ -414,8 +403,8 @@ export const IAModuleDesktop: React.FC = () => {
           {error && <div className="p-3 bg-red-50 border border-red-200 text-red-800 rounded-xl text-xs font-semibold shrink-0">{error}</div>}
         </div>
 
-        {/* PANEL DERECHO: Output */}
-        <div className="flex flex-col h-full space-y-4 max-h-[85vh] lg:max-h-full">
+        {/* CORRECCIÓN: Quitamos max-h-[85vh] en móvil para el panel derecho */}
+        <div className="flex flex-col md:h-full space-y-4 lg:max-h-full min-h-[300px]">
           {output ? (
             <div className="bg-white p-4 md:p-6 rounded-2xl border border-gray-100 shadow-sm flex flex-col h-full animate-in zoom-in-95 duration-300">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-gray-100 pb-3 md:pb-4 shrink-0">

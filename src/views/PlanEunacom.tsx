@@ -32,11 +32,9 @@ export default function PlanEunacom() {
   const [cargando, setCargando] = useState(false);
   const [archivoAdjunto, setArchivoAdjunto] = useState<{ nombre: string, base64: string, mimeType: string } | null>(null);
   
-  // Navegación del mazo guardado
   const [indiceTarjeta, setIndiceTarjeta] = useState(0);
   const [mostrarRespuesta, setMostrarRespuesta] = useState(false);
 
-  // Lote pendiente de nuevas tarjetas generadas por IA antes de guardarlas
   const [loteNuevo, setLoteNuevo] = useState<Flashcard[]>([]);
   const [indiceLoteNuevo, setIndiceLoteNuevo] = useState(0);
   const [mostrarRespuestaLote, setMostrarRespuestaLote] = useState(false);
@@ -114,9 +112,10 @@ export default function PlanEunacom() {
   const calculoProgreso = Math.round((temas.filter(t => t.estado === "🟢 Dominado").length / temas.length) * 100);
 
   return (
-    <div className="p-3 md:p-6 max-w-7xl mx-auto h-full flex flex-col space-y-5 md:space-y-6 bg-gray-50">
+    // CORRECCIÓN: Quitamos overflow-hidden y h-full en móvil, solo se aplican en escritorio (md:)
+    <div className="p-3 md:p-6 max-w-7xl mx-auto md:h-full flex flex-col space-y-5 md:space-y-6 bg-gray-50 md:overflow-hidden">
       
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 md:p-5 rounded-2xl shadow-sm border border-gray-100">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 md:p-5 rounded-2xl shadow-sm border border-gray-100 shrink-0">
         <div className="space-y-1">
           <div className="flex items-center gap-2.5">
             <BookOpen className="w-6 h-6 md:w-7 md:h-7 text-emerald-600" />
@@ -135,21 +134,22 @@ export default function PlanEunacom() {
         </div>
       </div>
 
-      <div className="flex flex-col md:flex-row gap-5 md:gap-6 items-start flex-1 overflow-hidden">
+      <div className="flex flex-col md:flex-row gap-5 md:gap-6 items-start flex-1 md:overflow-hidden min-h-0 w-full">
         
-        <div className="w-full md:w-80 flex-shrink-0 space-y-4">
-          <div className="bg-white p-4 md:p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col overflow-hidden max-h-[300px] md:max-h-full">
-            <h2 className="text-base font-bold text-gray-950 mb-3 flex items-center gap-2">
+        {/* COLUMNA 1: ÍNDICE TEMÁTICO CON ALTURA LIMITADA PARA PERMITIR SCROLL */}
+        <div className="w-full md:w-80 flex-shrink-0 flex flex-col h-[350px] md:h-full">
+          <div className="bg-white p-4 md:p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col overflow-hidden flex-1 min-h-0">
+            <h2 className="text-base font-bold text-gray-950 mb-3 flex items-center gap-2 shrink-0">
                 <FileText className="w-4 h-4 text-gray-500" />
                 Índice Temático
             </h2>
             
-            <nav className="space-y-2.5 overflow-y-auto pr-2 -mr-2">
+            <nav className="space-y-2.5 overflow-y-auto pr-2 -mr-2 flex-1 min-h-0 pb-2">
               {temas.map(tema => (
                 <button 
                     key={tema.id} 
                     onClick={() => seleccionarTema(tema)} 
-                    className={`w-full text-left p-3.5 rounded-xl transition-all border ${temaSeleccionado.id === tema.id ? 'bg-emerald-50 border-emerald-200 shadow-sm' : 'hover:bg-gray-50 border-gray-100'}`}
+                    className={`w-full text-left p-3.5 rounded-xl transition-all border shrink-0 ${temaSeleccionado.id === tema.id ? 'bg-emerald-50 border-emerald-200 shadow-sm' : 'hover:bg-gray-50 border-gray-100'}`}
                 >
                   <p className="text-[11px] font-medium text-emerald-700 uppercase tracking-wider mb-1">{tema.categoria}</p>
                   <p className="text-sm font-semibold text-gray-950 leading-tight mb-2">{tema.titulo}</p>
@@ -163,8 +163,10 @@ export default function PlanEunacom() {
           </div>
         </div>
 
-        <div className="flex-1 w-full bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-gray-100 space-y-5 md:space-y-6 flex flex-col overflow-hidden h-full">
-          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 border-b border-gray-100 pb-4">
+        {/* COLUMNA 2: DETALLE DEL TEMA */}
+        {/* CORRECCIÓN: md:overflow-hidden en vez de global para fluir en celular */}
+        <div className="flex-1 w-full bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-gray-100 space-y-5 md:space-y-6 flex flex-col md:overflow-hidden min-h-0 md:h-full">
+          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 border-b border-gray-100 pb-4 shrink-0">
             <div className="space-y-0.5">
                 <p className="text-[11px] font-medium text-emerald-700 uppercase tracking-wider">{temaSeleccionado.categoria}</p>
                 <h2 className="text-lg md:text-xl font-extrabold text-gray-950 tracking-tight leading-tight">{temaSeleccionado.titulo}</h2>
@@ -191,21 +193,21 @@ export default function PlanEunacom() {
             </button>
           </div>
 
-          <div className="flex-1 overflow-y-auto pr-2 -mr-2 bg-[#fafafa] p-3 rounded-xl border border-gray-100">
+          <div className="flex-1 md:overflow-y-auto pr-2 -mr-2 bg-[#fafafa] p-3 rounded-xl border border-gray-100 min-h-0">
             {modo === "apuntes" ? (
               <div className="flex flex-col h-full space-y-3">
                 <label className="text-xs md:text-sm text-gray-600 font-medium">Escribe tus apuntes, perlas clínicas o mnemotecnias (se guardan automáticamente):</label>
                 <textarea 
                   value={temaSeleccionado.apuntes} 
                   onChange={(e) => actualizarApuntes(e.target.value)} 
-                  className="flex-1 w-full p-4 border border-gray-200 rounded-xl bg-white shadow-inner focus:ring-2 focus:ring-emerald-200 focus:border-emerald-300 transition-all text-sm md:text-base resize-none leading-relaxed" 
+                  className="flex-1 w-full p-4 border border-gray-200 rounded-xl bg-white shadow-inner focus:ring-2 focus:ring-emerald-200 focus:border-emerald-300 transition-all text-sm md:text-base resize-none leading-relaxed min-h-[250px] md:min-h-0" 
                   placeholder="Escribe aquí tus apuntes del tema..." 
                 />
               </div>
             ) : (
               <div className="flex flex-col h-full items-center space-y-5">
                  
-                 <div className="flex flex-col gap-3 w-full bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
+                 <div className="flex flex-col gap-3 w-full bg-white p-4 rounded-xl border border-gray-100 shadow-sm shrink-0">
                     {archivoAdjunto ? (
                       <div className="flex items-center gap-2.5 bg-emerald-50 text-emerald-800 px-3 py-2 rounded-full text-xs border border-emerald-200">
                         📄 <span className="font-semibold">{archivoAdjunto.nombre}</span>
@@ -226,9 +228,8 @@ export default function PlanEunacom() {
                     </button>
                  </div>
 
-                 {/* SECCIÓN DE TARJETAS RECIÉN GENERADAS CORREGIDA */}
                  {loteNuevo.length > 0 && (
-                   <div className="w-full bg-amber-50 border-2 border-amber-300 rounded-xl p-4 flex flex-col items-center space-y-3.5 shadow-md">
+                   <div className="w-full bg-amber-50 border-2 border-amber-300 rounded-xl p-4 flex flex-col items-center space-y-3.5 shadow-md shrink-0">
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between w-full gap-2 border-b border-amber-100 pb-2.5">
                         <span className="text-[11px] font-medium text-amber-900 uppercase tracking-wider">✨ Lote Nuevo Generado</span>
                         <button onClick={guardarLoteEnMazo} className="flex items-center gap-2 px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold shadow transition-all self-start sm:self-center">
@@ -249,19 +250,18 @@ export default function PlanEunacom() {
                    </div>
                  )}
 
-                 {/* MAZO PRINCIPAL DE TARJETAS GUARDADAS */}
                  {temaSeleccionado.flashcards && temaSeleccionado.flashcards.length > 0 ? (
-                    <div className="w-full flex flex-col items-center flex-1 my-auto h-full space-y-4">
+                    <div className="w-full flex flex-col items-center flex-1 my-auto h-full space-y-4 min-h-[250px]">
                       
-                      <div className="text-gray-600 text-sm font-bold tracking-tight">Tarjeta Guardada {indiceTarjeta + 1} de {temaSeleccionado.flashcards.length}</div>
+                      <div className="text-gray-600 text-sm font-bold tracking-tight shrink-0">Tarjeta Guardada {indiceTarjeta + 1} de {temaSeleccionado.flashcards.length}</div>
                       
-                      <div onClick={() => setMostrarRespuesta(!mostrarRespuesta)} className={`w-full h-full p-6 md:p-8 rounded-2xl shadow-xl flex items-center justify-center text-center cursor-pointer transition-all ${mostrarRespuesta ? 'bg-purple-50 border-2 border-purple-200' : 'bg-white border border-gray-100'} min-h-[220px]`}>
+                      <div onClick={() => setMostrarRespuesta(!mostrarRespuesta)} className={`w-full flex-1 p-6 md:p-8 rounded-2xl shadow-xl flex items-center justify-center text-center cursor-pointer transition-all ${mostrarRespuesta ? 'bg-purple-50 border-2 border-purple-200' : 'bg-white border border-gray-100'} min-h-[200px]`}>
                         <p className={`text-xl md:text-3xl font-medium ${mostrarRespuesta ? 'text-purple-900' : 'text-gray-900'}`}>{mostrarRespuesta ? temaSeleccionado.flashcards[indiceTarjeta].respuesta : temaSeleccionado.flashcards[indiceTarjeta].pregunta}</p>
                       </div>
                       
-                      <p className="text-xs text-gray-400 mt-1.5">(Haz clic para voltear)</p>
+                      <p className="text-xs text-gray-400 mt-1.5 shrink-0">(Haz clic para voltear)</p>
                       
-                      <div className="flex justify-center gap-3.5 mt-5 flex-wrap">
+                      <div className="flex justify-center gap-3.5 mt-5 flex-wrap shrink-0 pb-4">
                         <button onClick={() => { setIndiceTarjeta(Math.max(0, indiceTarjeta - 1)); setMostrarRespuesta(false); }} disabled={indiceTarjeta === 0} className="px-5 py-2 bg-gray-100 hover:bg-gray-200 rounded-xl text-xs sm:text-sm font-semibold text-gray-900 disabled:opacity-50 transition-colors shadow-sm">◀ Anterior</button>
                         <button onClick={() => { setIndiceTarjeta(Math.min(temaSeleccionado.flashcards.length - 1, indiceTarjeta + 1)); setMostrarRespuesta(false); }} disabled={indiceTarjeta === temaSeleccionado.flashcards.length - 1} className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs sm:text-sm font-semibold disabled:opacity-50 transition-colors shadow-sm">Siguiente ▶</button>
                       </div>
