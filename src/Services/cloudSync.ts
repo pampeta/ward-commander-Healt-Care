@@ -2,43 +2,59 @@ import { supabase } from './supabase';
 
 // Función para GUARDAR en la nube
 export async function guardarEnNube(modulo: string, datos: any) {
-  // 1. Verificamos si el usuario inició sesión
-  const { data: sessionData } = await supabase.auth.getSession();
-  const user = sessionData?.session?.user;
-  
-  if (!user) return; // Si no hay usuario, no guarda en la nube
+  try {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const user = sessionData?.session?.user;
+    
+    if (!user) {
+      console.warn("Sincronización pausada: No hay usuario logueado.");
+      return; 
+    }
 
-  // 2. Guarda o actualiza el JSON en Supabase
-  const { error } = await supabase
-    .from('user_sync')
-    .upsert({ 
-      user_id: user.id, 
-      module_name: modulo, 
-      payload: datos,
-      updated_at: new Date().toISOString()
-    });
+    // Forzamos el upsert indicando exactamente cuáles son las llaves de conflicto
+    const { error } = await supabase
+      .from('user_sync')
+      .upsert({ 
+        user_id: user.id, 
+        module_name: modulo, 
+        payload: datos,
+        updated_at: new Date().toISOString()
+      }, { 
+        onConflict: 'user_id,module_name' 
+      });
 
-  if (error) console.error(`Error guardando ${modulo} en la nube:`, error);
+    if (error) {
+      console.error(`Error Supabase guardando ${modulo}:`, error);
+      alert(`⚠️ Error guardando en la nube: ${error.message}`);
+    }
+  } catch (err) {
+    console.error("Error inesperado en guardarEnNube:", err);
+  }
 }
 
 // Función para DESCARGAR de la nube
 export async function cargarDeNube(modulo: string) {
-  const { data: sessionData } = await supabase.auth.getSession();
-  const user = sessionData?.session?.user;
-  
-  if (!user) return null; // Si no hay usuario, retorna nulo
+  try {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const user = sessionData?.session?.user;
+    
+    if (!user) return null;
 
-  const { data, error } = await supabase
-    .from('user_sync')
-    .select('payload')
-    .eq('module_name', modulo)
-    .eq('user_id', user.id)
-    .single();
+    const { data, error } = await supabase
+      .from('user_sync')
+      .select('payload')
+      .eq('module_name', modulo)
+      .eq('user_id', user.id)
+      .maybeSingle(); // maybeSingle() no tira error si la tabla está vacía
 
-  if (error && error.code !== 'PGRST116') { 
-    // PGRST116 significa "no se encontraron filas" (normal si está vacío)
-    console.error(`Error cargando ${modulo} de la nube:`, error);
+    if (error) {
+      console.error(`Error Supabase cargando ${modulo}:`, error);
+      return null;
+    }
+    
+    return data ? data.payload : null;
+  } catch (err) {
+    console.error("Error inesperado en cargarDeNube:", err);
+    return null;
   }
-  
-  return data ? data.payload : null;
 }
