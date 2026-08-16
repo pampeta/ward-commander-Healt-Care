@@ -1,9 +1,7 @@
 import { useState, useEffect } from "react";
-// Asumo que estas rutas de importación son correctas para tu proyecto
 import { consultarGeminiConArchivo } from "../Services/gemini";
 import { TEMARIO_BASE } from "../data/temasEunacom";
-// Importo iconos para una UI más limpia, asumiendo que usas lucide-react
-import { BookOpen, Target, FileText, BrainCircuit, Paperclip, CheckCircle } from 'lucide-react';
+import { BookOpen, FileText, BrainCircuit, Paperclip, CheckCircle } from 'lucide-react';
 
 interface Flashcard {
   pregunta: string;
@@ -49,7 +47,6 @@ export default function PlanEunacom() {
     if (temaActualizado) setTemaSeleccionado(temaActualizado);
   }, [temas]);
 
-  // Al cambiar de tema, limpiamos el lote temporal generado
   const seleccionarTema = (tema: Tema) => {
     setTemaSeleccionado(tema);
     setIndiceTarjeta(0);
@@ -100,16 +97,12 @@ export default function PlanEunacom() {
     setCargando(false);
   };
 
-  // Botón para guardar las nuevas tarjetas al mazo principal evitando duplicadas
   const guardarLoteEnMazo = () => {
     if (loteNuevo.length === 0) return;
 
     const existentes = temaSeleccionado.flashcards || [];
     const preguntasExistentes = new Set(existentes.map(f => f.pregunta.trim().toLowerCase()));
-
-    // Filtramos para que no se repitan las que ya están guardadas
     const tarjetasUnicas = loteNuevo.filter(nueva => !preguntasExistentes.has(nueva.pregunta.trim().toLowerCase()));
-
     const combinadas = [...existentes, ...tarjetasUnicas];
 
     setTemas(temas.map(t => t.id === temaSeleccionado.id ? { ...t, flashcards: combinadas } : t));
@@ -120,17 +113,13 @@ export default function PlanEunacom() {
   const actualizarApuntes = (texto: string) => setTemas(temas.map(t => t.id === temaSeleccionado.id ? { ...t, apuntes: texto } : t));
   const calculoProgreso = Math.round((temas.filter(t => t.estado === "🟢 Dominado").length / temas.length) * 100);
 
-  // --- COMIENZO DEL DISEÑO OPTIMIZADO (MOBILE-FIRST) ---
   return (
-    // p-3 en móvil, p-6 en PC
     <div className="p-3 md:p-6 max-w-7xl mx-auto h-full flex flex-col space-y-5 md:space-y-6 bg-gray-50">
       
-      {/* CABECERA ADAPTATIVA */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 md:p-5 rounded-2xl shadow-sm border border-gray-100">
         <div className="space-y-1">
           <div className="flex items-center gap-2.5">
             <BookOpen className="w-6 h-6 md:w-7 md:h-7 text-emerald-600" />
-            {/* Fuente más pequeña en móvil (text-xl vs text-2xl) */}
             <h1 className="text-xl md:text-2xl font-extrabold text-gray-950 tracking-tight">Plan EUNACOM</h1>
           </div>
           <p className="text-xs md:text-sm text-gray-600 max-w-2xl">{temas.length} Temas • Gestión de estudio personal con IA.</p>
@@ -146,11 +135,8 @@ export default function PlanEunacom() {
         </div>
       </div>
 
-      {/* --- DISEÑO PRINCIPAL ADAPTATIVO (CLAVE) --- */}
-      {/* flex-col en celular (apilado), md:flex-row en computador (lado a lado) */}
       <div className="flex flex-col md:flex-row gap-5 md:gap-6 items-start flex-1 overflow-hidden">
         
-        {/* COLUMNA 1: ÍNDICE TEMÁTICO (Ancho completo en móvil, fijo en PC) */}
         <div className="w-full md:w-80 flex-shrink-0 space-y-4">
           <div className="bg-white p-4 md:p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col overflow-hidden max-h-[300px] md:max-h-full">
             <h2 className="text-base font-bold text-gray-950 mb-3 flex items-center gap-2">
@@ -158,7 +144,6 @@ export default function PlanEunacom() {
                 Índice Temático
             </h2>
             
-            {/* Lista de temas optimizada para toque en móvil */}
             <nav className="space-y-2.5 overflow-y-auto pr-2 -mr-2">
               {temas.map(tema => (
                 <button 
@@ -178,15 +163,12 @@ export default function PlanEunacom() {
           </div>
         </div>
 
-        {/* COLUMNA 2: DETALLE DEL TEMA (Ancho completo siempre) */}
         <div className="flex-1 w-full bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-gray-100 space-y-5 md:space-y-6 flex flex-col overflow-hidden h-full">
-          {/* Cabecera del detalle adaptativa */}
           <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 border-b border-gray-100 pb-4">
             <div className="space-y-0.5">
                 <p className="text-[11px] font-medium text-emerald-700 uppercase tracking-wider">{temaSeleccionado.categoria}</p>
                 <h2 className="text-lg md:text-xl font-extrabold text-gray-950 tracking-tight leading-tight">{temaSeleccionado.titulo}</h2>
             </div>
-            {/* Botón de estado optimizado para toque en móvil */}
             <div className="flex items-center gap-2 self-start sm:self-center shrink-0">
                 <select 
                     value={temaSeleccionado.estado} 
@@ -200,7 +182,6 @@ export default function PlanEunacom() {
             </div>
           </div>
 
-          {/* Selector de modo (Apuntes vs Flashcards) adaptativo */}
           <div className="grid grid-cols-2 gap-2.5 p-1.5 bg-gray-100 rounded-xl border border-gray-200 shrink-0">
             <button onClick={() => setModo("apuntes")} className={`flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold transition-all ${modo === "apuntes" ? 'bg-emerald-600 text-white shadow-md' : 'text-gray-600 hover:bg-gray-200'}`}>
                 📝 Apuntes
@@ -210,7 +191,6 @@ export default function PlanEunacom() {
             </button>
           </div>
 
-          {/* ÁREA DE CONTENIDO (Flexible y con scroll independiente) */}
           <div className="flex-1 overflow-y-auto pr-2 -mr-2 bg-[#fafafa] p-3 rounded-xl border border-gray-100">
             {modo === "apuntes" ? (
               <div className="flex flex-col h-full space-y-3">
@@ -225,7 +205,6 @@ export default function PlanEunacom() {
             ) : (
               <div className="flex flex-col h-full items-center space-y-5">
                  
-                 {/* ZONA DE GENERACIÓN (Adaptada para móvil) */}
                  <div className="flex flex-col gap-3 w-full bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
                     {archivoAdjunto ? (
                       <div className="flex items-center gap-2.5 bg-emerald-50 text-emerald-800 px-3 py-2 rounded-full text-xs border border-emerald-200">
@@ -247,7 +226,7 @@ export default function PlanEunacom() {
                     </button>
                  </div>
 
-                 {/* SECCIÓN DE TARJETAS RECIÉN GENERADAS (Adaptada para móvil y PC) */}
+                 {/* SECCIÓN DE TARJETAS RECIÉN GENERADAS CORREGIDA */}
                  {loteNuevo.length > 0 && (
                    <div className="w-full bg-amber-50 border-2 border-amber-300 rounded-xl p-4 flex flex-col items-center space-y-3.5 shadow-md">
                       <div className="flex flex-col sm:flex-row sm:items-center justify-between w-full gap-2 border-b border-amber-100 pb-2.5">
@@ -258,13 +237,11 @@ export default function PlanEunacom() {
                         </button>
                       </div>
                       
-                      {/* CARTA DEL LOTE NUEVO (Flexible, no alto fijo) */}
-                      <div className="text-gray-500 font-bold mb-2">Mazo Guardado - Tarjeta {indiceTarjeta + 1} de {temaSeleccionado.flashcards.length}</div>
-                      <div onClick={() => setMostrarRespuesta(!mostrarRespuesta)} className={`w-full h-64 p-8 rounded-xl shadow-lg flex items-center justify-center text-center cursor-pointer transition-all ${mostrarRespuesta ? 'bg-purple-50 border-2 border-purple-200' : 'bg-white border-2 border-gray-200'}`}>
-                        <p className={`text-xl font-medium ${mostrarRespuesta ? 'text-purple-800' : 'text-gray-800'}`}>{mostrarRespuesta ? temaSeleccionado.flashcards[indiceTarjeta].respuesta : temaSeleccionado.flashcards[indiceTarjeta].pregunta}</p>
+                      <div className="text-amber-700 font-bold mb-1 text-sm">Tarjeta Nueva {indiceLoteNuevo + 1} de {loteNuevo.length}</div>
+                      <div onClick={() => setMostrarRespuestaLote(!mostrarRespuestaLote)} className={`w-full p-6 md:p-8 rounded-2xl shadow-sm flex items-center justify-center text-center cursor-pointer transition-all ${mostrarRespuestaLote ? 'bg-amber-100 border-2 border-amber-300' : 'bg-white border border-amber-200'} min-h-[200px]`}>
+                        <p className={`text-lg md:text-2xl font-medium ${mostrarRespuestaLote ? 'text-amber-900' : 'text-gray-900'}`}>{mostrarRespuestaLote ? loteNuevo[indiceLoteNuevo].respuesta : loteNuevo[indiceLoteNuevo].pregunta}</p>
                       </div>
 
-                      {/* NAVEGACIÓN LOTE NUEVO ADAPTATIVA */}
                       <div className="flex justify-center gap-3 w-full border-t border-amber-100 pt-3.5 flex-wrap">
                         <button onClick={() => { setIndiceLoteNuevo(Math.max(0, indiceLoteNuevo - 1)); setMostrarRespuestaLote(false); }} disabled={indiceLoteNuevo === 0} className="px-3.5 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-semibold text-gray-700 disabled:opacity-50">◀ Anterior</button>
                         <button onClick={() => { setIndiceLoteNuevo(Math.min(loteNuevo.length - 1, indiceLoteNuevo + 1)); setMostrarRespuestaLote(false); }} disabled={indiceLoteNuevo === loteNuevo.length - 1} className="px-3.5 py-1.5 bg-amber-600 text-white rounded-lg text-xs font-semibold disabled:opacity-50">Siguiente ▶</button>
@@ -272,21 +249,18 @@ export default function PlanEunacom() {
                    </div>
                  )}
 
-                 {/* MAZO PRINCIPAL DE TARJETAS GUARDADAS (Adaptado para móvil) */}
+                 {/* MAZO PRINCIPAL DE TARJETAS GUARDADAS */}
                  {temaSeleccionado.flashcards && temaSeleccionado.flashcards.length > 0 ? (
                     <div className="w-full flex flex-col items-center flex-1 my-auto h-full space-y-4">
                       
-                      {/* Texto de información más legible */}
-                      <div className="text-gray-600 text-sm font-bold tracking-tight">Tarjeta {indiceTarjeta + 1} de {temaSeleccionado.flashcards.length}</div>
+                      <div className="text-gray-600 text-sm font-bold tracking-tight">Tarjeta Guardada {indiceTarjeta + 1} de {temaSeleccionado.flashcards.length}</div>
                       
-                      {/* CARTA PRINCIPAL FLEXIBLE Y CON FUENTE GRANDE EN MÓVIL */}
                       <div onClick={() => setMostrarRespuesta(!mostrarRespuesta)} className={`w-full h-full p-6 md:p-8 rounded-2xl shadow-xl flex items-center justify-center text-center cursor-pointer transition-all ${mostrarRespuesta ? 'bg-purple-50 border-2 border-purple-200' : 'bg-white border border-gray-100'} min-h-[220px]`}>
                         <p className={`text-xl md:text-3xl font-medium ${mostrarRespuesta ? 'text-purple-900' : 'text-gray-900'}`}>{mostrarRespuesta ? temaSeleccionado.flashcards[indiceTarjeta].respuesta : temaSeleccionado.flashcards[indiceTarjeta].pregunta}</p>
                       </div>
                       
                       <p className="text-xs text-gray-400 mt-1.5">(Haz clic para voltear)</p>
                       
-                      {/* NAVEGACIÓN MAZO PRINCIPAL OPTIMIZADA PARA TOQUE */}
                       <div className="flex justify-center gap-3.5 mt-5 flex-wrap">
                         <button onClick={() => { setIndiceTarjeta(Math.max(0, indiceTarjeta - 1)); setMostrarRespuesta(false); }} disabled={indiceTarjeta === 0} className="px-5 py-2 bg-gray-100 hover:bg-gray-200 rounded-xl text-xs sm:text-sm font-semibold text-gray-900 disabled:opacity-50 transition-colors shadow-sm">◀ Anterior</button>
                         <button onClick={() => { setIndiceTarjeta(Math.min(temaSeleccionado.flashcards.length - 1, indiceTarjeta + 1)); setMostrarRespuesta(false); }} disabled={indiceTarjeta === temaSeleccionado.flashcards.length - 1} className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs sm:text-sm font-semibold disabled:opacity-50 transition-colors shadow-sm">Siguiente ▶</button>
@@ -295,7 +269,7 @@ export default function PlanEunacom() {
                  ) : (
                    !loteNuevo.length && <div className="flex-1 flex flex-col items-center justify-center text-gray-400 text-center space-y-3 p-10 h-full">
                        <BrainCircuit className="w-12 h-12 text-gray-300" />
-                       <p className="text-sm">No hay flashcards guardadas en este tema todavía.</p>
+                       <p className="text-sm">No hay flashcards guardadas en este tema.</p>
                        <p className="text-xs">¡Usa la IA arriba para generar algunas nuevas!</p>
                    </div>
                  )}

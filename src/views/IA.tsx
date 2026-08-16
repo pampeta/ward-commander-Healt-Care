@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { generateClinicalDocumentWithGemini } from '../Services/gemini';
 import { sanitizeClinicalText } from '../Services/sanitizer';
-import { FileText, Wand2, Copy, AlertTriangle, CheckCircle2, ShieldAlert } from 'lucide-react';
+import { FileText, Wand2, Copy, CheckCircle2, ShieldAlert } from 'lucide-react';
 
 // Plantillas base editadas y adaptadas según las exigencias de cada médico/servicio
 const PLANTILLAS_POR_DEFECTO: Record<string, string> = {
