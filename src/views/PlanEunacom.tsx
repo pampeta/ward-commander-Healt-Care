@@ -1,6 +1,9 @@
 import { useState, useEffect } from "react";
+// Asumo que estas rutas de importación son correctas para tu proyecto
 import { consultarGeminiConArchivo } from "../Services/gemini";
 import { TEMARIO_BASE } from "../data/temasEunacom";
+// Importo iconos para una UI más limpia, asumiendo que usas lucide-react
+import { BookOpen, Target, FileText, BrainCircuit, Paperclip, CheckCircle } from 'lucide-react';
 
 interface Flashcard {
   pregunta: string;
@@ -117,126 +120,184 @@ export default function PlanEunacom() {
   const actualizarApuntes = (texto: string) => setTemas(temas.map(t => t.id === temaSeleccionado.id ? { ...t, apuntes: texto } : t));
   const calculoProgreso = Math.round((temas.filter(t => t.estado === "🟢 Dominado").length / temas.length) * 100);
 
+  // --- COMIENZO DEL DISEÑO OPTIMIZADO (MOBILE-FIRST) ---
   return (
-    <div className="p-6 max-w-7xl mx-auto h-[85vh] flex flex-col">
-      <div className="mb-6 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-800 mb-1">Plan EUNACOM - {temas.length} Temas</h1>
-          <div className="flex items-center gap-4 w-72 md:w-96">
-            <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden flex-1">
-              <div className="bg-green-500 h-full rounded-full transition-all duration-500" style={{ width: `${calculoProgreso}%` }}></div>
-            </div>
-            <span className="text-xs font-bold text-gray-700">{calculoProgreso}% Dominado</span>
+    // p-3 en móvil, p-6 en PC
+    <div className="p-3 md:p-6 max-w-7xl mx-auto h-full flex flex-col space-y-5 md:space-y-6 bg-gray-50">
+      
+      {/* CABECERA ADAPTATIVA */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 md:p-5 rounded-2xl shadow-sm border border-gray-100">
+        <div className="space-y-1">
+          <div className="flex items-center gap-2.5">
+            <BookOpen className="w-6 h-6 md:w-7 md:h-7 text-emerald-600" />
+            {/* Fuente más pequeña en móvil (text-xl vs text-2xl) */}
+            <h1 className="text-xl md:text-2xl font-extrabold text-gray-950 tracking-tight">Plan EUNACOM</h1>
           </div>
+          <p className="text-xs md:text-sm text-gray-600 max-w-2xl">{temas.length} Temas • Gestión de estudio personal con IA.</p>
+        </div>
+        <div className="flex items-center gap-3 bg-gray-100 p-2 rounded-full border border-gray-200 shrink-0 self-start sm:self-center">
+            <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-emerald-100 flex items-center justify-center border-2 border-emerald-200">
+                <span className="text-lg md:text-xl font-bold text-emerald-700">{calculoProgreso}%</span>
+            </div>
+            <div className="pr-3">
+                <p className="text-sm md:text-base font-semibold text-gray-900">Dominado</p>
+                <p className="text-[11px] md:text-xs text-gray-500">De {temas.length} temas totales</p>
+            </div>
         </div>
       </div>
 
-      <div className="flex gap-6 flex-1 min-h-0">
-        <div className="w-1/3 bg-white rounded-lg shadow-sm border border-gray-200 flex flex-col overflow-hidden">
-          <div className="bg-slate-50 p-4 border-b font-semibold text-gray-700">Índice Temático</div>
-          <div className="overflow-y-auto flex-1 p-2 space-y-2">
-            {temas.map(tema => (
-              <button key={tema.id} onClick={() => seleccionarTema(tema)} className={`w-full text-left p-3 rounded transition-all ${temaSeleccionado.id === tema.id ? 'bg-blue-50 border-blue-200 border shadow-sm' : 'hover:bg-slate-50 border border-transparent'}`}>
-                <div className="text-xs text-gray-500 mb-1 font-semibold">{tema.categoria}</div>
-                <div className="font-medium text-gray-800 leading-tight">{tema.titulo}</div>
-                <div className="flex justify-between items-center mt-2">
-                  <span className="text-xs font-bold">{tema.estado}</span>
-                  <span className="text-[10px] bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-bold">🧠 {tema.flashcards?.length || 0} guardadas</span>
-                </div>
-              </button>
-            ))}
+      {/* --- DISEÑO PRINCIPAL ADAPTATIVO (CLAVE) --- */}
+      {/* flex-col en celular (apilado), md:flex-row en computador (lado a lado) */}
+      <div className="flex flex-col md:flex-row gap-5 md:gap-6 items-start flex-1 overflow-hidden">
+        
+        {/* COLUMNA 1: ÍNDICE TEMÁTICO (Ancho completo en móvil, fijo en PC) */}
+        <div className="w-full md:w-80 flex-shrink-0 space-y-4">
+          <div className="bg-white p-4 md:p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col overflow-hidden max-h-[300px] md:max-h-full">
+            <h2 className="text-base font-bold text-gray-950 mb-3 flex items-center gap-2">
+                <FileText className="w-4 h-4 text-gray-500" />
+                Índice Temático
+            </h2>
+            
+            {/* Lista de temas optimizada para toque en móvil */}
+            <nav className="space-y-2.5 overflow-y-auto pr-2 -mr-2">
+              {temas.map(tema => (
+                <button 
+                    key={tema.id} 
+                    onClick={() => seleccionarTema(tema)} 
+                    className={`w-full text-left p-3.5 rounded-xl transition-all border ${temaSeleccionado.id === tema.id ? 'bg-emerald-50 border-emerald-200 shadow-sm' : 'hover:bg-gray-50 border-gray-100'}`}
+                >
+                  <p className="text-[11px] font-medium text-emerald-700 uppercase tracking-wider mb-1">{tema.categoria}</p>
+                  <p className="text-sm font-semibold text-gray-950 leading-tight mb-2">{tema.titulo}</p>
+                  <div className="flex justify-between items-center gap-2 pt-1 border-t border-gray-100 text-xs">
+                    <span className="font-bold text-gray-700">{tema.estado}</span>
+                    <span className="text-[10px] bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-bold">🧠 {tema.flashcards?.length || 0} guardadas</span>
+                  </div>
+                </button>
+              ))}
+            </nav>
           </div>
         </div>
-        <div className="w-2/3 bg-white rounded-lg shadow-sm border border-gray-200 flex flex-col overflow-hidden">
-          <div className="bg-slate-50 p-4 border-b flex justify-between items-center flex-wrap gap-2">
-            <h2 className="font-bold text-lg text-gray-800">{temaSeleccionado.titulo}</h2>
-            
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-gray-500">Estado:</span>
-              <select 
-                value={temaSeleccionado.estado} 
-                onChange={(e) => cambiarEstadoTema(e.target.value as any)}
-                className="text-xs font-bold px-2 py-1.5 border rounded-lg bg-white shadow-sm outline-none cursor-pointer"
-              >
-                <option value="🔴 Pendiente">🔴 Pendiente</option>
-                <option value="🟡 Repasando">🟡 Repasando</option>
-                <option value="🟢 Dominado">🟢 Dominado</option>
-              </select>
-            </div>
 
-            <div className="flex gap-2">
-              <button onClick={() => setModo("apuntes")} className={`px-4 py-1 rounded text-sm font-bold ${modo === "apuntes" ? 'bg-blue-600 text-white' : 'bg-gray-200'}`}>📝 Apuntes</button>
-              <button onClick={() => setModo("flashcards")} className={`px-4 py-1 rounded text-sm font-bold ${modo === "flashcards" ? 'bg-purple-600 text-white' : 'bg-gray-200'}`}>🧠 Flashcards IA ({temaSeleccionado.flashcards?.length || 0})</button>
+        {/* COLUMNA 2: DETALLE DEL TEMA (Ancho completo siempre) */}
+        <div className="flex-1 w-full bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-gray-100 space-y-5 md:space-y-6 flex flex-col overflow-hidden h-full">
+          {/* Cabecera del detalle adaptativa */}
+          <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 border-b border-gray-100 pb-4">
+            <div className="space-y-0.5">
+                <p className="text-[11px] font-medium text-emerald-700 uppercase tracking-wider">{temaSeleccionado.categoria}</p>
+                <h2 className="text-lg md:text-xl font-extrabold text-gray-950 tracking-tight leading-tight">{temaSeleccionado.titulo}</h2>
+            </div>
+            {/* Botón de estado optimizado para toque en móvil */}
+            <div className="flex items-center gap-2 self-start sm:self-center shrink-0">
+                <select 
+                    value={temaSeleccionado.estado} 
+                    onChange={(e) => cambiarEstadoTema(e.target.value as any)}
+                    className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 border border-gray-200 rounded-full text-xs font-semibold text-gray-900 transition-colors outline-none cursor-pointer shadow-sm"
+                >
+                    <option value="🔴 Pendiente">🔴 Pendiente</option>
+                    <option value="🟡 Repasando">🟡 Repasando</option>
+                    <option value="🟢 Dominado">🟢 Dominado</option>
+                </select>
             </div>
           </div>
 
-          <div className="flex-1 p-6 overflow-y-auto bg-[#fafafa] flex flex-col">
+          {/* Selector de modo (Apuntes vs Flashcards) adaptativo */}
+          <div className="grid grid-cols-2 gap-2.5 p-1.5 bg-gray-100 rounded-xl border border-gray-200 shrink-0">
+            <button onClick={() => setModo("apuntes")} className={`flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold transition-all ${modo === "apuntes" ? 'bg-emerald-600 text-white shadow-md' : 'text-gray-600 hover:bg-gray-200'}`}>
+                📝 Apuntes
+            </button>
+            <button onClick={() => setModo("flashcards")} className={`flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold transition-all ${modo === "flashcards" ? 'bg-purple-600 text-white shadow-md' : 'text-gray-600 hover:bg-gray-200'}`}>
+                🧠 Flashcards IA <span className="text-xs opacity-60">({temaSeleccionado.flashcards?.length || 0})</span>
+            </button>
+          </div>
+
+          {/* ÁREA DE CONTENIDO (Flexible y con scroll independiente) */}
+          <div className="flex-1 overflow-y-auto pr-2 -mr-2 bg-[#fafafa] p-3 rounded-xl border border-gray-100">
             {modo === "apuntes" ? (
-              <div className="flex flex-col h-full">
-                <p className="text-xs text-gray-400 mb-2 font-medium">Escribe tus apuntes, perlas clínicas o mnemotecnias (se guardan automáticamente):</p>
+              <div className="flex flex-col h-full space-y-3">
+                <label className="text-xs md:text-sm text-gray-600 font-medium">Escribe tus apuntes, perlas clínicas o mnemotecnias (se guardan automáticamente):</label>
                 <textarea 
                   value={temaSeleccionado.apuntes} 
                   onChange={(e) => actualizarApuntes(e.target.value)} 
-                  className="flex-1 w-full p-4 border border-gray-300 rounded-lg outline-none bg-white shadow-sm resize-none focus:ring-2 focus:ring-blue-500 text-gray-800 text-sm leading-relaxed" 
+                  className="flex-1 w-full p-4 border border-gray-200 rounded-xl bg-white shadow-inner focus:ring-2 focus:ring-emerald-200 focus:border-emerald-300 transition-all text-sm md:text-base resize-none leading-relaxed" 
                   placeholder="Escribe aquí tus apuntes del tema..." 
                 />
               </div>
             ) : (
-              <div className="flex flex-col h-full items-center">
-                 <div className="flex flex-col gap-2 w-full mb-6 bg-white p-4 rounded border shadow-sm">
-                    <div className="flex gap-2 items-center flex-wrap">
-                      <input type="file" id="subir-pdf" accept=".pdf, image/*" onChange={handleSubirArchivo} className="hidden" />
-                      <label htmlFor="subir-pdf" className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-4 py-2 rounded text-sm font-bold cursor-pointer flex items-center border">📎 Adjuntar Documento</label>
-                      <button onClick={generarFlashcards} disabled={cargando} className="bg-purple-600 hover:bg-purple-700 text-white ml-auto px-6 py-2 rounded text-sm font-bold disabled:opacity-50">
-                        {cargando ? "Generando..." : "Generar Nuevas ⚡"}
-                      </button>
-                    </div>
-                    {archivoAdjunto && (
-                      <div className="flex items-center gap-2 bg-blue-50 text-blue-700 px-3 py-1 rounded text-xs border border-blue-200">
-                        📄 Archivo: {archivoAdjunto.nombre}
-                        <button onClick={() => setArchivoAdjunto(null)} className="ml-auto text-red-500 font-bold px-1">X</button>
+              <div className="flex flex-col h-full items-center space-y-5">
+                 
+                 {/* ZONA DE GENERACIÓN (Adaptada para móvil) */}
+                 <div className="flex flex-col gap-3 w-full bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
+                    {archivoAdjunto ? (
+                      <div className="flex items-center gap-2.5 bg-emerald-50 text-emerald-800 px-3 py-2 rounded-full text-xs border border-emerald-200">
+                        📄 <span className="font-semibold">{archivoAdjunto.nombre}</span>
+                        <button onClick={() => setArchivoAdjunto(null)} className="ml-auto text-red-500 font-bold px-1.5 py-0.5 rounded-full hover:bg-red-100 transition-colors">X</button>
+                      </div>
+                    ) : (
+                      <div className="flex gap-2 items-center flex-wrap">
+                        <input type="file" id="subir-pdf-eunacom" accept=".pdf, image/*" onChange={handleSubirArchivo} className="hidden" />
+                        <label htmlFor="subir-pdf-eunacom" className="flex-1 flex justify-center items-center gap-2 px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-900 border border-gray-200 rounded-lg text-sm font-semibold cursor-pointer transition-colors">
+                            <Paperclip className="w-4 h-4 text-gray-500" />
+                            Adjuntar Documento <span className="hidden sm:inline">(PDF/Imagen)</span>
+                        </label>
                       </div>
                     )}
+                    <button onClick={generarFlashcards} disabled={cargando} className="w-full flex justify-center items-center gap-2.5 px-6 py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-bold disabled:opacity-50 transition-all shadow">
+                        <BrainCircuit className="w-5 h-5" />
+                        {cargando ? "Generando..." : "Generar Nuevas⚡"}
+                    </button>
                  </div>
 
-                 {/* SECCIÓN DE TARJETAS RECIÉN GENERADAS (LOTE NUEVO PENDIENTE DE GUARDAR) */}
+                 {/* SECCIÓN DE TARJETAS RECIÉN GENERADAS (Adaptada para móvil y PC) */}
                  {loteNuevo.length > 0 && (
-                   <div className="w-full bg-amber-50 border-2 border-amber-300 rounded-xl p-4 mb-6 shadow-md flex flex-col items-center">
-                      <div className="flex justify-between items-center w-full mb-2">
-                        <span className="text-xs font-bold text-amber-800 uppercase tracking-wide">✨ Lote Nuevo Generado (Pendiente de Guardar)</span>
-                        <button onClick={guardarLoteEnMazo} className="bg-green-600 hover:bg-green-700 text-white px-4 py-1.5 rounded-lg text-xs font-bold shadow transition-all">
-                          💾 Guardar en el Mazo ({loteNuevo.length})
+                   <div className="w-full bg-amber-50 border-2 border-amber-300 rounded-xl p-4 flex flex-col items-center space-y-3.5 shadow-md">
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between w-full gap-2 border-b border-amber-100 pb-2.5">
+                        <span className="text-[11px] font-medium text-amber-900 uppercase tracking-wider">✨ Lote Nuevo Generado</span>
+                        <button onClick={guardarLoteEnMazo} className="flex items-center gap-2 px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold shadow transition-all self-start sm:self-center">
+                          <CheckCircle className="w-4 h-4" />
+                          Guardar {loteNuevo.length} en Mazo
                         </button>
                       </div>
                       
-                      <div className="text-xs text-gray-500 font-semibold mb-2">Tarjeta {indiceLoteNuevo + 1} de {loteNuevo.length}</div>
-                      <div onClick={() => setMostrarRespuestaLote(!mostrarRespuestaLote)} className={`w-full max-w-md h-36 p-4 rounded-lg shadow bg-white border border-amber-200 flex items-center justify-center text-center cursor-pointer transition-all`}>
-                        <p className={`text-sm font-medium ${mostrarRespuestaLote ? 'text-purple-800' : 'text-gray-800'}`}>
-                          {mostrarRespuestaLote ? loteNuevo[indiceLoteNuevo].respuesta : loteNuevo[indiceLoteNuevo].pregunta}
-                        </p>
-                      </div>
-                      <div className="flex justify-center gap-3 mt-3">
-                        <button onClick={() => { setIndiceLoteNuevo(Math.max(0, indiceLoteNuevo - 1)); setMostrarRespuestaLote(false); }} disabled={indiceLoteNuevo === 0} className="px-3 py-1 bg-white border rounded text-xs font-bold disabled:opacity-50">◀ Anterior</button>
-                        <button onClick={() => { setIndiceLoteNuevo(Math.min(loteNuevo.length - 1, indiceLoteNuevo + 1)); setMostrarRespuestaLote(false); }} disabled={indiceLoteNuevo === loteNuevo.length - 1} className="px-3 py-1 bg-amber-600 text-white rounded text-xs font-bold disabled:opacity-50">Siguiente ▶</button>
-                      </div>
-                   </div>
-                 )}
-
-                 {/* MAZO PRINCIPAL DE TARJETAS GUARDADAS */}
-                 {temaSeleccionado.flashcards && temaSeleccionado.flashcards.length > 0 ? (
-                    <div className="w-full max-w-lg flex flex-col items-center my-auto">
+                      {/* CARTA DEL LOTE NUEVO (Flexible, no alto fijo) */}
                       <div className="text-gray-500 font-bold mb-2">Mazo Guardado - Tarjeta {indiceTarjeta + 1} de {temaSeleccionado.flashcards.length}</div>
                       <div onClick={() => setMostrarRespuesta(!mostrarRespuesta)} className={`w-full h-64 p-8 rounded-xl shadow-lg flex items-center justify-center text-center cursor-pointer transition-all ${mostrarRespuesta ? 'bg-purple-50 border-2 border-purple-200' : 'bg-white border-2 border-gray-200'}`}>
                         <p className={`text-xl font-medium ${mostrarRespuesta ? 'text-purple-800' : 'text-gray-800'}`}>{mostrarRespuesta ? temaSeleccionado.flashcards[indiceTarjeta].respuesta : temaSeleccionado.flashcards[indiceTarjeta].pregunta}</p>
                       </div>
-                      <p className="text-sm text-gray-400 mt-2">(Haz clic para voltear)</p>
-                      <div className="flex justify-center gap-4 mt-6">
-                        <button onClick={() => { setIndiceTarjeta(Math.max(0, indiceTarjeta - 1)); setMostrarRespuesta(false); }} disabled={indiceTarjeta === 0} className="px-4 py-2 bg-gray-200 rounded font-bold disabled:opacity-50">◀ Anterior</button>
-                        <button onClick={() => { setIndiceTarjeta(Math.min(temaSeleccionado.flashcards.length - 1, indiceTarjeta + 1)); setMostrarRespuesta(false); }} disabled={indiceTarjeta === temaSeleccionado.flashcards.length - 1} className="px-4 py-2 bg-blue-600 text-white rounded font-bold disabled:opacity-50">Siguiente ▶</button>
+
+                      {/* NAVEGACIÓN LOTE NUEVO ADAPTATIVA */}
+                      <div className="flex justify-center gap-3 w-full border-t border-amber-100 pt-3.5 flex-wrap">
+                        <button onClick={() => { setIndiceLoteNuevo(Math.max(0, indiceLoteNuevo - 1)); setMostrarRespuestaLote(false); }} disabled={indiceLoteNuevo === 0} className="px-3.5 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-semibold text-gray-700 disabled:opacity-50">◀ Anterior</button>
+                        <button onClick={() => { setIndiceLoteNuevo(Math.min(loteNuevo.length - 1, indiceLoteNuevo + 1)); setMostrarRespuestaLote(false); }} disabled={indiceLoteNuevo === loteNuevo.length - 1} className="px-3.5 py-1.5 bg-amber-600 text-white rounded-lg text-xs font-semibold disabled:opacity-50">Siguiente ▶</button>
+                      </div>
+                   </div>
+                 )}
+
+                 {/* MAZO PRINCIPAL DE TARJETAS GUARDADAS (Adaptado para móvil) */}
+                 {temaSeleccionado.flashcards && temaSeleccionado.flashcards.length > 0 ? (
+                    <div className="w-full flex flex-col items-center flex-1 my-auto h-full space-y-4">
+                      
+                      {/* Texto de información más legible */}
+                      <div className="text-gray-600 text-sm font-bold tracking-tight">Tarjeta {indiceTarjeta + 1} de {temaSeleccionado.flashcards.length}</div>
+                      
+                      {/* CARTA PRINCIPAL FLEXIBLE Y CON FUENTE GRANDE EN MÓVIL */}
+                      <div onClick={() => setMostrarRespuesta(!mostrarRespuesta)} className={`w-full h-full p-6 md:p-8 rounded-2xl shadow-xl flex items-center justify-center text-center cursor-pointer transition-all ${mostrarRespuesta ? 'bg-purple-50 border-2 border-purple-200' : 'bg-white border border-gray-100'} min-h-[220px]`}>
+                        <p className={`text-xl md:text-3xl font-medium ${mostrarRespuesta ? 'text-purple-900' : 'text-gray-900'}`}>{mostrarRespuesta ? temaSeleccionado.flashcards[indiceTarjeta].respuesta : temaSeleccionado.flashcards[indiceTarjeta].pregunta}</p>
+                      </div>
+                      
+                      <p className="text-xs text-gray-400 mt-1.5">(Haz clic para voltear)</p>
+                      
+                      {/* NAVEGACIÓN MAZO PRINCIPAL OPTIMIZADA PARA TOQUE */}
+                      <div className="flex justify-center gap-3.5 mt-5 flex-wrap">
+                        <button onClick={() => { setIndiceTarjeta(Math.max(0, indiceTarjeta - 1)); setMostrarRespuesta(false); }} disabled={indiceTarjeta === 0} className="px-5 py-2 bg-gray-100 hover:bg-gray-200 rounded-xl text-xs sm:text-sm font-semibold text-gray-900 disabled:opacity-50 transition-colors shadow-sm">◀ Anterior</button>
+                        <button onClick={() => { setIndiceTarjeta(Math.min(temaSeleccionado.flashcards.length - 1, indiceTarjeta + 1)); setMostrarRespuesta(false); }} disabled={indiceTarjeta === temaSeleccionado.flashcards.length - 1} className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs sm:text-sm font-semibold disabled:opacity-50 transition-colors shadow-sm">Siguiente ▶</button>
                       </div>
                     </div>
                  ) : (
-                   !loteNuevo.length && <div className="flex-1 flex items-center justify-center text-gray-400 text-center">No hay flashcards guardadas en este tema todavía. ¡Genera algunas nuevas con IA!</div>
+                   !loteNuevo.length && <div className="flex-1 flex flex-col items-center justify-center text-gray-400 text-center space-y-3 p-10 h-full">
+                       <BrainCircuit className="w-12 h-12 text-gray-300" />
+                       <p className="text-sm">No hay flashcards guardadas en este tema todavía.</p>
+                       <p className="text-xs">¡Usa la IA arriba para generar algunas nuevas!</p>
+                   </div>
                  )}
               </div>
             )}

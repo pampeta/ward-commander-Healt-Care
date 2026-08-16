@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { generateClinicalDocumentWithGemini } from '../Services/gemini';
 import { sanitizeClinicalText } from '../Services/sanitizer';
+import { FileText, Wand2, Copy, AlertTriangle, CheckCircle2, ShieldAlert } from 'lucide-react';
 
 // Plantillas base editadas y adaptadas según las exigencias de cada médico/servicio
 const PLANTILLAS_POR_DEFECTO: Record<string, string> = {
@@ -264,7 +265,7 @@ export const IAModuleDesktop: React.FC = () => {
       const p = pacientes.find((x: any) => String(x.id) === String(selectedPacienteId) || String(x.cama) === String(selectedPacienteId));
       const doc = doctores.find(x => x.id === Number(selectedDoctorId));
       
-      const camaInitialsPlaceholder = p ? `Cama ${p.cama || 'N/A'} - ${p.nombre || 'Paciente'} (${p.edad || 'N/A'} años, Ingreso: ${p.fechaIngreso || 'N/A'})` : '[CAMA / PACIENTE]';
+      const camaInitialsPlaceholder = p ? `Cama ${p.cama || 'N/A'} - ${p.nombre || 'Paciente'} (${p.edad || 'N/A'} años, Ingreso: ${p.fechaIngreso?.split('-').reverse().join('/') || 'N/A'})` : '[CAMA / PACIENTE]';
       const customizedEsqueleto = esqueletoActual.replace(/{{CAMA_INICIALES}}/g, camaInitialsPlaceholder);
 
       const response = await generateClinicalDocumentWithGemini({
@@ -294,28 +295,39 @@ export const IAModuleDesktop: React.FC = () => {
     const parts = text.split(/(\[FALTA:[^\]]+\])/g);
     return parts.map((part, i) => {
       if (part.startsWith('[FALTA:')) {
-        return <span key={i} className="bg-yellow-200 text-yellow-900 font-bold px-1 rounded">{part}</span>;
+        return <span key={i} className="bg-yellow-200 text-yellow-900 font-bold px-1.5 py-0.5 rounded shadow-sm">{part}</span>;
       }
       return part;
     });
   };
 
+  // --- DISEÑO OPTIMIZADO (MOBILE-FIRST) ---
   return (
-    <div className="p-6 max-w-[1600px] mx-auto space-y-4">
-      {/* Banner Permanente */}
-      <div className="bg-red-50 border-l-4 border-red-600 p-3 rounded-r-lg text-xs text-red-900 shadow-sm">
-        ⚠️ <strong>Borrador generado por IA:</strong> Verificar cada dato clínico antes de usar. Los formatos se adaptan rigurosamente al estilo del médico emisor seleccionado.
+    <div className="p-3 md:p-6 max-w-[1600px] mx-auto space-y-4 md:space-y-6 bg-gray-50 min-h-full flex flex-col">
+      
+      {/* Banner Permanente Adaptativo */}
+      <div className="bg-red-50/80 border-l-4 border-red-500 p-3 md:p-4 rounded-r-xl flex items-start gap-3 shadow-sm shrink-0">
+        <ShieldAlert className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
+        <p className="text-[11px] md:text-xs text-red-800 leading-relaxed">
+          <strong className="text-red-900">Borrador generado por IA:</strong> Verificar cada dato clínico antes de usar. Los formatos se adaptan rigurosamente al estilo del médico emisor seleccionado.
+        </p>
       </div>
 
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-start">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 items-start flex-1 overflow-hidden">
+        
         {/* PANEL IZQUIERDO: Inputs y Formatos */}
-        <div className="space-y-4 bg-white p-5 rounded-xl border border-gray-200 shadow-sm">
-          <h2 className="text-lg font-bold text-gray-800 border-b pb-2">Generador Clínico por Médico Emisor</h2>
+        <div className="space-y-4 md:space-y-5 bg-white p-4 md:p-6 rounded-2xl border border-gray-100 shadow-sm flex flex-col max-h-[85vh] lg:max-h-full overflow-y-auto">
           
-          <div className="grid grid-cols-3 gap-3">
+          <div className="flex items-center gap-2 border-b border-gray-100 pb-3 shrink-0">
+            <Wand2 className="w-5 h-5 text-blue-600" />
+            <h2 className="text-lg md:text-xl font-bold text-gray-900">Generador por Médico Emisor</h2>
+          </div>
+          
+          {/* Grid responsivo: 1 columna en celular, 3 en PC */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4 shrink-0">
             <div>
-              <label className="block text-xs font-bold uppercase text-gray-500 mb-1">Paciente (Censo)</label>
-              <select className="w-full p-2 bg-gray-50 border rounded-lg text-sm" value={selectedPacienteId} onChange={e => setSelectedPacienteId(e.target.value)}>
+              <label className="block text-[10px] md:text-[11px] font-bold uppercase text-gray-500 mb-1.5 tracking-wider">Paciente (Censo)</label>
+              <select className="w-full p-2.5 md:p-3 bg-gray-50 border border-gray-200 rounded-xl text-xs md:text-sm outline-none focus:ring-2 focus:ring-blue-400 text-gray-800 transition-shadow appearance-none cursor-pointer" value={selectedPacienteId} onChange={e => setSelectedPacienteId(e.target.value)}>
                 <option value="">Seleccionar del Censo...</option>
                 {pacientes.map((p, idx) => (
                   <option key={p.id || idx} value={p.id || p.cama}>
@@ -325,44 +337,44 @@ export const IAModuleDesktop: React.FC = () => {
               </select>
             </div>
             <div>
-              <label className="block text-xs font-bold uppercase text-gray-500 mb-1">Documento</label>
-              <select className="w-full p-2 bg-gray-50 border rounded-lg text-sm" value={tipoDoc} onChange={e => setTipoDoc(e.target.value)}>
+              <label className="block text-[10px] md:text-[11px] font-bold uppercase text-gray-500 mb-1.5 tracking-wider">Documento</label>
+              <select className="w-full p-2.5 md:p-3 bg-gray-50 border border-gray-200 rounded-xl text-xs md:text-sm outline-none focus:ring-2 focus:ring-blue-400 text-gray-800 transition-shadow appearance-none cursor-pointer" value={tipoDoc} onChange={e => setTipoDoc(e.target.value)}>
                 <option value="Epicrisis">Epicrisis</option>
                 <option value="Ingreso">Ingreso</option>
                 <option value="Evolución">Evolución</option>
               </select>
             </div>
             <div>
-              <label className="block text-xs font-bold uppercase text-gray-500 mb-1">Médico Emisor</label>
-              <select className="w-full p-2 bg-gray-50 border rounded-lg text-sm" value={selectedDoctorId} onChange={e => setSelectedDoctorId(e.target.value)}>
-                <option value="">Seleccionar...</option>
+              <label className="block text-[10px] md:text-[11px] font-bold uppercase text-gray-500 mb-1.5 tracking-wider">Médico Emisor</label>
+              <select className="w-full p-2.5 md:p-3 bg-gray-50 border border-gray-200 rounded-xl text-xs md:text-sm outline-none focus:ring-2 focus:ring-blue-400 text-gray-800 transition-shadow appearance-none cursor-pointer" value={selectedDoctorId} onChange={e => setSelectedDoctorId(e.target.value)}>
+                <option value="">Seleccionar doctor...</option>
                 {doctores.map(d => <option key={d.id} value={d.id}>{d.nombre} ({d.especialidad})</option>)}
               </select>
             </div>
           </div>
 
           {/* CAJA EDITABLE PARA PERSONALIZAR EL FORMATO */}
-          <div>
-            <div className="flex justify-between items-center mb-1">
-              <label className="text-xs font-bold uppercase text-gray-500">Esqueleto / Formato Base (Editable)</label>
+          <div className="shrink-0">
+            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-end gap-1 mb-1.5">
+              <label className="text-[10px] md:text-[11px] font-bold uppercase text-gray-500 tracking-wider">Esqueleto / Formato Base</label>
               <button 
                 onClick={() => setEsqueletoActual(PLANTILLAS_POR_DEFECTO[tipoDoc] || '')}
-                className="text-[10px] text-blue-600 hover:underline font-semibold"
+                className="text-[10px] text-blue-600 hover:text-blue-800 font-semibold text-left sm:text-right"
               >
                 Restaurar plantilla por defecto
               </button>
             </div>
             <textarea 
-              className="w-full p-2.5 bg-slate-50 border rounded-lg text-xs font-mono h-36"
+              className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-[11px] md:text-xs font-mono h-32 md:h-40 outline-none focus:ring-2 focus:ring-blue-400 transition-shadow resize-none leading-relaxed text-gray-700"
               value={esqueletoActual}
               onChange={e => setEsqueletoActual(e.target.value)}
             />
           </div>
 
-          <div>
-            <label className="block text-xs font-bold uppercase text-gray-500 mb-1">Notas Sueltas, Laboratorios o Respuestas de IC</label>
+          <div className="flex-1 min-h-[150px] flex flex-col">
+            <label className="block text-[10px] md:text-[11px] font-bold uppercase text-gray-500 mb-1.5 tracking-wider shrink-0">Notas Sueltas, Laboratorios o Respuestas IC</label>
             <textarea 
-              className="w-full p-3 bg-gray-50 border rounded-lg text-sm h-40 font-mono"
+              className="w-full p-3 md:p-4 bg-gray-50 border border-gray-200 rounded-xl text-xs md:text-sm h-full font-mono outline-none focus:ring-2 focus:ring-blue-400 transition-shadow resize-none leading-relaxed text-gray-800 flex-1"
               placeholder="Pega aquí laboratorios, evolución intrahospitalaria, notas de interconsulta..."
               value={rawData} 
               onChange={e => setRawData(e.target.value)}
@@ -373,55 +385,67 @@ export const IAModuleDesktop: React.FC = () => {
             <button 
               onClick={handleVerifySanitization}
               disabled={!rawData.trim() || isGenerating}
-              className="w-full bg-blue-600 text-white font-bold py-2.5 rounded-lg text-sm hover:bg-blue-700 disabled:opacity-50"
+              className="w-full flex items-center justify-center gap-2 bg-blue-600 text-white font-bold py-3 md:py-3.5 rounded-xl text-sm hover:bg-blue-700 disabled:opacity-50 transition-all shadow-md shrink-0"
             >
-              Sanitizar y Revisar Privacidad
+              <ShieldAlert className="w-4 h-4" /> Sanitizar y Revisar Privacidad
             </button>
           )}
 
           {/* Diff Intermedio de Confirmación */}
           {sanitizedPreview && (
-            <div className="bg-amber-50 border border-amber-200 p-4 rounded-lg space-y-3">
-              <h3 className="font-bold text-amber-900 text-xs uppercase">Filtro de Privacidad Activo</h3>
-              <p className="text-xs text-amber-800">Revisa cómo se enviará la información sin datos identificables:</p>
-              <div className="bg-white p-2 rounded border text-xs font-mono max-h-32 overflow-y-auto whitespace-pre-wrap">
+            <div className="bg-amber-50 border border-amber-200 p-3 md:p-4 rounded-xl space-y-3 shrink-0 shadow-sm animate-in fade-in duration-300">
+              <div className="flex items-center gap-1.5">
+                  <ShieldAlert className="w-4 h-4 text-amber-600" />
+                  <h3 className="font-bold text-amber-900 text-[10px] md:text-xs uppercase tracking-wider">Filtro de Privacidad Activo</h3>
+              </div>
+              <p className="text-[11px] md:text-xs text-amber-800 leading-snug">Revisa cómo se enviará la información sin datos identificables:</p>
+              <div className="bg-white p-2.5 md:p-3 rounded-lg border border-amber-100 text-[10px] md:text-xs font-mono max-h-32 overflow-y-auto whitespace-pre-wrap text-gray-700 shadow-inner">
                 {sanitizedPreview.textSanitized}
               </div>
-              <div className="flex gap-2 justify-end">
-                <button onClick={() => setSanitizedPreview(null)} className="bg-gray-200 text-gray-800 px-3 py-1.5 text-xs font-bold rounded">Corregir</button>
-                <button onClick={executeGeneration} disabled={isGenerating} className="bg-green-600 text-white px-4 py-1.5 text-xs font-bold rounded hover:bg-green-700">
-                  {isGenerating ? 'Generando...' : 'Confirmar y Enviar a IA'}
+              <div className="flex flex-col-reverse sm:flex-row gap-2 sm:justify-end pt-2">
+                <button onClick={() => setSanitizedPreview(null)} className="w-full sm:w-auto bg-white border border-gray-200 text-gray-700 px-4 py-2 text-xs font-bold rounded-lg transition-colors">Corregir Texto</button>
+                <button onClick={executeGeneration} disabled={isGenerating} className="w-full sm:w-auto flex items-center justify-center gap-1.5 bg-green-600 text-white px-5 py-2 text-xs font-bold rounded-lg hover:bg-green-700 shadow-sm transition-colors">
+                  {isGenerating ? 'Generando IA...' : <><Wand2 className="w-3.5 h-3.5"/> Confirmar y Enviar</>}
                 </button>
               </div>
             </div>
           )}
 
-          {error && <div className="p-3 bg-red-100 text-red-800 rounded-lg text-xs font-semibold">{error}</div>}
+          {error && <div className="p-3 bg-red-50 border border-red-200 text-red-800 rounded-xl text-xs font-semibold shrink-0">{error}</div>}
         </div>
 
         {/* PANEL DERECHO: Output */}
-        <div className="space-y-4">
+        <div className="flex flex-col h-full space-y-4 max-h-[85vh] lg:max-h-full">
           {output ? (
-            <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm space-y-3">
-              <div className="flex justify-between items-center border-b pb-2">
-                <h3 className="text-base font-bold text-gray-800">Documento Estructurado</h3>
+            <div className="bg-white p-4 md:p-6 rounded-2xl border border-gray-100 shadow-sm flex flex-col h-full animate-in zoom-in-95 duration-300">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-gray-100 pb-3 md:pb-4 shrink-0">
+                <div className="flex items-center gap-2">
+                  <FileText className="w-5 h-5 text-emerald-600" />
+                  <h3 className="text-base md:text-lg font-bold text-gray-900">Documento Estructurado</h3>
+                </div>
                 <button 
                   onClick={copyToClipboard}
-                  className={`px-4 py-1.5 text-xs font-bold rounded-lg border ${copied ? 'bg-green-600 text-white' : 'bg-gray-50 text-gray-700'}`}
+                  className={`w-full sm:w-auto flex items-center justify-center gap-1.5 px-5 py-2 text-xs md:text-sm font-bold rounded-xl transition-all shadow-sm ${copied ? 'bg-green-600 text-white' : 'bg-gray-100 hover:bg-gray-200 text-gray-800 border border-gray-200'}`}
                 >
-                  {copied ? '¡Copiado!' : 'Copiar'}
+                  {copied ? <><CheckCircle2 className="w-4 h-4"/> ¡Copiado!</> : <><Copy className="w-4 h-4"/> Copiar Texto</>}
                 </button>
               </div>
-              <div className="bg-gray-50 p-4 rounded-lg font-sans text-sm text-gray-800 leading-relaxed max-h-[580px] overflow-y-auto whitespace-pre-wrap select-all shadow-inner">
+              
+              <div className="mt-4 bg-gray-50 border border-gray-100 p-4 md:p-5 rounded-xl font-sans text-[13px] md:text-sm text-gray-800 leading-relaxed flex-1 overflow-y-auto whitespace-pre-wrap select-all shadow-inner">
                 {renderHighlightedOutput(output)}
               </div>
             </div>
           ) : (
-            <div className="border-2 border-dashed border-gray-200 rounded-xl p-12 text-center text-gray-400 min-h-[400px] flex flex-col items-center justify-center">
-              <p className="text-sm">El borrador clínico estructurado por Gemini con el estilo del médico emisor aparecerá en este panel listo para copiar.</p>
+            <div className="border-2 border-dashed border-gray-200 rounded-2xl p-8 md:p-12 text-center text-gray-400 h-full min-h-[300px] flex flex-col items-center justify-center bg-white/50">
+              <div className="bg-gray-50 p-4 rounded-full mb-3">
+                <FileText className="w-8 h-8 text-gray-300" />
+              </div>
+              <p className="text-sm font-medium text-gray-500 mb-1">Área de Visualización</p>
+              <p className="text-xs max-w-xs leading-relaxed">El borrador clínico estructurado por Gemini con el estilo del médico emisor aparecerá en este panel listo para copiar.</p>
             </div>
           )}
         </div>
+
       </div>
     </div>
   );

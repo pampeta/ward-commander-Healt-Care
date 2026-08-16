@@ -264,7 +264,7 @@ export default function Censo() {
   };
 
   const eliminarPaciente = (id: string) => {
-    if (confirm("¿Dar de alta / eliminar este paciente?")) {
+    if (window.confirm("¿Dar de alta / eliminar este paciente?")) {
       setPacientes(prev => prev.filter(p => p.id !== id));
     }
   };
@@ -345,14 +345,19 @@ export default function Censo() {
     setPacienteSeleccionadoEvolucion(null);
   };
 
+  // --- DISEÑO OPTIMIZADO (MOBILE-FIRST) ---
   return (
-    <div className="p-6 max-w-7xl mx-auto space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-800 flex items-center gap-2">
-            <Users className="w-7 h-7 text-blue-600" /> Censo de Pacientes & Control Clínico
+    // Reducción de padding en celular (p-3 vs p-6)
+    <div className="p-3 md:p-6 max-w-7xl mx-auto space-y-4 md:space-y-6 bg-gray-50 min-h-full">
+      
+      {/* CABECERA ADAPTATIVA */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-3 bg-white p-4 md:p-5 rounded-2xl shadow-sm border border-gray-100">
+        <div className="space-y-1">
+          <h1 className="text-xl md:text-2xl font-bold text-gray-800 flex items-center gap-2">
+            <Users className="w-6 h-6 md:w-7 md:h-7 text-blue-600 shrink-0" /> 
+            <span>Censo de Pacientes</span>
           </h1>
-          <p className="text-sm text-gray-500">Gestiona estancias, antibióticos, dispositivos invasivos, curaciones y alertas GES.</p>
+          <p className="text-xs md:text-sm text-gray-500">Gestiona estancias, invasivos, curaciones y alertas GES.</p>
         </div>
         <button
           onClick={() => { 
@@ -362,13 +367,14 @@ export default function Censo() {
             }); 
             setModalAbierto(true); 
           }}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-bold flex items-center gap-2 shadow"
+          className="w-full md:w-auto bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-xl md:rounded-lg text-sm font-bold flex justify-center items-center gap-2 shadow transition-colors"
         >
           <Plus className="w-4 h-4" /> Nuevo Paciente
         </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {/* GRILLA DE TARJETAS DE PACIENTES */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
         {pacientes.map((p) => {
           const evolucionadoHoy = p.ultimaEvolucionFecha === hoyStr;
           const listaPendientes = Array.isArray(p.pendientes) ? p.pendientes : [];
@@ -380,45 +386,47 @@ export default function Censo() {
           );
 
           return (
-            <div key={p.id} className="bg-white rounded-xl border border-gray-200 shadow-sm p-5 flex flex-col justify-between space-y-4">
+            <div key={p.id} className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 md:p-5 flex flex-col justify-between space-y-4 relative">
               <div>
-                <div className="flex justify-between items-start border-b pb-2 mb-2">
-                  <div className="flex items-center gap-2">
-                    <span className="bg-blue-100 text-blue-800 font-black px-2.5 py-1 rounded text-xs">
+                {/* Cabecera de la Tarjeta */}
+                <div className="flex justify-between items-start border-b border-gray-100 pb-3 mb-3">
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-2">
+                    <span className="bg-blue-100 text-blue-800 font-black px-2.5 py-1 rounded text-xs w-fit">
                       Cama {p.cama}
                     </span>
                     {evolucionadoHoy ? (
-                      <span className="bg-green-100 text-green-800 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1">
+                      <span className="bg-green-100 text-green-800 text-[10px] font-bold px-2 py-0.5 rounded-full flex items-center gap-1 w-fit">
                         ✓ Evolucionado hoy
                       </span>
                     ) : (
-                      <span className="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded-full">
+                      <span className="bg-amber-100 text-amber-800 text-[10px] font-bold px-2 py-0.5 rounded-full w-fit">
                         Pendiente evolución
                       </span>
                     )}
                   </div>
-                  <div className="flex gap-1">
-                    <button onClick={() => { setPacienteEditando(p); setModalAbierto(true); }} className="text-gray-400 hover:text-blue-600 p-1" title="Editar datos">
+                  <div className="flex gap-1 shrink-0">
+                    <button onClick={() => { setPacienteEditando(p); setModalAbierto(true); }} className="text-gray-400 hover:text-blue-600 p-1.5 bg-gray-50 rounded-md transition-colors" title="Editar datos">
                       <Edit3 className="w-4 h-4" />
                     </button>
-                    <button onClick={() => eliminarPaciente(p.id)} className="text-gray-400 hover:text-red-600 p-1" title="Eliminar">
+                    <button onClick={() => eliminarPaciente(p.id)} className="text-gray-400 hover:text-red-600 p-1.5 bg-gray-50 rounded-md transition-colors" title="Dar de alta / Eliminar">
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </div>
                 </div>
 
-                <h3 className="font-bold text-gray-900 text-base">{p.nombre} {p.edad ? `(${p.edad} años)` : ""}</h3>
-                <p className="text-xs font-semibold text-purple-700 mt-0.5">Dx: {p.diagnostico || "Sin diagnóstico principal"}</p>
+                <h3 className="font-bold text-gray-900 text-base md:text-lg leading-tight">{p.nombre} {p.edad ? <span className="text-gray-500 text-sm font-medium">({p.edad} años)</span> : ""}</h3>
+                <p className="text-xs md:text-sm font-semibold text-purple-700 mt-1">Dx: {p.diagnostico || "Sin diagnóstico principal"}</p>
 
-                <div className="mt-2.5 bg-slate-50 border p-2 rounded-lg flex justify-between items-center text-xs">
+                {/* Info de Estadía flexible en móvil */}
+                <div className="mt-3 bg-slate-50 border border-gray-100 p-2 md:p-2.5 rounded-lg flex flex-wrap justify-between items-center text-xs gap-2">
                   <div>
-                    <span className="text-gray-500 block text-[10px] uppercase font-bold">Fecha de Ingreso:</span>
-                    <span className="font-semibold text-gray-800">{p.fechaIngreso || "No definida"}</span>
+                    <span className="text-gray-500 block text-[9px] md:text-[10px] uppercase font-bold tracking-wider">Fecha de Ingreso</span>
+                    <span className="font-semibold text-gray-800">{p.fechaIngreso.split('-').reverse().join('/') || "No definida"}</span>
                   </div>
-                  <div className="text-right">
-                    <span className="text-gray-500 block text-[10px] uppercase font-bold">Estadía:</span>
+                  <div className="text-left sm:text-right">
+                    <span className="text-gray-500 block text-[9px] md:text-[10px] uppercase font-bold tracking-wider">Estadía</span>
                     <span className="font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded border border-blue-100">
-                      {diasHospitalizacion} días hospitalizado
+                      {diasHospitalizacion} días
                     </span>
                   </div>
                 </div>
@@ -429,28 +437,31 @@ export default function Censo() {
                   <AlertaGesCard pacienteId={p.id} gesDetectados={gesDetectados} />
                 )}
 
-                <div className="mt-3 bg-slate-50 p-2.5 rounded text-xs border">
-                  <span className="font-bold text-slate-700 block mb-0.5">Anamnesis / Base:</span>
-                  <p className="text-slate-600 line-clamp-2">{p.anamnesis || "Sin anamnesis..."}</p>
+                {/* Anamnesis */}
+                <div className="mt-3 bg-gray-50 p-3 rounded-lg text-xs border border-gray-100">
+                  <span className="font-bold text-gray-700 block mb-1">Anamnesis / Base:</span>
+                  <p className="text-gray-600 line-clamp-3 leading-relaxed">{p.anamnesis || "Sin anamnesis registrada..."}</p>
                 </div>
 
-                <div className="mt-3 space-y-1.5">
-                  <span className="text-xs font-bold uppercase text-gray-500 block">Pendientes y Tareas:</span>
-                  <div className="space-y-1 max-h-28 overflow-y-auto">
+                {/* Pendientes adaptativos */}
+                <div className="mt-4 space-y-2">
+                  <span className="text-[10px] font-bold uppercase text-gray-500 block tracking-wider">Pendientes y Tareas</span>
+                  <div className="space-y-1.5 max-h-32 overflow-y-auto pr-1">
                     {listaPendientes.map((pend) => (
-                      <div key={pend.id} className="flex items-center justify-between text-xs hover:bg-gray-50 p-1 rounded group">
-                        <div onClick={() => togglePendiente(p.id, pend.id)} className="flex items-center gap-2 cursor-pointer flex-1">
-                          {pend.completado ? (
-                            <CheckCircle2 className="w-4 h-4 text-green-600 shrink-0" />
-                          ) : (
-                            <Circle className="w-4 h-4 text-gray-300 shrink-0" />
-                          )}
-                          <span className={pend.completado ? "line-through text-gray-400" : "text-gray-700"}>{pend.texto}</span>
+                      <div key={pend.id} className="flex items-center justify-between text-xs hover:bg-gray-50 p-1.5 rounded-lg border border-transparent hover:border-gray-200 group transition-all">
+                        <div onClick={() => togglePendiente(p.id, pend.id)} className="flex items-start gap-2 cursor-pointer flex-1">
+                          <div className="mt-0.5 shrink-0">
+                            {pend.completado ? (
+                                <CheckCircle2 className="w-4 h-4 text-green-600" />
+                            ) : (
+                                <Circle className="w-4 h-4 text-gray-300" />
+                            )}
+                          </div>
+                          <span className={`${pend.completado ? "line-through text-gray-400" : "text-gray-700"} leading-snug`}>{pend.texto}</span>
                         </div>
                         <button 
                           onClick={() => eliminarPendiente(p.id, pend.id)} 
-                          className="text-gray-300 hover:text-red-600 p-0.5 opacity-60 group-hover:opacity-100 transition-opacity" 
-                          title="Eliminar pendiente"
+                          className="text-gray-300 hover:text-red-500 p-1 rounded hover:bg-red-50 transition-colors ml-1 shrink-0" 
                         >
                           <X className="w-3.5 h-3.5" />
                         </button>
@@ -458,29 +469,30 @@ export default function Censo() {
                     ))}
                   </div>
 
-                  <div className="flex gap-1 pt-1">
+                  <div className="flex gap-1.5 pt-1">
                     <input
                       type="text"
                       placeholder="Nuevo pendiente..."
                       value={textoNuevoPendiente[p.id] || ""}
                       onChange={e => setTextoNuevoPendiente(prev => ({ ...prev, [p.id]: e.target.value }))}
                       onKeyDown={e => { if (e.key === 'Enter') agregarPendienteRapido(p.id); }}
-                      className="w-full text-xs p-1.5 border rounded outline-none"
+                      className="w-full text-xs p-2 border border-gray-200 rounded-lg outline-none focus:ring-1 focus:ring-blue-400 bg-gray-50"
                     />
-                    <button onClick={() => agregarPendienteRapido(p.id)} className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-2 py-1 text-xs rounded font-bold">+</button>
+                    <button onClick={() => agregarPendienteRapido(p.id)} className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-3 rounded-lg font-bold border border-gray-200 transition-colors">+</button>
                   </div>
                 </div>
               </div>
 
-              <div className="pt-2 border-t flex justify-between items-center">
-                <span className="text-[11px] text-gray-500 font-mono">
+              {/* Pie de tarjeta */}
+              <div className="pt-3 mt-4 border-t border-gray-100 flex justify-between items-center">
+                <span className="text-[10px] md:text-[11px] text-gray-500 font-mono bg-gray-100 px-2 py-1 rounded">
                   {Array.isArray(p.evoluciones) ? p.evoluciones.length : 0} evoluciones
                 </span>
                 <button
                   onClick={() => { setPacienteSeleccionadoEvolucion(p); setModalEvolucionAbierto(true); }}
-                  className="bg-blue-50 hover:bg-blue-100 text-blue-700 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all"
+                  className="bg-blue-50 hover:bg-blue-100 border border-blue-100 text-blue-700 px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all shadow-sm"
                 >
-                  <FileText className="w-3.5 h-3.5" /> Evolucionar / Ver Historial
+                  <FileText className="w-3.5 h-3.5 shrink-0" /> <span className="hidden xs:inline">Evolucionar / Historial</span><span className="xs:hidden">Evolución</span>
                 </button>
               </div>
             </div>
@@ -488,318 +500,335 @@ export default function Censo() {
         })}
 
         {pacientes.length === 0 && (
-          <div className="col-span-full text-center py-12 text-gray-400 border-2 border-dashed rounded-xl">
-            No hay pacientes en el censo. Haz clic en "Nuevo Paciente" para comenzar.
+          <div className="col-span-full text-center py-12 md:py-20 text-gray-400 border-2 border-dashed border-gray-200 rounded-2xl bg-white">
+            <Users className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+            <p className="font-medium text-gray-500">El censo está vacío.</p>
+            <p className="text-sm">Agrega tu primer paciente para comenzar el turno.</p>
           </div>
         )}
       </div>
 
+      {/* 🏥 MODAL NUEVO/EDITAR PACIENTE (Optimizado Móvil) */}
       {modalAbierto && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl max-w-lg w-full p-6 space-y-4 shadow-xl max-h-[90vh] overflow-y-auto">
-            <h2 className="text-lg font-bold text-gray-800 border-b pb-2">
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 transition-all">
+          <div className="bg-white sm:rounded-2xl rounded-t-2xl max-w-2xl w-full p-5 space-y-4 shadow-2xl animate-in slide-in-from-bottom-4 sm:zoom-in-95 max-h-[90vh] flex flex-col">
+            
+            <h2 className="text-lg font-bold text-gray-800 border-b border-gray-100 pb-3 shrink-0">
               {pacienteEditando?.id ? "Editar Paciente" : "Agregar Paciente al Censo"}
             </h2>
 
-            <div className="grid grid-cols-3 gap-3">
-              <div>
-                <label className="block text-xs font-bold uppercase text-gray-500 mb-1">Cama *</label>
-                <input
-                  type="text"
-                  placeholder="Ej. 12A"
-                  value={pacienteEditando?.cama || ""}
-                  onChange={e => setPacienteEditando(prev => ({ ...(prev || {}), cama: e.target.value }))}
-                  className="w-full p-2 border rounded text-sm"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold uppercase text-gray-500 mb-1">Edad</label>
-                <input
-                  type="text"
-                  placeholder="Ej. 65"
-                  value={pacienteEditando?.edad || ""}
-                  onChange={e => setPacienteEditando(prev => ({ ...(prev || {}), edad: e.target.value }))}
-                  className="w-full p-2 border rounded text-sm"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold uppercase text-gray-500 mb-1">F. Ingreso *</label>
-                <input
-                  type="date"
-                  value={pacienteEditando?.fechaIngreso || hoyStr}
-                  onChange={e => setPacienteEditando(prev => ({ ...(prev || {}), fechaIngreso: e.target.value }))}
-                  className="w-full p-2 border rounded text-sm"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold uppercase text-gray-500 mb-1">Nombre Completo *</label>
-              <input
-                type="text"
-                placeholder="Ej. Juan Pérez"
-                value={pacienteEditando?.nombre || ""}
-                onChange={e => setPacienteEditando(prev => ({ ...(prev || {}), nombre: e.target.value }))}
-                className="w-full p-2 border rounded text-sm"
-              />
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold uppercase text-gray-500 mb-1">Diagnóstico Principal</label>
-              <input
-                type="text"
-                placeholder="Ej. Neumonía grave"
-                value={pacienteEditando?.diagnostico || ""}
-                onChange={e => setPacienteEditando(prev => ({ ...(prev || {}), diagnostico: e.target.value }))}
-                className="w-full p-2 border rounded text-sm"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-3 bg-slate-50 p-3 rounded-xl border">
-              <div>
-                <label className="block text-xs font-bold uppercase text-gray-600 mb-1">Antibiótico (ATB)</label>
-                <input
-                  type="text"
-                  placeholder="Ej. Ceftriaxona"
-                  value={pacienteEditando?.atbNombre || ""}
-                  onChange={e => setPacienteEditando(prev => ({ ...(prev || {}), atbNombre: e.target.value }))}
-                  className="w-full p-2 border rounded text-sm bg-white"
-                />
-              </div>
-              <div>
-                <label className="block text-xs font-bold uppercase text-gray-600 mb-1">Días ATB</label>
-                <input
-                  type="text"
-                  placeholder="Ej. 5 días"
-                  value={pacienteEditando?.atbDias || ""}
-                  onChange={e => setPacienteEditando(prev => ({ ...(prev || {}), atbDias: e.target.value }))}
-                  className="w-full p-2 border rounded text-sm bg-white"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold uppercase text-gray-500 mb-1">Posible Infección / Foco o Cobertura</label>
-              <input
-                type="text"
-                placeholder="Ej. NAC / ITU / Foco urinario"
-                value={pacienteEditando?.incobertura || ""}
-                onChange={e => setPacienteEditando(prev => ({ ...(prev || {}), incobertura: e.target.value }))}
-                className="w-full p-2 border rounded text-sm"
-              />
-            </div>
-
-            <div className="bg-slate-50 p-3 rounded-xl border space-y-2">
-              <div className="flex items-center justify-between">
-                <label className="text-xs font-bold uppercase text-gray-700 flex items-center gap-1">
-                  <Bandage className="w-4 h-4 text-indigo-600" /> ¿Requiere Control de Curaciones?
-                </label>
-                <input
-                  type="checkbox"
-                  checked={pacienteEditando?.curacion?.activo || false}
-                  onChange={e => {
-                    const curacionActual = pacienteEditando?.curacion || { ultimaFecha: hoyStr, frecuenciaDias: 3, tipo: "" };
-                    setPacienteEditando(prev => ({
-                      ...(prev || {}),
-                      curacion: { ...curacionActual, activo: e.target.checked }
-                    }));
-                  }}
-                  className="w-4 h-4 text-blue-600 rounded"
-                />
-              </div>
-
-              {pacienteEditando?.curacion?.activo && (
-                <div className="space-y-2 pt-2 border-t">
-                  <div>
-                    <label className="block text-[11px] font-bold text-gray-600">Tipo de Herida / Curación</label>
+            <div className="flex-1 overflow-y-auto space-y-4 pr-1 -mr-1">
+                {/* Agrupación adaptativa: 3 columnas en PC, 2 o 1 en móvil */}
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                <div>
+                    <label className="block text-[10px] font-bold uppercase text-gray-500 mb-1 tracking-wider">Cama <span className="text-red-500">*</span></label>
                     <input
-                      type="text"
-                      placeholder="Ej. Herida operatoria, Úlcera..."
-                      value={pacienteEditando?.curacion?.tipo || ""}
-                      onChange={e => {
-                        const curacionActual = pacienteEditando?.curacion || { activo: true, ultimaFecha: hoyStr, frecuenciaDias: 3, tipo: "" };
-                        setPacienteEditando(prev => ({
-                          ...(prev || {}),
-                          curacion: { ...curacionActual, tipo: e.target.value }
-                        }));
-                      }}
-                      className="w-full p-1.5 border rounded text-xs bg-white"
+                    type="text"
+                    placeholder="Ej. 12A"
+                    value={pacienteEditando?.cama || ""}
+                    onChange={e => setPacienteEditando(prev => ({ ...(prev || {}), cama: e.target.value }))}
+                    className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-400"
                     />
-                  </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div>
-                      <label className="block text-[11px] font-bold text-gray-600">Última Curación</label>
-                      <input
-                        type="date"
-                        value={pacienteEditando?.curacion?.ultimaFecha || hoyStr}
-                        onChange={e => {
-                          const curacionActual = pacienteEditando?.curacion || { activo: true, ultimaFecha: hoyStr, frecuenciaDias: 3, tipo: "" };
-                          setPacienteEditando(prev => ({
-                            ...(prev || {}),
-                            curacion: { ...curacionActual, ultimaFecha: e.target.value }
-                          }));
-                        }}
-                        className="w-full p-1.5 border rounded text-xs bg-white"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-[11px] font-bold text-gray-600">Frecuencia (cada X días)</label>
-                      <input
-                        type="number"
-                        min="1"
-                        value={pacienteEditando?.curacion?.frecuenciaDias || 3}
-                        onChange={e => {
-                          const curacionActual = pacienteEditando?.curacion || { activo: true, ultimaFecha: hoyStr, frecuenciaDias: 3, tipo: "" };
-                          setPacienteEditando(prev => ({
-                            ...(prev || {}),
-                            curacion: { ...curacionActual, frecuenciaDias: Number(e.target.value) }
-                          }));
-                        }}
-                        className="w-full p-1.5 border rounded text-xs bg-white"
-                      />
-                    </div>
-                  </div>
                 </div>
-              )}
+                <div>
+                    <label className="block text-[10px] font-bold uppercase text-gray-500 mb-1 tracking-wider">Edad</label>
+                    <input
+                    type="text"
+                    placeholder="Ej. 65"
+                    value={pacienteEditando?.edad || ""}
+                    onChange={e => setPacienteEditando(prev => ({ ...(prev || {}), edad: e.target.value }))}
+                    className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-400"
+                    />
+                </div>
+                <div className="col-span-2 sm:col-span-1">
+                    <label className="block text-[10px] font-bold uppercase text-gray-500 mb-1 tracking-wider">F. Ingreso <span className="text-red-500">*</span></label>
+                    <input
+                    type="date"
+                    value={pacienteEditando?.fechaIngreso || hoyStr}
+                    onChange={e => setPacienteEditando(prev => ({ ...(prev || {}), fechaIngreso: e.target.value }))}
+                    className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-400"
+                    />
+                </div>
+                </div>
+
+                <div>
+                <label className="block text-[10px] font-bold uppercase text-gray-500 mb-1 tracking-wider">Nombre Completo <span className="text-red-500">*</span></label>
+                <input
+                    type="text"
+                    placeholder="Ej. Juan Pérez"
+                    value={pacienteEditando?.nombre || ""}
+                    onChange={e => setPacienteEditando(prev => ({ ...(prev || {}), nombre: e.target.value }))}
+                    className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-400"
+                />
+                </div>
+
+                <div>
+                <label className="block text-[10px] font-bold uppercase text-gray-500 mb-1 tracking-wider">Diagnóstico Principal</label>
+                <input
+                    type="text"
+                    placeholder="Ej. Neumonía grave"
+                    value={pacienteEditando?.diagnostico || ""}
+                    onChange={e => setPacienteEditando(prev => ({ ...(prev || {}), diagnostico: e.target.value }))}
+                    className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-400"
+                />
+                </div>
+
+                {/* ATB apilado en móvil */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-indigo-50/50 p-3 rounded-xl border border-indigo-100">
+                <div>
+                    <label className="block text-[10px] font-bold uppercase text-indigo-700 mb-1 tracking-wider">Antibiótico (ATB)</label>
+                    <input
+                    type="text"
+                    placeholder="Ej. Ceftriaxona"
+                    value={pacienteEditando?.atbNombre || ""}
+                    onChange={e => setPacienteEditando(prev => ({ ...(prev || {}), atbNombre: e.target.value }))}
+                    className="w-full p-2 border border-indigo-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-400 outline-none"
+                    />
+                </div>
+                <div>
+                    <label className="block text-[10px] font-bold uppercase text-indigo-700 mb-1 tracking-wider">Días ATB</label>
+                    <input
+                    type="text"
+                    placeholder="Ej. 5 días"
+                    value={pacienteEditando?.atbDias || ""}
+                    onChange={e => setPacienteEditando(prev => ({ ...(prev || {}), atbDias: e.target.value }))}
+                    className="w-full p-2 border border-indigo-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-400 outline-none"
+                    />
+                </div>
+                <div className="sm:col-span-2 mt-1">
+                    <label className="block text-[10px] font-bold uppercase text-indigo-700 mb-1 tracking-wider">Foco de Infección / Cobertura</label>
+                    <input
+                    type="text"
+                    placeholder="Ej. NAC / ITU / Foco urinario"
+                    value={pacienteEditando?.incobertura || ""}
+                    onChange={e => setPacienteEditando(prev => ({ ...(prev || {}), incobertura: e.target.value }))}
+                    className="w-full p-2 border border-indigo-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-400 outline-none"
+                    />
+                </div>
+                </div>
+
+                {/* Curaciones */}
+                <div className="bg-slate-50 p-3 rounded-xl border border-gray-200 space-y-3">
+                <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold uppercase text-gray-700 flex items-center gap-1.5">
+                    <Bandage className="w-4 h-4 text-indigo-600" /> ¿Requiere Control de Curaciones?
+                    </label>
+                    <input
+                    type="checkbox"
+                    checked={pacienteEditando?.curacion?.activo || false}
+                    onChange={e => {
+                        const curacionActual = pacienteEditando?.curacion || { ultimaFecha: hoyStr, frecuenciaDias: 3, tipo: "" };
+                        setPacienteEditando(prev => ({
+                        ...(prev || {}),
+                        curacion: { ...curacionActual, activo: e.target.checked }
+                        }));
+                    }}
+                    className="w-5 h-5 text-blue-600 rounded border-gray-300"
+                    />
+                </div>
+
+                {pacienteEditando?.curacion?.activo && (
+                    <div className="space-y-3 pt-3 border-t border-gray-200">
+                    <div>
+                        <label className="block text-[10px] font-bold text-gray-600 uppercase tracking-wider mb-1">Tipo de Herida / Curación</label>
+                        <input
+                        type="text"
+                        placeholder="Ej. Herida operatoria, Úlcera..."
+                        value={pacienteEditando?.curacion?.tipo || ""}
+                        onChange={e => {
+                            const curacionActual = pacienteEditando?.curacion || { activo: true, ultimaFecha: hoyStr, frecuenciaDias: 3, tipo: "" };
+                            setPacienteEditando(prev => ({
+                            ...(prev || {}),
+                            curacion: { ...curacionActual, tipo: e.target.value }
+                            }));
+                        }}
+                        className="w-full p-2 border border-gray-300 rounded-lg text-xs bg-white outline-none focus:ring-1 focus:ring-blue-400"
+                        />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                        <div>
+                        <label className="block text-[10px] font-bold text-gray-600 uppercase tracking-wider mb-1">Última Curación</label>
+                        <input
+                            type="date"
+                            value={pacienteEditando?.curacion?.ultimaFecha || hoyStr}
+                            onChange={e => {
+                            const curacionActual = pacienteEditando?.curacion || { activo: true, ultimaFecha: hoyStr, frecuenciaDias: 3, tipo: "" };
+                            setPacienteEditando(prev => ({
+                                ...(prev || {}),
+                                curacion: { ...curacionActual, ultimaFecha: e.target.value }
+                            }));
+                            }}
+                            className="w-full p-2 border border-gray-300 rounded-lg text-xs bg-white outline-none focus:ring-1 focus:ring-blue-400"
+                        />
+                        </div>
+                        <div>
+                        <label className="block text-[10px] font-bold text-gray-600 uppercase tracking-wider mb-1">Frecuencia (días)</label>
+                        <input
+                            type="number"
+                            min="1"
+                            value={pacienteEditando?.curacion?.frecuenciaDias || 3}
+                            onChange={e => {
+                            const curacionActual = pacienteEditando?.curacion || { activo: true, ultimaFecha: hoyStr, frecuenciaDias: 3, tipo: "" };
+                            setPacienteEditando(prev => ({
+                                ...(prev || {}),
+                                curacion: { ...curacionActual, frecuenciaDias: Number(e.target.value) }
+                            }));
+                            }}
+                            className="w-full p-2 border border-gray-300 rounded-lg text-xs bg-white outline-none focus:ring-1 focus:ring-blue-400"
+                        />
+                        </div>
+                    </div>
+                    </div>
+                )}
+                </div>
+
+                <div>
+                <label className="block text-[10px] font-bold uppercase text-gray-500 mb-1 tracking-wider">Anamnesis / Antecedentes Base</label>
+                <textarea
+                    rows={3}
+                    placeholder="Historia clínica inicial..."
+                    value={pacienteEditando?.anamnesis || ""}
+                    onChange={e => setPacienteEditando(prev => ({ ...(prev || {}), anamnesis: e.target.value }))}
+                    className="w-full p-3 bg-gray-50 border border-gray-200 rounded-lg text-sm outline-none resize-none focus:ring-2 focus:ring-blue-400 leading-relaxed"
+                />
+                </div>
             </div>
 
-            <div>
-              <label className="block text-xs font-bold uppercase text-gray-500 mb-1">Anamnesis / Antecedentes Base</label>
-              <textarea
-                rows={2}
-                placeholder="Historia clínica inicial..."
-                value={pacienteEditando?.anamnesis || ""}
-                onChange={e => setPacienteEditando(prev => ({ ...(prev || {}), anamnesis: e.target.value }))}
-                className="w-full p-2 border rounded text-sm"
-              />
-            </div>
-
-            <div className="flex justify-end gap-2 pt-2 border-t">
-              <button onClick={() => setModalAbierto(false)} className="px-4 py-2 bg-gray-200 text-gray-800 text-sm font-bold rounded-lg">Cancelar</button>
-              <button onClick={guardarPaciente} className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-lg flex items-center gap-1 shadow">
-                <Save className="w-4 h-4" /> Guardar
+            <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-3 pt-3 border-t border-gray-100 shrink-0">
+              <button onClick={() => setModalAbierto(false)} className="order-2 sm:order-1 w-full sm:w-auto px-5 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-sm font-bold rounded-xl transition-colors">Cancelar</button>
+              <button onClick={guardarPaciente} className="order-1 sm:order-2 w-full sm:w-auto px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold rounded-xl flex items-center justify-center gap-2 shadow-md transition-colors">
+                <Save className="w-4 h-4" /> Guardar Paciente
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {/* 📝 MODAL DE EVOLUCIÓN E INTERCONSULTA (IC) */}
+      {/* 📝 MODAL DE EVOLUCIÓN E INTERCONSULTA (IC) (Optimizado Móvil) */}
       {modalEvolucionAbierto && pacienteSeleccionadoEvolucion && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl max-w-2xl w-full p-6 space-y-4 shadow-xl max-h-[90vh] flex flex-col">
-            <div className="border-b pb-2 flex justify-between items-center">
+        <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 transition-all">
+          <div className="bg-white sm:rounded-2xl rounded-t-2xl max-w-2xl w-full p-4 sm:p-6 space-y-4 shadow-2xl max-h-[90vh] flex flex-col animate-in slide-in-from-bottom-4 sm:zoom-in-95">
+            <div className="border-b border-gray-100 pb-3 flex justify-between items-start shrink-0">
               <div>
-                <h2 className="text-lg font-bold text-gray-800">Evoluciones y Notas: {pacienteSeleccionadoEvolucion.nombre}</h2>
-                <p className="text-xs text-gray-500">Cama {pacienteSeleccionadoEvolucion.cama} • Dx: {pacienteSeleccionadoEvolucion.diagnostico}</p>
+                <h2 className="text-lg font-bold text-gray-800 leading-tight">Evoluciones: {pacienteSeleccionadoEvolucion.nombre}</h2>
+                <p className="text-xs text-gray-500 mt-1">Cama {pacienteSeleccionadoEvolucion.cama} • Dx: {pacienteSeleccionadoEvolucion.diagnostico}</p>
               </div>
-              <button onClick={() => setModalEvolucionAbierto(false)} className="text-gray-400 hover:text-gray-700 font-bold text-lg">✕</button>
+              <button onClick={() => setModalEvolucionAbierto(false)} className="text-gray-400 hover:text-gray-700 bg-gray-50 p-1.5 rounded-lg transition-colors">
+                <X className="w-5 h-5" />
+              </button>
             </div>
 
-            <div className="bg-slate-50 p-4 rounded-xl border space-y-3">
-              {/* Selector de Tipo de Nota */}
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => setTipoNota("normal")}
-                  className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
-                    tipoNota === "normal" ? "bg-blue-600 text-white shadow" : "bg-white text-gray-700 border hover:bg-gray-100"
-                  }`}
-                >
-                  <FileText className="w-3.5 h-3.5" /> Evolución Médica Normal
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setTipoNota("ic")}
-                  className={`flex-1 py-1.5 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 ${
-                    tipoNota === "ic" ? "bg-purple-600 text-white shadow" : "bg-white text-gray-700 border hover:bg-gray-100"
-                  }`}
-                >
-                  <Stethoscope className="w-3.5 h-3.5" /> Respuesta de Interconsulta (IC)
-                </button>
-              </div>
-
-              {/* Campos adicionales si es Interconsulta */}
-              {tipoNota === "ic" && (
-                <div className="grid grid-cols-2 gap-2 bg-purple-50 p-3 rounded-lg border border-purple-200">
-                  <div>
-                    <label className="block text-[11px] font-bold text-purple-900 uppercase mb-1">Especialidad</label>
-                    <input
-                      type="text"
-                      placeholder="Ej. Gastroenterología"
-                      value={especialidadIC}
-                      onChange={e => setEspecialidadIC(e.target.value)}
-                      className="w-full p-2 border rounded text-xs bg-white outline-none focus:ring-1 focus:ring-purple-500"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-bold text-purple-900 uppercase mb-1">Médico Especialista</label>
-                    <input
-                      type="text"
-                      placeholder="Ej. Dr. Karelovic"
-                      value={medicoIC}
-                      onChange={e => setMedicoIC(e.target.value)}
-                      className="w-full p-2 border rounded text-xs bg-white outline-none focus:ring-1 focus:ring-purple-500"
-                    />
-                  </div>
-                </div>
-              )}
-
-              <div>
-                <label className="block text-xs font-bold uppercase text-gray-700 mb-1">
-                  {tipoNota === "ic" ? "Sugerencias, Evaluación y Comentarios del Especialista:" : `Agregar Evolución de Hoy (${hoyStr})`}
-                </label>
-                <textarea
-                  rows={3}
-                  placeholder={tipoNota === "ic" ? "Pega aquí lo que recomendó el especialista..." : "Escribe la evolución clínica, notas de turno o plan del día..."}
-                  value={nuevoTextoEvolucion}
-                  onChange={e => setNuevoTextoEvolucion(e.target.value)}
-                  className="w-full p-2.5 border rounded-lg text-sm bg-white outline-none focus:ring-1 focus:ring-blue-500"
-                />
-              </div>
-
-              <div className="flex justify-end">
-                <button
-                  onClick={guardarEvolucion}
-                  className={`px-4 py-2 rounded-lg text-xs font-bold text-white shadow ${tipoNota === "ic" ? "bg-purple-600 hover:bg-purple-700" : "bg-blue-600 hover:bg-blue-700"}`}
-                >
-                  {tipoNota === "ic" ? "Guardar Respuesta de IC 🩺" : "Guardar y Marcar Evolucionado Hoy 🚀"}
-                </button>
-              </div>
-            </div>
-
-            <div className="flex-1 overflow-y-auto space-y-3 pr-1">
-              <h3 className="text-xs font-bold uppercase text-gray-500 tracking-wider">Historial Clínico de Evoluciones e Interconsultas</h3>
-              {Array.isArray(pacienteSeleccionadoEvolucion.evoluciones) && pacienteSeleccionadoEvolucion.evoluciones.map((evo) => {
-                const esIC = evo.tipo === "ic";
-                return (
-                  <div 
-                    key={evo.id} 
-                    className={`border p-3 rounded-lg space-y-1.5 text-xs ${
-                      esIC ? "bg-purple-50/70 border-purple-300" : "bg-gray-50 border-gray-200"
+            <div className="flex-1 overflow-y-auto space-y-4 pr-1 -mr-1">
+                <div className="bg-slate-50 p-3 sm:p-4 rounded-xl border border-gray-200 space-y-3 shrink-0">
+                {/* Selector de Tipo de Nota apilable en móvil muy pequeño */}
+                <div className="flex flex-col xs:flex-row gap-2">
+                    <button
+                    type="button"
+                    onClick={() => setTipoNota("normal")}
+                    className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 border ${
+                        tipoNota === "normal" ? "bg-blue-600 border-blue-600 text-white shadow-md" : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
                     }`}
-                  >
-                    <div className="flex justify-between items-center">
-                      <div className="flex items-center gap-1.5 text-gray-500 font-mono">
-                        <Calendar className="w-3.5 h-3.5" /> {evo.fecha}
-                      </div>
-                      {esIC && (
-                        <span className="bg-purple-200 text-purple-900 font-bold px-2 py-0.5 rounded text-[10px] uppercase flex items-center gap-1">
-                          <Stethoscope className="w-3 h-3" /> IC: {evo.especialidad} ({evo.medico})
-                        </span>
-                      )}
+                    >
+                    <FileText className="w-4 h-4" /> Evolución Normal
+                    </button>
+                    <button
+                    type="button"
+                    onClick={() => setTipoNota("ic")}
+                    className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 border ${
+                        tipoNota === "ic" ? "bg-purple-600 border-purple-600 text-white shadow-md" : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
+                    }`}
+                    >
+                    <Stethoscope className="w-4 h-4" /> Respuesta (IC)
+                    </button>
+                </div>
+
+                {/* Campos adicionales si es Interconsulta */}
+                {tipoNota === "ic" && (
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-purple-50 p-3 rounded-lg border border-purple-200">
+                    <div>
+                        <label className="block text-[10px] font-bold text-purple-900 uppercase tracking-wider mb-1">Especialidad</label>
+                        <input
+                        type="text"
+                        placeholder="Ej. Gastroenterología"
+                        value={especialidadIC}
+                        onChange={e => setEspecialidadIC(e.target.value)}
+                        className="w-full p-2 border border-purple-200 rounded-lg text-xs bg-white outline-none focus:ring-2 focus:ring-purple-400"
+                        />
                     </div>
-                    <p className="text-gray-800 font-sans whitespace-pre-wrap leading-relaxed">{evo.texto}</p>
-                  </div>
-                );
-              })}
-              {(!pacienteSeleccionadoEvolucion.evoluciones || pacienteSeleccionadoEvolucion.evoluciones.length === 0) && (
-                <p className="text-center text-gray-400 text-xs py-6">No hay evoluciones anteriores registradas para este paciente.</p>
-              )}
+                    <div>
+                        <label className="block text-[10px] font-bold text-purple-900 uppercase tracking-wider mb-1">Médico Especialista</label>
+                        <input
+                        type="text"
+                        placeholder="Ej. Dr. Karelovic"
+                        value={medicoIC}
+                        onChange={e => setMedicoIC(e.target.value)}
+                        className="w-full p-2 border border-purple-200 rounded-lg text-xs bg-white outline-none focus:ring-2 focus:ring-purple-400"
+                        />
+                    </div>
+                    </div>
+                )}
+
+                <div>
+                    <label className="block text-[10px] font-bold uppercase text-gray-600 tracking-wider mb-1.5">
+                    {tipoNota === "ic" ? "Sugerencias y Plan del Especialista:" : `Agregar Evolución de Hoy (${hoyStr.split('-').reverse().join('/')})`}
+                    </label>
+                    <textarea
+                    rows={3}
+                    placeholder={tipoNota === "ic" ? "Pega aquí lo que recomendó el especialista..." : "Escribe la evolución clínica, notas de turno o plan del día..."}
+                    value={nuevoTextoEvolucion}
+                    onChange={e => setNuevoTextoEvolucion(e.target.value)}
+                    className="w-full p-3 border border-gray-300 rounded-xl text-sm bg-white outline-none focus:ring-2 focus:ring-blue-400 resize-none leading-relaxed"
+                    />
+                </div>
+
+                <div className="flex justify-end">
+                    <button
+                    onClick={guardarEvolucion}
+                    className={`w-full sm:w-auto px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-white shadow-md transition-colors ${tipoNota === "ic" ? "bg-purple-600 hover:bg-purple-700" : "bg-blue-600 hover:bg-blue-700"}`}
+                    >
+                    {tipoNota === "ic" ? "Guardar Respuesta IC 🩺" : "Guardar y Marcar Evolucionado 🚀"}
+                    </button>
+                </div>
+                </div>
+
+                <div className="space-y-3 pt-2">
+                <h3 className="text-[10px] font-bold uppercase text-gray-500 tracking-wider">Historial de Evoluciones e Interconsultas</h3>
+                <div className="space-y-3">
+                    {Array.isArray(pacienteSeleccionadoEvolucion.evoluciones) && pacienteSeleccionadoEvolucion.evoluciones.map((evo) => {
+                    const esIC = evo.tipo === "ic";
+                    return (
+                        <div 
+                        key={evo.id} 
+                        className={`border p-3.5 rounded-xl space-y-2 text-xs shadow-sm ${
+                            esIC ? "bg-purple-50/50 border-purple-200" : "bg-white border-gray-200"
+                        }`}
+                        >
+                        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 border-b border-gray-100 pb-2">
+                            <div className="flex items-center gap-1.5 text-gray-500 font-mono bg-gray-100 px-2 py-0.5 rounded w-fit text-[10px] md:text-xs">
+                            <Calendar className="w-3.5 h-3.5" /> {evo.fecha.split('-').reverse().join('/')}
+                            </div>
+                            {esIC && (
+                            <span className="bg-purple-100 text-purple-800 font-bold px-2 py-0.5 rounded-lg text-[10px] uppercase flex items-center gap-1 w-fit">
+                                <Stethoscope className="w-3.5 h-3.5" /> IC: {evo.especialidad} ({evo.medico})
+                            </span>
+                            )}
+                        </div>
+                        <p className="text-gray-800 font-sans whitespace-pre-wrap leading-relaxed text-sm">{evo.texto}</p>
+                        </div>
+                    );
+                    })}
+                    {(!pacienteSeleccionadoEvolucion.evoluciones || pacienteSeleccionadoEvolucion.evoluciones.length === 0) && (
+                    <div className="text-center bg-gray-50 border border-dashed border-gray-200 rounded-xl py-8">
+                        <FileText className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+                        <p className="text-gray-500 text-xs font-medium">No hay evoluciones registradas.</p>
+                    </div>
+                    )}
+                </div>
+                </div>
             </div>
 
-            <div className="border-t pt-3 flex justify-end">
-              <button onClick={() => setModalEvolucionAbierto(false)} className="px-4 py-2 bg-gray-200 text-gray-800 text-xs font-bold rounded-lg">Cerrar</button>
+            <div className="border-t border-gray-100 pt-3 shrink-0">
+              <button onClick={() => setModalEvolucionAbierto(false)} className="w-full px-4 py-3 bg-gray-100 hover:bg-gray-200 text-gray-800 text-sm font-bold rounded-xl transition-colors">Cerrar Historial</button>
             </div>
           </div>
         </div>
@@ -807,6 +836,8 @@ export default function Censo() {
     </div>
   );
 }
+
+// --- SUBCOMPONENTES (También adaptados) ---
 
 function ControlClinicoCard({ paciente }: { paciente: PacienteCenso }) {
   const [minimizado, setMinimizado] = useState(false);
@@ -884,102 +915,110 @@ function ControlClinicoCard({ paciente }: { paciente: PacienteCenso }) {
   const tieneCuracion = Boolean(pacienteState.curacion?.activo && pacienteState.curacion?.tipo);
 
   return (
-    <div className="mt-2.5 bg-indigo-50/60 border border-indigo-200 rounded-xl p-3 shadow-xs space-y-2">
-      <div className="flex items-center justify-between text-indigo-900 font-bold text-xs cursor-pointer" onClick={() => setMinimizado(!minimizado)}>
+    <div className="mt-2.5 bg-indigo-50/40 border border-indigo-100 rounded-xl p-3 shadow-sm space-y-2 transition-all">
+      <div className="flex items-center justify-between text-indigo-900 font-bold text-xs cursor-pointer select-none" onClick={() => setMinimizado(!minimizado)}>
         <div className="flex items-center gap-1.5">
           <Activity className="w-4 h-4 text-indigo-600 shrink-0" />
           <span>Control ATB, Infección & Invasivos</span>
         </div>
-        <button className="p-1 hover:bg-indigo-100 rounded transition-colors" title={minimizado ? "Expandir" : "Minimizar"}>
+        <button className="p-1 hover:bg-indigo-100 rounded-md transition-colors" title={minimizado ? "Expandir" : "Minimizar"}>
           {minimizado ? <ChevronDown className="w-4 h-4 text-indigo-700" /> : <ChevronUp className="w-4 h-4 text-indigo-700" />}
         </button>
       </div>
 
       {!minimizado && (
-        <div className="space-y-2 pt-1 text-xs">
+        <div className="space-y-2.5 pt-1 text-xs">
           {tieneAtb && (
-            <div className="bg-white p-2 rounded-lg border border-indigo-100 space-y-1">
-              <div className="flex items-center gap-1 text-indigo-800 font-bold">
-                <Syringe className="w-3.5 h-3.5 text-indigo-600" /> Antibiótico (ATB):
+            <div className="bg-white p-2.5 rounded-lg border border-indigo-100 shadow-sm space-y-1.5">
+              <div className="flex items-center gap-1.5 text-indigo-800 font-bold">
+                <Syringe className="w-3.5 h-3.5 text-indigo-500" /> Antibiótico (ATB):
               </div>
-              <p className="text-gray-800 font-medium">
-                {pacienteState.atbNombre} ({pacienteState.atbDias || "Sin días especificados"})
+              <p className="text-gray-800 font-medium pl-5">
+                {pacienteState.atbNombre} <span className="text-gray-500 font-normal">({pacienteState.atbDias || "Días no especificados"})</span>
               </p>
               {pacienteState.incobertura && (
-                <div className="pt-1 border-t border-indigo-50 flex items-center gap-1 text-amber-800 font-semibold">
-                  <ShieldAlert className="w-3.5 h-3.5 text-amber-600" /> Posible Infección / Foco:
-                  <span className="text-gray-700 font-normal">{pacienteState.incobertura}</span>
+                <div className="pt-1.5 mt-1 border-t border-indigo-50 flex items-start gap-1.5 text-amber-800 font-semibold">
+                  <ShieldAlert className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" />
+                  <span className="leading-snug">Posible Infección / Foco:<br/>
+                    <span className="text-gray-600 font-normal">{pacienteState.incobertura}</span>
+                  </span>
                 </div>
               )}
             </div>
           )}
 
-          <div className="bg-white p-2 rounded-lg border border-indigo-100 space-y-1.5">
+          <div className="bg-white p-2.5 rounded-lg border border-indigo-100 shadow-sm space-y-2">
             <span className="font-bold text-indigo-800 block">Dispositivos Invasivos:</span>
-            <div className="space-y-1.5">
+            <div className="space-y-2">
               {tieneInvasivos && pacienteState.invasivos.map(inv => {
                 const diasCalculados = calcularDias(inv.fechaInstalacion);
                 return (
-                  <div key={inv.id} className="flex flex-col gap-1 bg-slate-50 p-2 rounded border">
-                    <div className="flex justify-between items-center">
-                      <span className="text-gray-800 font-bold">{inv.nombre}</span>
-                      <div className="flex items-center gap-2">
-                        <span className="bg-blue-100 text-blue-800 font-bold px-2 py-0.5 rounded text-[10px]">
-                          {diasCalculados} días totales
+                  <div key={inv.id} className="flex flex-col gap-1.5 bg-slate-50 p-2 rounded-lg border border-gray-100">
+                    <div className="flex justify-between items-start gap-2">
+                      <span className="text-gray-800 font-bold leading-tight">{inv.nombre}</span>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <span className={`font-bold px-2 py-0.5 rounded text-[10px] ${diasCalculados > 7 ? 'bg-red-100 text-red-800' : 'bg-blue-100 text-blue-800'}`}>
+                          {diasCalculados} días
                         </span>
-                        <button onClick={() => eliminarDispositivo(inv.id)} className="text-gray-300 hover:text-red-600" title="Eliminar dispositivo">
+                        <button onClick={() => eliminarDispositivo(inv.id)} className="text-gray-300 hover:text-red-500 bg-white p-1 rounded transition-colors border border-gray-100" title="Eliminar dispositivo">
                           <X className="w-3.5 h-3.5" />
                         </button>
                       </div>
                     </div>
-                    <div className="flex items-center gap-1 text-[11px] text-gray-500 pt-1 border-t border-slate-200">
-                      <span>Instalación:</span>
+                    <div className="flex items-center gap-1.5 text-[11px] text-gray-500 pt-1 border-t border-gray-200">
+                      <span>Instalado el:</span>
                       <input 
                         type="date" 
                         value={inv.fechaInstalacion || new Date().toISOString().split("T")[0]}
                         onChange={e => actualizarFechaInvasivo(inv.id, e.target.value)}
-                        className="bg-white border rounded px-1 text-[11px] font-mono text-gray-700 outline-none"
+                        className="bg-white border border-gray-200 rounded px-1.5 py-0.5 text-[11px] font-mono text-gray-700 outline-none focus:border-indigo-400"
                       />
                     </div>
                   </div>
                 );
               })}
               {!tieneInvasivos && (
-                <p className="text-gray-400 text-[11px] italic">Sin dispositivos invasivos registrados.</p>
+                <p className="text-gray-400 text-[11px] italic bg-gray-50 p-2 rounded text-center border border-dashed border-gray-200">Sin dispositivos invasivos registrados.</p>
               )}
             </div>
 
-            <div className="flex gap-1 pt-1">
+            <div className="flex flex-col sm:flex-row gap-2 pt-2 mt-2 border-t border-gray-100">
               <input
                 type="text"
                 placeholder="Ej. CVC, Sonda Foley..."
                 value={nombreInv}
                 onChange={e => setNombreInv(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Enter') agregarDispositivo(); }}
-                className="w-full text-xs p-1 border rounded bg-white outline-none"
+                className="w-full text-xs p-2 border border-gray-200 rounded-lg bg-gray-50 outline-none focus:ring-1 focus:ring-indigo-400"
               />
-              <input
-                type="date"
-                value={fechaInv}
-                onChange={e => setFechaInv(e.target.value)}
-                className="text-xs p-1 border rounded bg-white outline-none font-mono"
-              />
-              <button onClick={agregarDispositivo} className="bg-indigo-600 hover:bg-indigo-700 text-white px-2 py-1 text-xs rounded font-bold">+</button>
+              <div className="flex gap-2">
+                <input
+                    type="date"
+                    value={fechaInv}
+                    onChange={e => setFechaInv(e.target.value)}
+                    className="w-full sm:w-auto text-xs p-2 border border-gray-200 rounded-lg bg-gray-50 outline-none font-mono focus:ring-1 focus:ring-indigo-400"
+                />
+                <button onClick={agregarDispositivo} className="bg-indigo-600 hover:bg-indigo-700 text-white px-3 py-2 text-xs rounded-lg font-bold shadow-sm transition-colors shrink-0 flex items-center justify-center">
+                    <Plus className="w-4 h-4" />
+                </button>
+              </div>
             </div>
           </div>
 
           {tieneCuracion && (
-            <div className="bg-white p-2 rounded-lg border border-indigo-100 flex justify-between items-start">
+            <div className="bg-white p-2.5 rounded-lg border border-indigo-100 shadow-sm flex justify-between items-start">
               <div className="space-y-1">
-                <div className="flex items-center gap-1 text-indigo-800 font-bold">
-                  <Bandage className="w-3.5 h-3.5 text-indigo-600" /> Control de Curaciones:
+                <div className="flex items-center gap-1.5 text-indigo-800 font-bold">
+                  <Bandage className="w-4 h-4 text-indigo-500" /> Control Curaciones
                 </div>
-                <p className="text-gray-700">
-                  <span className="font-semibold text-gray-900">{pacienteState.curacion.tipo}</span> • Última: {pacienteState.curacion.ultimaFecha || "N/A"} (Frecuencia: cada {pacienteState.curacion.frecuenciaDias} días)
+                <p className="text-gray-700 pl-5 text-[11px] leading-relaxed">
+                  <span className="font-semibold text-gray-900 block">{pacienteState.curacion.tipo}</span> 
+                  Última: <span className="font-mono bg-gray-50 px-1 border rounded">{pacienteState.curacion.ultimaFecha?.split('-').reverse().join('/') || "N/A"}</span> <br/>
+                  <span className="text-gray-500">Frecuencia: cada {pacienteState.curacion.frecuenciaDias} días</span>
                 </p>
               </div>
-              <button onClick={eliminarCuracion} className="text-gray-300 hover:text-red-600 p-1" title="Eliminar curación">
-                <X className="w-4 h-4" />
+              <button onClick={eliminarCuracion} className="text-gray-300 hover:text-red-500 p-1.5 bg-gray-50 rounded-md transition-colors border border-gray-100" title="Eliminar curación">
+                <Trash2 className="w-3.5 h-3.5" />
               </button>
             </div>
           )}
@@ -989,6 +1028,7 @@ function ControlClinicoCard({ paciente }: { paciente: PacienteCenso }) {
   );
 }
 
+// COMPONENTE GES MODIFICADO CON BOTÓN ELIMINAR/DESCARTAR
 function AlertaGesCard({ pacienteId, gesDetectados }: { pacienteId: string; gesDetectados: PatologiaGes[] }) {
   const [minimizado, setMinimizado] = useState(false);
   const [estadoGes, setEstadoGes] = useState<Record<number, string>>(() => {
@@ -1000,49 +1040,66 @@ function AlertaGesCard({ pacienteId, gesDetectados }: { pacienteId: string; gesD
     }
   });
 
-  const cambiarEstado = (numeroGes: number, respuesta: "Sí" | "No") => {
+  const cambiarEstado = (numeroGes: number, respuesta: "Sí" | "No" | "Eliminado") => {
     const nuevo = { ...estadoGes, [numeroGes]: respuesta };
     setEstadoGes(nuevo);
     localStorage.setItem(`ges_estado_${pacienteId}`, JSON.stringify(nuevo));
   };
 
+  // Solo mostramos los GES que NO hayan sido marcados como "Eliminado"
+  const gesVisibles = gesDetectados.filter(ges => estadoGes[ges.numero] !== "Eliminado");
+
+  // Si todos los GES fueron eliminados, no renderizamos la tarjeta completa
+  if (gesVisibles.length === 0) return null;
+
   return (
-    <div className="mt-3 bg-amber-50 border border-amber-300 rounded-xl p-3 shadow-sm space-y-2">
-      <div className="flex items-center justify-between text-amber-800 font-bold text-xs cursor-pointer" onClick={() => setMinimizado(!minimizado)}>
+    <div className="mt-3 bg-amber-50/50 border border-amber-200 rounded-xl p-3 shadow-sm space-y-2 transition-all">
+      <div className="flex items-center justify-between text-amber-800 font-bold text-xs cursor-pointer select-none" onClick={() => setMinimizado(!minimizado)}>
         <div className="flex items-center gap-1.5">
-          <AlertTriangle className="w-4 h-4 shrink-0 text-amber-600" />
-          <span>Alerta GES Detectada ({gesDetectados.length}):</span>
+          <AlertTriangle className="w-4 h-4 shrink-0 text-amber-500" />
+          <span>Alerta GES Detectada ({gesVisibles.length})</span>
         </div>
-        <button className="p-1 hover:bg-amber-100 rounded transition-colors" title={minimizado ? "Expandir" : "Minimizar"}>
+        <button className="p-1 hover:bg-amber-100 rounded-md transition-colors" title={minimizado ? "Expandir" : "Minimizar"}>
           {minimizado ? <ChevronDown className="w-4 h-4 text-amber-700" /> : <ChevronUp className="w-4 h-4 text-amber-700" />}
         </button>
       </div>
 
       {!minimizado && (
-        <div className="space-y-2 pt-1">
-          {gesDetectados.map(ges => {
+        <div className="space-y-2 pt-1.5">
+          {gesVisibles.map(ges => {
             const resp = estadoGes[ges.numero];
             return (
-              <div key={ges.numero} className="bg-white p-2 rounded-lg border border-amber-200 flex flex-col gap-1.5 text-xs">
-                <div>
-                  <span className="font-extrabold text-gray-900">GES Nº {ges.numero}:</span>{" "}
-                  <span className="text-gray-700">{ges.nombre}</span>
+              <div key={ges.numero} className="bg-white p-2.5 rounded-lg border border-amber-200 shadow-sm flex flex-col gap-2 text-xs">
+                <div className="flex justify-between items-start gap-2">
+                    <div>
+                        <span className="font-black text-gray-900 block md:inline">GES Nº {ges.numero}:</span>{" "}
+                        <span className="text-gray-700 font-medium">{ges.nombre}</span>
+                    </div>
+                    {/* NUEVO BOTÓN PARA ELIMINAR LA ALERTA GES */}
+                    <button 
+                        onClick={() => cambiarEstado(ges.numero, "Eliminado")}
+                        className="text-gray-300 hover:text-red-500 hover:bg-red-50 p-1.5 rounded-md transition-colors border border-transparent hover:border-red-100 shrink-0"
+                        title="Descartar / Eliminar esta alerta"
+                    >
+                        <Trash2 className="w-3.5 h-3.5" />
+                    </button>
                 </div>
-                <div className="flex justify-between items-center pt-1 border-t border-amber-50">
-                  <span className="text-[11px] text-gray-500 font-medium">¿Activado GES?</span>
-                  <div className="flex gap-1.5">
+
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center pt-2 border-t border-amber-50 gap-2">
+                  <span className="text-[10px] md:text-[11px] text-gray-500 font-bold uppercase tracking-wider">¿Activado en sistema?</span>
+                  <div className="flex gap-1.5 w-full sm:w-auto">
                     <button
                       onClick={() => cambiarEstado(ges.numero, "Sí")}
-                      className={`px-2.5 py-0.5 rounded text-xs font-bold transition-all ${
-                        resp === "Sí" ? "bg-green-600 text-white shadow" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                      className={`flex-1 sm:flex-none px-4 py-1.5 rounded-md text-xs font-bold transition-all border ${
+                        resp === "Sí" ? "bg-green-600 border-green-600 text-white shadow-md" : "bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100"
                       }`}
                     >
                       Sí
                     </button>
                     <button
                       onClick={() => cambiarEstado(ges.numero, "No")}
-                      className={`px-2.5 py-0.5 rounded text-xs font-bold transition-all ${
-                        resp === "No" ? "bg-red-600 text-white shadow" : "bg-gray-100 text-gray-700 hover:bg-gray-200"
+                      className={`flex-1 sm:flex-none px-4 py-1.5 rounded-md text-xs font-bold transition-all border ${
+                        resp === "No" ? "bg-red-600 border-red-600 text-white shadow-md" : "bg-gray-50 text-gray-600 border-gray-200 hover:bg-gray-100"
                       }`}
                     >
                       No
