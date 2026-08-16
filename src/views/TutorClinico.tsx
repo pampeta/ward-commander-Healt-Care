@@ -1,14 +1,43 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { consultarGeminiConArchivo } from "../Services/gemini";
-import { BrainCircuit, Paperclip, SendHorizontal, BotMessageSquare, UserRound, X, FileText } from "lucide-react";
+import { BrainCircuit, Paperclip, SendHorizontal, BotMessageSquare, UserRound, X, FileText, CloudCloud } from "lucide-react";
+import { guardarEnNube, cargarDeNube } from "../Services/cloudSync";
 
 export default function TutorClinico() {
   const [promptUsuario, setPromptUsuario] = useState("");
   const [historial, setHistorial] = useState<{ remitente: "usuario" | "ia", texto: string }[]>([
     { remitente: "ia", texto: "¡Hola! Soy tu Instructor Clínico IA. Puedes preguntarme dudas, pegarme transcripciones o adjuntar PDFs para que los analicemos." }
   ]);
+  const [descargando, setDescargando] = useState(true);
+  
   const [cargando, setCargando] = useState(false);
   const [archivoAdjunto, setArchivoAdjunto] = useState<{ nombre: string, base64: string, mimeType: string } | null>(null);
+
+  // DESCARGA DESDE LA NUBE AL INICIAR
+  useEffect(() => {
+    async function sincronizarChat() {
+      const datosNube = await cargarDeNube('tutor_chat');
+      
+      if (datosNube && Array.isArray(datosNube) && datosNube.length > 0) {
+        setHistorial(datosNube);
+      } else {
+        const guardado = localStorage.getItem("ward_commander_tutor");
+        if (guardado) {
+          try { setHistorial(JSON.parse(guardado)); } catch(e) {}
+        }
+      }
+      setDescargando(false);
+    }
+    sincronizarChat();
+  }, []);
+
+  // SUBE A LA NUBE CADA VEZ QUE HAY UN NUEVO MENSAJE
+  useEffect(() => {
+    if (!descargando) {
+      localStorage.setItem("ward_commander_tutor", JSON.stringify(historial));
+      guardarEnNube('tutor_chat', historial);
+    }
+  }, [historial, descargando]);
 
   const handleSubirArchivo = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -49,7 +78,6 @@ export default function TutorClinico() {
   };
 
   return (
-    // Estructura h-full estricta para no hacer scroll en toda la página, sino solo en el chat
     <div className="p-3 md:p-6 max-w-5xl mx-auto h-full flex flex-col space-y-3 md:space-y-6 bg-gray-50 overflow-hidden">
       
       {/* CABECERA ADAPTATIVA */}
@@ -59,72 +87,79 @@ export default function TutorClinico() {
             <BrainCircuit className="w-6 h-6 md:w-7 md:h-7 text-emerald-600" />
             <h1 className="text-xl md:text-2xl font-bold text-gray-900 tracking-tight">Instructor Clínico IA</h1>
           </div>
-          <p className="text-xs md:text-sm text-gray-500">Resuelve casos, analiza transcripciones, procesa PDFs y aclara dudas.</p>
+          <div className="flex items-center gap-2 text-xs md:text-sm text-gray-500">
+            <span>Resuelve casos, analiza transcripciones y aclara dudas.</span>
+            {!descargando && <span className="flex items-center gap-1 bg-emerald-50 text-emerald-700 font-semibold px-2 py-0.5 rounded-md border border-emerald-200 ml-2"><CloudCloud className="w-3 h-3"/> Nube</span>}
+          </div>
         </div>
       </div>
 
       {/* CONTENEDOR PRINCIPAL DEL CHAT */}
       <div className="flex-1 bg-white rounded-2xl shadow-sm border border-gray-100 flex flex-col overflow-hidden min-h-0">
         
-        {/* Historial de Mensajes (Zona con Scroll) */}
+        {/* Historial de Mensajes */}
         <div className="flex-1 p-4 md:p-6 overflow-y-auto space-y-5 bg-[#fafafa]">
-          {historial.map((msg, index) => (
-            <div key={index} className={`flex ${msg.remitente === 'usuario' ? 'justify-end' : 'justify-start'}`}>
+          {descargando ? (
+            <div className="flex flex-col items-center justify-center h-full space-y-3 opacity-50">
+              <div className="w-8 h-8 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin"></div>
+              <p className="text-gray-500 font-semibold text-sm">Sincronizando historial...</p>
+            </div>
+          ) : (
+            <>
+              {historial.map((msg, index) => (
+                <div key={index} className={`flex ${msg.remitente === 'usuario' ? 'justify-end' : 'justify-start'}`}>
+                  
+                  <div className={`flex items-start gap-2.5 max-w-[85%] md:max-w-[75%] ${msg.remitente === 'usuario' ? 'flex-row-reverse' : 'flex-row'}`}>
+                    
+                    <div className={`hidden sm:flex w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center shrink-0 mt-0.5 border ${
+                      msg.remitente === 'usuario' ? 'bg-blue-100 border-blue-200 text-blue-600' : 'bg-emerald-100 border-emerald-200 text-emerald-600'
+                    }`}>
+                      {msg.remitente === 'usuario' ? <UserRound className="w-4 h-4 md:w-5 md:h-5" /> : <BotMessageSquare className="w-4 h-4 md:w-5 md:h-5" />}
+                    </div>
+
+                    <div className={`p-3.5 md:p-4 rounded-2xl text-[13px] md:text-sm leading-relaxed shadow-sm ${
+                      msg.remitente === 'usuario' 
+                      ? 'bg-blue-600 text-white rounded-br-sm' 
+                      : 'bg-white border border-gray-200 text-gray-800 rounded-bl-sm'
+                    }`}>
+                      <div className="font-sans whitespace-pre-wrap word-break break-words overflow-hidden">
+                        {msg.texto.split(/(\*\*.*?\*\*)/g).map((part, i) => {
+                          if (part.startsWith('**') && part.endsWith('**')) {
+                            return <strong key={i} className={msg.remitente === 'usuario' ? 'text-white' : 'text-gray-950'}>{part.slice(2, -2)}</strong>;
+                          }
+                          return part;
+                        })}
+                      </div>
+                    </div>
+
+                  </div>
+                </div>
+              ))}
               
-              {/* Burbuja del mensaje */}
-              <div className={`flex items-start gap-2.5 max-w-[85%] md:max-w-[75%] ${msg.remitente === 'usuario' ? 'flex-row-reverse' : 'flex-row'}`}>
-                
-                {/* Avatar (Oculto en móvil para ahorrar espacio) */}
-                <div className={`hidden sm:flex w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center shrink-0 mt-0.5 border ${
-                  msg.remitente === 'usuario' ? 'bg-blue-100 border-blue-200 text-blue-600' : 'bg-emerald-100 border-emerald-200 text-emerald-600'
-                }`}>
-                  {msg.remitente === 'usuario' ? <UserRound className="w-4 h-4 md:w-5 md:h-5" /> : <BotMessageSquare className="w-4 h-4 md:w-5 md:h-5" />}
-                </div>
-
-                {/* Texto del mensaje */}
-                <div className={`p-3.5 md:p-4 rounded-2xl text-[13px] md:text-sm leading-relaxed shadow-sm ${
-                  msg.remitente === 'usuario' 
-                  ? 'bg-blue-600 text-white rounded-br-sm' 
-                  : 'bg-white border border-gray-200 text-gray-800 rounded-bl-sm'
-                }`}>
-                  <div className="font-sans whitespace-pre-wrap word-break break-words overflow-hidden">
-                    {msg.texto.split(/(\*\*.*?\*\*)/g).map((part, i) => {
-                      if (part.startsWith('**') && part.endsWith('**')) {
-                        return <strong key={i} className={msg.remitente === 'usuario' ? 'text-white' : 'text-gray-950'}>{part.slice(2, -2)}</strong>;
-                      }
-                      return part;
-                    })}
+              {cargando && (
+                <div className="flex justify-start">
+                  <div className="flex items-start gap-2.5 max-w-[85%] md:max-w-[75%]">
+                    <div className="hidden sm:flex w-8 h-8 md:w-10 md:h-10 rounded-full bg-emerald-100 border border-emerald-200 text-emerald-600 items-center justify-center shrink-0 mt-0.5">
+                      <BotMessageSquare className="w-4 h-4 md:w-5 md:h-5" />
+                    </div>
+                    <div className="bg-white border border-gray-200 p-3.5 md:p-4 rounded-2xl rounded-bl-sm shadow-sm text-emerald-600 font-medium animate-pulse text-[13px] md:text-sm flex items-center gap-2">
+                      <div className="flex gap-1">
+                        <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-bounce"></span>
+                        <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></span>
+                        <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></span>
+                      </div>
+                      <span>Analizando consulta clínica...</span>
+                    </div>
                   </div>
                 </div>
-
-              </div>
-            </div>
-          ))}
-          
-          {/* Indicador de "Escribiendo..." */}
-          {cargando && (
-            <div className="flex justify-start">
-              <div className="flex items-start gap-2.5 max-w-[85%] md:max-w-[75%]">
-                <div className="hidden sm:flex w-8 h-8 md:w-10 md:h-10 rounded-full bg-emerald-100 border border-emerald-200 text-emerald-600 items-center justify-center shrink-0 mt-0.5">
-                  <BotMessageSquare className="w-4 h-4 md:w-5 md:h-5" />
-                </div>
-                <div className="bg-white border border-gray-200 p-3.5 md:p-4 rounded-2xl rounded-bl-sm shadow-sm text-emerald-600 font-medium animate-pulse text-[13px] md:text-sm flex items-center gap-2">
-                  <div className="flex gap-1">
-                    <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-bounce"></span>
-                    <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></span>
-                    <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full animate-bounce" style={{ animationDelay: '0.4s' }}></span>
-                  </div>
-                  <span>Analizando consulta clínica...</span>
-                </div>
-              </div>
-            </div>
+              )}
+            </>
           )}
         </div>
 
-        {/* ZONA DE ESCRITURA (Bottom Bar) */}
+        {/* ZONA DE ESCRITURA */}
         <div className="p-3 md:p-4 bg-white border-t border-gray-100 flex flex-col gap-2.5 shrink-0 z-10 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.02)]">
           
-          {/* Indicador de archivo adjunto */}
           {archivoAdjunto && (
             <div className="flex items-center gap-2 bg-emerald-50 text-emerald-800 px-3 py-1.5 rounded-lg text-xs md:text-sm border border-emerald-200 w-fit shadow-sm">
               <FileText className="w-3.5 h-3.5 shrink-0" /> 
@@ -137,7 +172,6 @@ export default function TutorClinico() {
           
           <div className="flex items-end gap-2 bg-gray-50 border border-gray-200 rounded-2xl p-1.5 focus-within:ring-2 focus-within:ring-emerald-200 focus-within:border-emerald-400 transition-all shadow-inner">
             
-            {/* Botón Adjuntar */}
             <input type="file" id="subir-doc-tutor" accept=".pdf, image/*, .txt" onChange={handleSubirArchivo} className="hidden" />
             <label 
               htmlFor="subir-doc-tutor" 
@@ -147,13 +181,11 @@ export default function TutorClinico() {
               <Paperclip className="w-5 h-5" />
             </label>
 
-            {/* Input de Texto Flexible */}
             <textarea
               rows={1}
               value={promptUsuario}
               onChange={(e) => {
                   setPromptUsuario(e.target.value);
-                  // Auto-expandir altura hasta un límite
                   e.target.style.height = 'auto';
                   e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px';
               }}
@@ -161,7 +193,6 @@ export default function TutorClinico() {
                 if (e.key === 'Enter' && !e.shiftKey) { 
                   e.preventDefault(); 
                   enviarConsulta(); 
-                  // Resetear altura
                   const target = e.target as HTMLTextAreaElement;
                   target.style.height = 'auto';
                 } 
@@ -170,15 +201,13 @@ export default function TutorClinico() {
               className="flex-1 bg-transparent py-3 px-2 text-[13px] md:text-sm text-gray-800 outline-none resize-none min-h-[44px] max-h-[120px] placeholder:text-gray-400"
             />
 
-            {/* Botón Enviar */}
             <button
               onClick={() => {
                 enviarConsulta();
-                // Buscar el textarea y resetear su altura
                 const textarea = document.querySelector('textarea');
                 if(textarea) textarea.style.height = 'auto';
               }}
-              disabled={cargando || (!promptUsuario.trim() && !archivoAdjunto)}
+              disabled={cargando || descargando || (!promptUsuario.trim() && !archivoAdjunto)}
               className="w-10 h-10 md:w-auto md:px-5 flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-sm font-bold transition-all disabled:opacity-50 disabled:bg-gray-300 shadow-sm shrink-0 mb-0.5"
             >
               <SendHorizontal className="w-5 h-5 md:w-4 md:h-4" />
