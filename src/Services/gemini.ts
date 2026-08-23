@@ -109,6 +109,14 @@ export const consultarGeminiConArchivo = async (
   return data.candidates[0].content.parts[0].text;
 };
 
+export interface EvolucionExtraida {
+  fecha?: string;
+  texto: string;
+  tipo?: "normal" | "ic";
+  especialidad?: string;
+  medico?: string;
+}
+
 export interface DatosPacienteExtraidos {
   cama?: string;
   nombre?: string;
@@ -126,7 +134,28 @@ export interface DatosPacienteExtraidos {
     ultimaFecha?: string;
   };
   pendientes?: string[];
+  evoluciones?: EvolucionExtraida[];
 }
+
+export const extraerContenidoGoogleDocs = async (urlOTexto: string): Promise<string> => {
+  const match = urlOTexto.match(/docs\.google\.com\/document\/d\/([a-zA-Z0-9_-]+)/);
+  if (!match || !match[1]) return urlOTexto;
+
+  const docId = match[1];
+  const exportUrl = `https://docs.google.com/document/d/${docId}/export?format=txt`;
+
+  try {
+    const res = await fetch(exportUrl);
+    if (res.ok) {
+      const text = await res.text();
+      if (text && text.trim().length > 0) return text;
+    }
+  } catch (e) {
+    console.warn("No se pudo descargar directamente el Google Doc por CORS o permisos privados:", e);
+  }
+
+  return urlOTexto;
+};
 
 export const extraerPacienteDesdeDocumentoConGemini = async (
   archivoOTexto: {
@@ -142,12 +171,23 @@ export const extraerPacienteDesdeDocumentoConGemini = async (
     throw new Error("No hay API Key de Gemini configurada. Por favor regístrala en el módulo 'Control & Configuración'.");
   }
 
+  // Si es un enlace de Google Docs en textoPlano, intentamos extraer el texto
+  let textoFinal = archivoOTexto.textoPlano || "";
+  if (textoFinal.includes("docs.google.com/document")) {
+    textoFinal = await extraerContenidoGoogleDocs(textoFinal);
+  }
+
   const prompt = `
-Eres un asistente médico clínico de alta precisión. Analiza la imagen, documento o texto adjunto (que puede ser una ficha clínica, foto de hoja de censo/pizarra, epicrisis, evolución, informe de laboratorio o tarjeta de enfermería) y extrae TODOS los datos del paciente en formato JSON estricto.
+Eres un asistente médico clínico de alta precisión. Analiza la imagen, documento de Google Docs, ficha clínica, epicrisis, evolución diaria, reporte de enfermería o notas adjuntas y extrae TODOS los datos del paciente en formato JSON estricto.
+
+Debes prestar especial atención a:
+1. Datos demográficos y de ingreso (Cama, Nombre, Edad, Fecha Ingreso, Diagnóstico principal, Antibióticos, Infección, Curaciones).
+2. Pendientes clínicos por resolver.
+3. HISTORIAL DE EVOLUCIONES CLÍNICAS: Extrae cada evolución diaria por fecha. Si la nota es una respuesta de interconsulta (IC) de otra especialidad (ej. Cardiología, Nefrología, etc.), márcala con tipo "ic", extrayendo la especialidad y el nombre del médico si aparece.
 
 Debes responder ÚNICAMENTE con un objeto JSON válido con la siguiente estructura:
 {
-  "cama": "número o código de cama (ej. 12A, Cama 4, etc.)",
+  "cama": "código o número de cama (ej. 12A, Cama 4, etc.)",
   "nombre": "nombre completo o iniciales del paciente",
   "edad": "edad en años (ej. 68)",
   "fechaIngreso": "fecha de ingreso en formato YYYY-MM-DD",
@@ -155,17 +195,31 @@ Debes responder ÚNICAMENTE con un objeto JSON válido con la siguiente estructu
   "atbNombre": "antibióticos indicados si los hay (ej. Ceftriaxona + Metronidazol)",
   "atbDias": "días de antibiótico (ej. 3 días)",
   "incobertura": "foco infeccioso sospechoso o confirmado (ej. Foco respiratorio)",
-  "anamnesis": "resumen de antecedentes mórbidos, anamnesis y estado actual",
+  "anamnesis": "resumen de antecedentes mórbidos, anamnesis y estado basal",
   "curacion": {
     "activo": true o false,
-    "tipo": "descripción de herida o curación si aplica",
+    "tipo": "descripción de herida o curación",
     "frecuenciaDias": 3,
     "ultimaFecha": "YYYY-MM-DD"
   },
-  "pendientes": ["lista", "de", "pendientes", "clinicos", "o", "examenes"]
+  "pendientes": ["lista", "de", "pendientes", "o", "examenes", "por", "hacer"],
+  "evoluciones": [
+    {
+      "fecha": "YYYY-MM-DD",
+      "texto": "Texto de la evolución clínica del día",
+      "tipo": "normal"
+    },
+    {
+      "fecha": "YYYY-MM-DD",
+      "texto": "Texto de la respuesta a la interconsulta o sugerencias del especialista",
+      "tipo": "ic",
+      "especialidad": "Especialidad médica (ej. Gastroenterología, Cardiología, etc.)",
+      "medico": "Nombre del médico especialista si figura (ej. Dr. Karelovic)"
+    }
+  ]
 }
 
-Si algún dato no está explícito en la imagen o texto, deja el valor como string vacío ("") o false en curacion.activo.
+Si algún dato no está explícito en el documento, deja el valor como string vacío ("") o false en curacion.activo o un array vacío [] en evoluciones/pendientes.
 `;
 
   const parts: any[] = [{ text: prompt }];

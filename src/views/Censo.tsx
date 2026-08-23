@@ -223,6 +223,21 @@ export default function Censo() {
           }))
         : [];
 
+      const evolucionesExtraidas: Evolucion[] = Array.isArray(datosExtraidos.evoluciones)
+        ? datosExtraidos.evoluciones
+            .filter(e => e && e.texto && e.texto.trim().length > 0)
+            .map((e, idx) => ({
+              id: (Date.now() + idx).toString(),
+              fecha: e.fecha || hoyStr,
+              texto: e.texto.trim(),
+              tipo: e.tipo === "ic" ? "ic" : "normal",
+              especialidad: e.especialidad || "",
+              medico: e.medico || ""
+            }))
+        : [];
+
+      const tieneEvoHoy = evolucionesExtraidas.some(e => e.fecha === hoyStr);
+
       setPacienteEditando({
         cama: datosExtraidos.cama || "",
         nombre: datosExtraidos.nombre || "",
@@ -236,7 +251,8 @@ export default function Censo() {
         curacion: curacionExtraida,
         pendientes: pendientesExtraidos,
         invasivos: [],
-        evoluciones: [],
+        evoluciones: evolucionesExtraidas,
+        ultimaEvolucionFecha: tieneEvoHoy ? hoyStr : undefined,
       });
 
       setModalEscaneoAbierto(false);
@@ -585,7 +601,7 @@ export default function Censo() {
                     Cargar Paciente con IA
                   </h2>
                   <p className="text-xs text-gray-500">
-                    Sácale una foto a la ficha o adjunta un archivo para auto-llenar los datos.
+                    Foto, Google Docs, PDF o texto: extrae datos, evoluciones diarias e interconsultas (IC).
                   </p>
                 </div>
               </div>
@@ -616,7 +632,7 @@ export default function Censo() {
                 <label className="flex flex-col items-center justify-center gap-2 p-4 bg-blue-50 hover:bg-blue-100/80 border-2 border-dashed border-blue-300 rounded-xl cursor-pointer transition-all text-blue-900 text-center">
                   <FileUp className="w-7 h-7 text-blue-600" />
                   <span className="text-xs font-bold">Adjuntar Imagen o PDF</span>
-                  <span className="text-[10px] text-blue-600/80">JPG, PNG, PDF o texto</span>
+                  <span className="text-[10px] text-blue-600/80">JPG, PNG, PDF o archivos de texto</span>
                   <input
                     type="file"
                     accept="image/*,application/pdf,.txt"
@@ -655,18 +671,25 @@ export default function Censo() {
                 </div>
               )}
 
-              {/* Área de texto alternativo / complementario */}
+              {/* Área de texto / enlace Google Docs */}
               <div>
                 <label className="block text-[11px] font-bold uppercase text-gray-500 mb-1.5 tracking-wider">
-                  O Pega el texto clínico / Epicrisis aquí:
+                  O Pega texto clínico, enlace de Google Docs o Epicrisis:
                 </label>
                 <textarea
                   rows={4}
                   value={textoEscaneo}
                   onChange={(e) => setTextoEscaneo(e.target.value)}
-                  placeholder="Ej. Paciente Don Juan de 72 años en cama 14A, ingresa por neumonía bilateral, actualmente con Ceftriaxona día 2, pendiente TAC de tórax..."
+                  placeholder="Pega aquí el enlace de tu Google Doc, texto copiado de la ficha, evoluciones de varios días o respuestas de interconsulta (ej. 'IC Cardio Dr. Muñoz: ...')."
                   className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-xs outline-none focus:ring-2 focus:ring-purple-400 resize-none leading-relaxed text-gray-800"
                 />
+              </div>
+
+              <div className="bg-blue-50/60 border border-blue-100 p-2.5 rounded-xl text-[11px] text-blue-900 space-y-1">
+                <span className="font-bold flex items-center gap-1"><Sparkles className="w-3.5 h-3.5 text-blue-600" /> Extracción completa por IA:</span>
+                <p className="text-blue-800/90 leading-snug">
+                  La IA detecta automáticamente la cama, nombre, diagnóstico, antibióticos, <strong>evoluciones clínicas separadas por fecha</strong> e <strong>interconsultas (IC)</strong> asignando la especialidad y el doctor.
+                </p>
               </div>
 
               {errorEscaneo && (
