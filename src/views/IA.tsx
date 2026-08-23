@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { generateClinicalDocumentWithGemini } from '../Services/gemini';
 import { sanitizeClinicalText } from '../Services/sanitizer';
-import { FileText, Wand2, Copy, CheckCircle2, ShieldAlert } from 'lucide-react';
+import { FileText, Wand2, Copy, CheckCircle2, ShieldAlert, Camera, FileUp, Sparkles, X, Link, Loader2 } from 'lucide-react';
 
 const PLANTILLAS_POR_DEFECTO: Record<string, string> = {
   Ingreso: `**CR MEDICINA INTERNA - HOSPITAL CLÍNICO DE MAGALLANES**
@@ -216,6 +216,8 @@ export const IAModuleDesktop: React.FC = () => {
   
   const [esqueletoActual, setEsqueletoActual] = useState<string>(PLANTILLAS_POR_DEFECTO['Epicrisis']);
   const [rawData, setRawData] = useState<string>('');
+  const [archivoAdjunto, setArchivoAdjunto] = useState<{ base64: string; mimeType: string; nombre: string; vistaPrevia?: string } | null>(null);
+  const [linkGoogleDocs, setLinkGoogleDocs] = useState<string>('');
   
   const [sanitizedPreview, setSanitizedPreview] = useState<any>(null);
   const [isGenerating, setIsGenerating] = useState<boolean>(false);
@@ -229,9 +231,68 @@ export const IAModuleDesktop: React.FC = () => {
     }
   }, [tipoDoc]);
 
+  const handleSubirArchivo = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    if (file.type.startsWith('image/')) {
+      reader.onload = () => {
+        setArchivoAdjunto({
+          base64: reader.result as string,
+          mimeType: file.type,
+          nombre: file.name,
+          vistaPrevia: reader.result as string
+        });
+      };
+      reader.readAsDataURL(file);
+    } else if (file.type === 'application/pdf') {
+      reader.onload = () => {
+        setArchivoAdjunto({
+          base64: reader.result as string,
+          mimeType: file.type,
+          nombre: file.name
+        });
+      };
+      reader.readAsDataURL(file);
+    } else {
+      reader.onload = () => {
+        setRawData(prev => prev ? `${prev}\n\n--- ARCHIVO ADJUNTO ---\n${reader.result}` : String(reader.result));
+      };
+      reader.readAsText(file);
+    }
+  };
+
+  const cargarDatosCensoEnRawData = (pacienteId: string) => {
+    const p = pacientes.find((x: any) => String(x.id) === String(pacienteId) || String(x.cama) === String(pacienteId));
+    if (!p) return;
+
+    let texto = `PACIENTE: ${p.nombre || 'N/A'} (${p.edad || 'N/A'} años) - Cama: ${p.cama || 'N/A'}\n`;
+    texto += `Fecha Ingreso: ${p.fechaIngreso || 'N/A'}\n`;
+    if (p.diagnostico) texto += `Diagnóstico: ${p.diagnostico}\n`;
+    if (p.atbNombre) texto += `Antibiótico (ATB): ${p.atbNombre} (Días: ${p.atbDias || '1'})\n`;
+    if (p.incobertura) texto += `Foco / Incobertura: ${p.incobertura}\n`;
+    if (p.anamnesis) texto += `Anamnesis / Antecedentes: ${p.anamnesis}\n`;
+    if (p.curacion?.activo) texto += `Curación: ${p.curacion.tipo || 'Curación activa'} (cada ${p.curacion.frecuenciaDias || 3} días, última: ${p.curacion.ultimaFecha || ''})\n`;
+
+    if (Array.isArray(p.pendientes) && p.pendientes.length > 0) {
+      texto += `\nPendientes Clínicos:\n` + p.pendientes.map((pe: any) => `- ${pe.texto || pe}`).join('\n') + '\n';
+    }
+
+    if (Array.isArray(p.evoluciones) && p.evoluciones.length > 0) {
+      texto += `\nHISTORIAL DE EVOLUCIONES E INTERCONSULTAS:\n`;
+      p.evoluciones.forEach((evo: any) => {
+        const header = evo.tipo === 'ic' ? `[IC: ${evo.especialidad || 'Especialista'} - ${evo.medico || ''}]` : `[Evolución ${evo.fecha || ''}]`;
+        texto += `\n${header} (${evo.fecha || ''}):\n${evo.texto}\n`;
+      });
+    }
+
+    setRawData(texto);
+  };
+
   const handleVerifySanitization = () => {
-    if (!rawData.trim()) return;
-    const result = sanitizeClinicalText(rawData);
+    if (!rawData.trim() && !archivoAdjunto && !linkGoogleDocs.trim()) return;
+    const result = sanitizeClinicalText(rawData || 'Datos clínicos adjuntos en imagen o enlace.');
     setSanitizedPreview(result);
   };
 
@@ -250,10 +311,6 @@ export const IAModuleDesktop: React.FC = () => {
           apiKey = savedConfig;
         }
       }
-      
-      if (!apiKey) {
-        throw new Error('API Key de Gemini no encontrada. Por favor regístrala.');
-      }
 
       const p = pacientes.find((x: any) => String(x.id) === String(selectedPacienteId) || String(x.cama) === String(selectedPacienteId));
       const doc = doctores.find(x => x.id === Number(selectedDoctorId));
@@ -265,8 +322,10 @@ export const IAModuleDesktop: React.FC = () => {
         tipoDocumento: tipoDoc,
         esqueletoFormat: customizedEsqueleto,
         preferenciasEstilo: doc?.estilo || 'Formato estándar formal.',
-        rawData: sanitizedPreview ? sanitizedPreview.textSanitized : rawData
-      }, apiKey);
+        rawData: sanitizedPreview ? sanitizedPreview.textSanitized : rawData,
+        archivo: archivoAdjunto,
+        linkGoogleDocs: linkGoogleDocs.trim() || undefined
+      }, apiKey || undefined);
 
       setOutput(response.text);
       setSanitizedPreview(null);
@@ -295,7 +354,6 @@ export const IAModuleDesktop: React.FC = () => {
   };
 
   return (
-    // CORRECCIÓN: Quitamos el flex/h-full rígido en móvil. Se acomodará libremente hacia abajo.
     <div className="p-3 md:p-6 max-w-[1600px] mx-auto space-y-4 md:space-y-6 bg-gray-50 min-h-screen md:min-h-0 md:h-full flex flex-col">
       
       <div className="bg-red-50/80 border-l-4 border-red-500 p-3 md:p-4 rounded-r-xl flex items-start gap-3 shadow-sm shrink-0">
@@ -307,7 +365,6 @@ export const IAModuleDesktop: React.FC = () => {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 items-start flex-1 md:overflow-hidden">
         
-        {/* CORRECCIÓN: Quitamos max-h-[85vh] y overflow en móvil. Ahora se extenderá lo necesario */}
         <div className="space-y-4 md:space-y-5 bg-white p-4 md:p-6 rounded-2xl border border-gray-100 shadow-sm flex flex-col lg:max-h-full md:overflow-y-auto">
           
           <div className="flex items-center gap-2 border-b border-gray-100 pb-3 shrink-0">
@@ -317,8 +374,17 @@ export const IAModuleDesktop: React.FC = () => {
           
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4 shrink-0">
             <div>
-              <label className="block text-[10px] md:text-[11px] font-bold uppercase text-gray-500 mb-1.5 tracking-wider">Paciente (Censo)</label>
-              <select className="w-full p-2.5 md:p-3 bg-gray-50 border border-gray-200 rounded-xl text-xs md:text-sm outline-none focus:ring-2 focus:ring-blue-400 text-gray-800 transition-shadow appearance-none cursor-pointer" value={selectedPacienteId} onChange={e => setSelectedPacienteId(e.target.value)}>
+              <div className="flex justify-between items-center mb-1.5">
+                <label className="block text-[10px] md:text-[11px] font-bold uppercase text-gray-500 tracking-wider">Paciente (Censo)</label>
+              </div>
+              <select 
+                className="w-full p-2.5 md:p-3 bg-gray-50 border border-gray-200 rounded-xl text-xs md:text-sm outline-none focus:ring-2 focus:ring-blue-400 text-gray-800 transition-shadow appearance-none cursor-pointer" 
+                value={selectedPacienteId} 
+                onChange={e => {
+                  setSelectedPacienteId(e.target.value);
+                  if (e.target.value) cargarDatosCensoEnRawData(e.target.value);
+                }}
+              >
                 <option value="">Seleccionar del Censo...</option>
                 {pacientes.map((p, idx) => (
                   <option key={p.id || idx} value={p.id || p.cama}>
@@ -344,6 +410,59 @@ export const IAModuleDesktop: React.FC = () => {
             </div>
           </div>
 
+          {/* Adjuntar Archivos / Fotos / Google Docs */}
+          <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-3 shrink-0">
+            <span className="text-[11px] font-bold uppercase text-gray-700 flex items-center gap-1.5 tracking-wider">
+              <Sparkles className="w-3.5 h-3.5 text-purple-600" /> Adjuntar Fotos, PDFs o Google Docs
+            </span>
+
+            <div className="grid grid-cols-2 sm:grid-cols-2 gap-2">
+              <label className="flex items-center justify-center gap-1.5 p-2 bg-white border border-gray-200 rounded-lg cursor-pointer hover:bg-purple-50 hover:border-purple-300 text-gray-700 hover:text-purple-900 text-xs font-bold transition-all shadow-sm">
+                <Camera className="w-4 h-4 text-purple-600" />
+                <span>Tomar Foto</span>
+                <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleSubirArchivo} />
+              </label>
+
+              <label className="flex items-center justify-center gap-1.5 p-2 bg-white border border-gray-200 rounded-lg cursor-pointer hover:bg-blue-50 hover:border-blue-300 text-gray-700 hover:text-blue-900 text-xs font-bold transition-all shadow-sm">
+                <FileUp className="w-4 h-4 text-blue-600" />
+                <span>Subir PDF / Imagen</span>
+                <input type="file" accept="image/*,application/pdf,.txt" className="hidden" onChange={handleSubirArchivo} />
+              </label>
+            </div>
+
+            {archivoAdjunto && (
+              <div className="bg-white p-2.5 rounded-lg border border-purple-200 flex items-center justify-between gap-2 animate-in fade-in">
+                <div className="flex items-center gap-2 truncate">
+                  {archivoAdjunto.vistaPrevia ? (
+                    <img src={archivoAdjunto.vistaPrevia} alt="Adjunto" className="w-8 h-8 object-cover rounded border" />
+                  ) : (
+                    <FileText className="w-6 h-6 text-blue-600" />
+                  )}
+                  <span className="text-xs font-bold text-gray-800 truncate">{archivoAdjunto.nombre}</span>
+                </div>
+                <button type="button" onClick={() => setArchivoAdjunto(null)} className="text-gray-400 hover:text-red-600 p-1">
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            )}
+
+            <div className="flex items-center gap-2 bg-white p-2 border border-gray-200 rounded-lg focus-within:ring-2 focus-within:ring-purple-400">
+              <Link className="w-4 h-4 text-gray-400 shrink-0" />
+              <input
+                type="text"
+                placeholder="Pega aquí el enlace de Google Docs (opcional)..."
+                value={linkGoogleDocs}
+                onChange={e => setLinkGoogleDocs(e.target.value)}
+                className="w-full text-xs outline-none text-gray-800"
+              />
+              {linkGoogleDocs && (
+                <button type="button" onClick={() => setLinkGoogleDocs('')} className="text-gray-400 hover:text-gray-600">
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </div>
+          </div>
+
           <div className="shrink-0">
             <div className="flex flex-col sm:flex-row sm:justify-between sm:items-end gap-1 mb-1.5">
               <label className="text-[10px] md:text-[11px] font-bold uppercase text-gray-500 tracking-wider">Esqueleto / Formato Base</label>
@@ -355,16 +474,27 @@ export const IAModuleDesktop: React.FC = () => {
               </button>
             </div>
             <textarea 
-              className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-[11px] md:text-xs font-mono h-32 md:h-40 outline-none focus:ring-2 focus:ring-blue-400 transition-shadow resize-none leading-relaxed text-gray-700"
+              className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-[11px] md:text-xs font-mono h-28 md:h-32 outline-none focus:ring-2 focus:ring-blue-400 transition-shadow resize-none leading-relaxed text-gray-700"
               value={esqueletoActual}
               onChange={e => setEsqueletoActual(e.target.value)}
             />
           </div>
 
-          <div className="flex-1 min-h-[150px] flex flex-col">
-            <label className="block text-[10px] md:text-[11px] font-bold uppercase text-gray-500 mb-1.5 tracking-wider shrink-0">Notas Sueltas, Laboratorios o Respuestas IC</label>
+          <div className="flex-1 min-h-[140px] flex flex-col">
+            <div className="flex justify-between items-center mb-1.5 shrink-0">
+              <label className="block text-[10px] md:text-[11px] font-bold uppercase text-gray-500 tracking-wider">Datos Clínicos / Notas / Evoluciones</label>
+              {selectedPacienteId && (
+                <button
+                  type="button"
+                  onClick={() => cargarDatosCensoEnRawData(selectedPacienteId)}
+                  className="text-[10px] text-purple-600 hover:text-purple-800 font-bold flex items-center gap-1"
+                >
+                  <Sparkles className="w-3 h-3" /> Re-cargar datos del censo
+                </button>
+              )}
+            </div>
             <textarea 
-              className="w-full p-3 md:p-4 bg-gray-50 border border-gray-200 rounded-xl text-xs md:text-sm h-full min-h-[150px] font-mono outline-none focus:ring-2 focus:ring-blue-400 transition-shadow resize-none leading-relaxed text-gray-800 flex-1"
+              className="w-full p-3 md:p-4 bg-gray-50 border border-gray-200 rounded-xl text-xs md:text-sm h-full min-h-[140px] font-mono outline-none focus:ring-2 focus:ring-blue-400 transition-shadow resize-none leading-relaxed text-gray-800 flex-1"
               placeholder="Pega aquí laboratorios, evolución intrahospitalaria, notas de interconsulta..."
               value={rawData} 
               onChange={e => setRawData(e.target.value)}
@@ -374,7 +504,7 @@ export const IAModuleDesktop: React.FC = () => {
           {!sanitizedPreview && (
             <button 
               onClick={handleVerifySanitization}
-              disabled={!rawData.trim() || isGenerating}
+              disabled={(!rawData.trim() && !archivoAdjunto && !linkGoogleDocs.trim()) || isGenerating}
               className="w-full flex items-center justify-center gap-2 bg-blue-600 text-white font-bold py-3 md:py-3.5 rounded-xl text-sm hover:bg-blue-700 disabled:opacity-50 transition-all shadow-md shrink-0"
             >
               <ShieldAlert className="w-4 h-4" /> Sanitizar y Revisar Privacidad
@@ -394,7 +524,17 @@ export const IAModuleDesktop: React.FC = () => {
               <div className="flex flex-col-reverse sm:flex-row gap-2 sm:justify-end pt-2">
                 <button onClick={() => setSanitizedPreview(null)} className="w-full sm:w-auto bg-white border border-gray-200 text-gray-700 px-4 py-2 text-xs font-bold rounded-lg transition-colors">Corregir Texto</button>
                 <button onClick={executeGeneration} disabled={isGenerating} className="w-full sm:w-auto flex items-center justify-center gap-1.5 bg-green-600 text-white px-5 py-2 text-xs font-bold rounded-lg hover:bg-green-700 shadow-sm transition-colors">
-                  {isGenerating ? 'Generando IA...' : <><Wand2 className="w-3.5 h-3.5"/> Confirmar y Enviar</>}
+                  {isGenerating ? (
+                    <>
+                      <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                      <span>Generando con Gemini...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Wand2 className="w-3.5 h-3.5"/>
+                      <span>Confirmar y Generar ✨</span>
+                    </>
+                  )}
                 </button>
               </div>
             </div>

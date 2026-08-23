@@ -77,6 +77,8 @@ export const generateClinicalDocumentWithGemini = async (formData: {
   esqueletoFormat: string;
   preferenciasEstilo: string;
   rawData: string;
+  archivo?: { base64: string; mimeType: string } | null;
+  linkGoogleDocs?: string;
 }, apiKeyDada?: string) => {
   const apiKey = obtenerApiKeyGuardada(apiKeyDada);
   
@@ -84,22 +86,130 @@ export const generateClinicalDocumentWithGemini = async (formData: {
     throw new Error("No hay API Key configurada. Por favor guárdala en el módulo 'Control & Métricas'.");
   }
 
+  let textoGoogleDocs = "";
+  if (formData.linkGoogleDocs && formData.linkGoogleDocs.includes("docs.google.com/document")) {
+    textoGoogleDocs = await extraerContenidoGoogleDocs(formData.linkGoogleDocs);
+  }
+
   const mejorModelo = await obtenerMejorModelo(apiKey);
   const genAI = new GoogleGenerativeAI(apiKey);
   const model = genAI.getGenerativeModel({ model: mejorModelo });
 
   const prompt = `
-  Eres un asistente médico experto. Genera un documento clínico basado en los siguientes datos:
-  Tipo de Documento: ${formData.tipoDocumento}
-  Formato: ${formData.esqueletoFormat}
-  Estilo: ${formData.preferenciasEstilo}
-  Datos crudos: ${formData.rawData}
-  `;
+Eres un asistente médico clínico de alta precisión. Tu tarea es redactar un documento clínico formal, completo y profesional en base a la información proporcionada.
 
-  const result = await model.generateContent(prompt);
+Tipo de Documento: ${formData.tipoDocumento}
+Esqueleto / Estructura base exigida:
+${formData.esqueletoFormat}
+
+Instrucciones y Exigencias de Estilo del Médico Emisor:
+${formData.preferenciasEstilo}
+
+Datos Clínicos del Paciente:
+${formData.rawData}
+${textoGoogleDocs ? `\n--- CONTENIDO ADICIONAL DESDE GOOGLE DOCS ---\n${textoGoogleDocs}` : ""}
+
+Genera el documento completo listo para la ficha clínica, siguiendo rigurosamente las pautas de estilo y formato solicitadas.
+`;
+
+  const contents: any[] = [prompt];
+
+  if (formData.archivo && formData.archivo.base64) {
+    const base64Data = formData.archivo.base64.split(',')[1] || formData.archivo.base64;
+    contents.push({
+      inlineData: {
+        mimeType: formData.archivo.mimeType,
+        data: base64Data
+      }
+    });
+  }
+
+  const result = await model.generateContent(contents);
   return {
     text: result.response.text()
   };
+};
+
+export interface EvolucionExtraidaDetallada {
+  fecha?: string;
+  texto: string;
+  tipo: "normal" | "ic";
+  especialidad?: string;
+  medico?: string;
+}
+
+export const extraerEvolucionConGemini = async (
+  archivoOTexto: {
+    base64?: string;
+    mimeType?: string;
+    textoPlano?: string;
+  },
+  apiKeyDada?: string
+): Promise<EvolucionExtraidaDetallada[]> => {
+  const apiKey = obtenerApiKeyGuardada(apiKeyDada);
+
+  if (!apiKey) {
+    throw new Error("No hay API Key configurada. Por favor regístrala.");
+  }
+
+  let textoFinal = archivoOTexto.textoPlano || "";
+  if (textoFinal.includes("docs.google.com/document")) {
+    textoFinal = await extraerContenidoGoogleDocs(textoFinal);
+  }
+
+  const prompt = `
+Eres un asistente médico clínico. Analiza la imagen, documento de Google Docs, nota o texto proporcionado y extrae las notas de evolución clínica diaria o respuestas de interconsulta del paciente.
+
+Debes responder ÚNICAMENTE con un JSON array válido con la siguiente estructura:
+[
+  {
+    "fecha": "YYYY-MM-DD",
+    "texto": "Texto completo y redactado de la evolución clínica del día o plan médico",
+    "tipo": "normal",
+    "especialidad": "",
+    "medico": ""
+  },
+  {
+    "fecha": "YYYY-MM-DD",
+    "texto": "Texto detallado de la respuesta de interconsulta, sugerencias y conductas del especialista",
+    "tipo": "ic",
+    "especialidad": "Especialidad médica (ej. Cardiología, Nefrología, Cirugía, etc.)",
+    "medico": "Nombre del médico especialista si figura (ej. Dr. Muñoz, Dra. Haro)"
+  }
+]
+
+Si solo hay una evolución del día, devuelve un array con 1 elemento.
+`;
+
+  const contents: any[] = [prompt];
+  if (textoFinal && textoFinal.trim().length > 0) {
+    contents.push(`\n--- NOTAS / DOCUMENTO ---\n${textoFinal}`);
+  }
+
+  if (archivoOTexto.base64 && archivoOTexto.mimeType) {
+    const base64Data = archivoOTexto.base64.split(',')[1] || archivoOTexto.base64;
+    contents.push({
+      inlineData: {
+        mimeType: archivoOTexto.mimeType,
+        data: base64Data
+      }
+    });
+  }
+
+  const mejorModelo = await obtenerMejorModelo(apiKey);
+  const genAI = new GoogleGenerativeAI(apiKey);
+  const model = genAI.getGenerativeModel({
+    model: mejorModelo,
+    generationConfig: { responseMimeType: "application/json" }
+  });
+
+  const result = await model.generateContent(contents);
+  const rawText = result.response.text();
+  if (!rawText) throw new Error("Respuesta vacía de Gemini");
+
+  const jsonLimpio = rawText.replace(/^```json\s*/i, '').replace(/\s*```$/i, '').trim();
+  const parsed = JSON.parse(jsonLimpio);
+  return Array.isArray(parsed) ? parsed : [parsed];
 };
 
 export const consultarGeminiConArchivo = async (

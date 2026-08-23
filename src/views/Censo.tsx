@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Users, Plus, Trash2, Edit3, Save, CheckCircle2, Circle, FileText, Calendar, AlertTriangle, ChevronDown, ChevronUp, X, ShieldAlert, Activity, Syringe, Bandage, Stethoscope, Cloud, Camera, Sparkles, Loader2, FileUp, Key } from "lucide-react";
 import { guardarEnNube, cargarDeNube } from "../Services/cloudSync";
-import { extraerPacienteDesdeDocumentoConGemini, obtenerApiKeyGuardada } from "../Services/gemini";
+import { extraerPacienteDesdeDocumentoConGemini, extraerEvolucionConGemini, obtenerApiKeyGuardada } from "../Services/gemini";
 
 interface Pendiente { id: string; texto: string; completado: boolean; }
 interface Evolucion { id: string; fecha: string; texto: string; tipo?: "normal" | "ic"; especialidad?: string; medico?: string; }
@@ -293,6 +293,127 @@ export default function Censo() {
   const [nuevoTextoEvolucion, setNuevoTextoEvolucion] = useState("");
   const [especialidadIC, setEspecialidadIC] = useState("");
   const [medicoIC, setMedicoIC] = useState("");
+  
+  // Estados para extracción de Evolución con IA
+  const [mostrarEscaneoEvo, setMostrarEscaneoEvo] = useState(false);
+  const [escaneandoEvoIA, setEscaneandoEvoIA] = useState(false);
+  const [archivoEvo, setArchivoEvo] = useState<{ base64: string; mimeType: string; nombre: string; vistaPrevia?: string } | null>(null);
+  const [textoEvoAI, setTextoEvoAI] = useState("");
+  const [errorEvoAI, setErrorEvoAI] = useState("");
+
+  const handleFileSelectEvo = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setErrorEvoAI("");
+    const reader = new FileReader();
+
+    if (file.type.startsWith("image/")) {
+      reader.onload = () => {
+        const result = reader.result as string;
+        setArchivoEvo({
+          base64: result,
+          mimeType: file.type,
+          nombre: file.name,
+          vistaPrevia: result,
+        });
+      };
+      reader.readAsDataURL(file);
+    } else if (file.type === "application/pdf") {
+      reader.onload = () => {
+        const result = reader.result as string;
+        setArchivoEvo({
+          base64: result,
+          mimeType: file.type,
+          nombre: file.name,
+        });
+      };
+      reader.readAsDataURL(file);
+    } else {
+      reader.onload = () => {
+        const result = reader.result as string;
+        setTextoEvoAI(result);
+      };
+      reader.readAsText(file);
+    }
+  };
+
+  const procesarEvolucionConIA = async () => {
+    if (!archivoEvo && !textoEvoAI.trim()) {
+      setErrorEvoAI("Toma una foto, sube un archivo o pega el texto/link de Google Docs.");
+      return;
+    }
+
+    const key = apiKeyLocal.trim() || obtenerApiKeyGuardada();
+    if (!key) {
+      setErrorEvoAI("Por favor configura tu API Key de Gemini.");
+      return;
+    }
+
+    setEscaneandoEvoIA(true);
+    setErrorEvoAI("");
+
+    try {
+      const resultado = await extraerEvolucionConGemini({
+        base64: archivoEvo?.base64,
+        mimeType: archivoEvo?.mimeType,
+        textoPlano: textoEvoAI.trim() || undefined
+      }, key);
+
+      if (resultado && resultado.length > 0) {
+        if (resultado.length === 1) {
+          const evo = resultado[0];
+          setTipoNota(evo.tipo === "ic" ? "ic" : "normal");
+          setNuevoTextoEvolucion(evo.texto);
+          if (evo.especialidad) setEspecialidadIC(evo.especialidad);
+          if (evo.medico) setMedicoIC(evo.medico);
+          setMostrarEscaneoEvo(false);
+          setArchivoEvo(null);
+          setTextoEvoAI("");
+        } else {
+          if (pacienteSeleccionadoEvolucion) {
+            const nuevasEvos: Evolucion[] = resultado.map((e, idx) => ({
+              id: (Date.now() + idx).toString(),
+              fecha: e.fecha || hoyStr,
+              texto: e.texto,
+              tipo: e.tipo === "ic" ? "ic" : "normal",
+              especialidad: e.especialidad || "",
+              medico: e.medico || ""
+            }));
+
+            const evosActualizadas = [...nuevasEvos, ...(pacienteSeleccionadoEvolucion.evoluciones || [])];
+            const tieneHoy = nuevasEvos.some(e => e.fecha === hoyStr);
+
+            const actualizados = pacientes.map(p => {
+              if (p.id === pacienteSeleccionadoEvolucion.id) {
+                return {
+                  ...p,
+                  evoluciones: evosActualizadas,
+                  ultimaEvolucionFecha: tieneHoy ? hoyStr : p.ultimaEvolucionFecha
+                };
+              }
+              return p;
+            });
+
+            setPacientes(actualizados);
+            setPacienteSeleccionadoEvolucion(prev => prev ? {
+              ...prev,
+              evoluciones: evosActualizadas,
+              ultimaEvolucionFecha: tieneHoy ? hoyStr : prev.ultimaEvolucionFecha
+            } : null);
+
+            setMostrarEscaneoEvo(false);
+            setArchivoEvo(null);
+            setTextoEvoAI("");
+          }
+        }
+      }
+    } catch (err: any) {
+      setErrorEvoAI(err.message || "Error al extraer la evolución con IA.");
+    } finally {
+      setEscaneandoEvoIA(false);
+    }
+  };
   
   const [textoNuevoPendiente, setTextoNuevoPendiente] = useState<{ [key: string]: string }>({});
 
@@ -899,31 +1020,115 @@ export default function Censo() {
             </div>
             <div className="flex-1 overflow-y-auto space-y-4 pr-1 -mr-1">
                 <div className="bg-slate-50 p-3 sm:p-4 rounded-xl border border-gray-200 space-y-3 shrink-0">
-                <div className="flex flex-col xs:flex-row gap-2">
-                    <button type="button" onClick={() => setTipoNota("normal")} className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 border ${ tipoNota === "normal" ? "bg-blue-600 border-blue-600 text-white shadow-md" : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50" }`}><FileText className="w-4 h-4" /> Evolución Normal</button>
-                    <button type="button" onClick={() => setTipoNota("ic")} className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 border ${ tipoNota === "ic" ? "bg-purple-600 border-purple-600 text-white shadow-md" : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50" }`}><Stethoscope className="w-4 h-4" /> Respuesta (IC)</button>
-                </div>
-                {tipoNota === "ic" && (
+                  <div className="flex justify-between items-center">
+                    <div className="flex flex-col xs:flex-row gap-2 flex-1 mr-2">
+                        <button type="button" onClick={() => setTipoNota("normal")} className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 border ${ tipoNota === "normal" ? "bg-blue-600 border-blue-600 text-white shadow-md" : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50" }`}><FileText className="w-4 h-4" /> Evolución Normal</button>
+                        <button type="button" onClick={() => setTipoNota("ic")} className={`flex-1 py-2 px-3 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 border ${ tipoNota === "ic" ? "bg-purple-600 border-purple-600 text-white shadow-md" : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50" }`}><Stethoscope className="w-4 h-4" /> Respuesta (IC)</button>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setMostrarEscaneoEvo(!mostrarEscaneoEvo)}
+                      className={`px-3 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-1.5 border ${
+                        mostrarEscaneoEvo
+                          ? "bg-purple-700 text-white border-purple-700"
+                          : "bg-purple-50 text-purple-700 border-purple-200 hover:bg-purple-100"
+                      }`}
+                    >
+                      <Sparkles className="w-3.5 h-3.5" />
+                      <span className="hidden sm:inline">Foto / Doc (IA)</span>
+                    </button>
+                  </div>
+
+                  {/* Panel desplegable de escaneo con IA para evolución */}
+                  {mostrarEscaneoEvo && (
+                    <div className="bg-purple-50/70 border border-purple-200 rounded-xl p-3 space-y-3 animate-in fade-in">
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs font-bold text-purple-900 flex items-center gap-1.5">
+                          <Sparkles className="w-3.5 h-3.5 text-purple-600" /> Extraer Evolución o IC con IA
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => setMostrarEscaneoEvo(false)}
+                          className="text-gray-400 hover:text-gray-600"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
+                      </div>
+
+                      <div className="grid grid-cols-2 gap-2">
+                        <label className="flex items-center justify-center gap-1.5 p-2.5 bg-white border border-purple-200 rounded-lg cursor-pointer hover:bg-purple-50 text-purple-900 text-xs font-bold transition-colors">
+                          <Camera className="w-4 h-4 text-purple-600" />
+                          <span>Tomar Foto</span>
+                          <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFileSelectEvo} />
+                        </label>
+                        <label className="flex items-center justify-center gap-1.5 p-2.5 bg-white border border-purple-200 rounded-lg cursor-pointer hover:bg-purple-50 text-purple-900 text-xs font-bold transition-colors">
+                          <FileUp className="w-4 h-4 text-blue-600" />
+                          <span>Subir Archivo / PDF</span>
+                          <input type="file" accept="image/*,application/pdf,.txt" className="hidden" onChange={handleFileSelectEvo} />
+                        </label>
+                      </div>
+
+                      {archivoEvo && (
+                        <div className="bg-white p-2 rounded-lg border border-purple-100 flex items-center justify-between text-xs">
+                          <span className="truncate font-medium text-gray-700">📄 {archivoEvo.nombre}</span>
+                          <button type="button" onClick={() => setArchivoEvo(null)} className="text-red-500 font-bold ml-2">X</button>
+                        </div>
+                      )}
+
+                      <textarea
+                        rows={2}
+                        value={textoEvoAI}
+                        onChange={(e) => setTextoEvoAI(e.target.value)}
+                        placeholder="O pega link de Google Docs, notas del pase de sala o respuesta de interconsulta..."
+                        className="w-full p-2.5 bg-white border border-purple-200 rounded-lg text-xs outline-none focus:ring-2 focus:ring-purple-400 resize-none text-gray-800"
+                      />
+
+                      {errorEvoAI && (
+                        <p className="text-xs text-red-600 font-semibold">{errorEvoAI}</p>
+                      )}
+
+                      <button
+                        type="button"
+                        onClick={procesarEvolucionConIA}
+                        disabled={escaneandoEvoIA || (!archivoEvo && !textoEvoAI.trim())}
+                        className="w-full py-2 bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs rounded-lg flex items-center justify-center gap-1.5 disabled:opacity-50 transition-colors shadow-sm"
+                      >
+                        {escaneandoEvoIA ? (
+                          <>
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            <span>Extrayendo con Gemini...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Sparkles className="w-3.5 h-3.5" />
+                            <span>Procesar y Llenar Evolución ✨</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  )}
+
+                  {tipoNota === "ic" && (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-purple-50 p-3 rounded-lg border border-purple-200">
-                    <div>
+                      <div>
                         <label className="block text-[10px] font-bold text-purple-900 uppercase tracking-wider mb-1">Especialidad</label>
                         <input type="text" placeholder="Ej. Gastroenterología" value={especialidadIC} onChange={e => setEspecialidadIC(e.target.value)} className="w-full p-2 border border-purple-200 rounded-lg text-xs bg-white outline-none focus:ring-2 focus:ring-purple-400" />
-                    </div>
-                    <div>
+                      </div>
+                      <div>
                         <label className="block text-[10px] font-bold text-purple-900 uppercase tracking-wider mb-1">Médico Especialista</label>
                         <input type="text" placeholder="Ej. Dr. Karelovic" value={medicoIC} onChange={e => setMedicoIC(e.target.value)} className="w-full p-2 border border-purple-200 rounded-lg text-xs bg-white outline-none focus:ring-2 focus:ring-purple-400" />
+                      </div>
                     </div>
-                    </div>
-                )}
-                <div>
+                  )}
+                  <div>
                     <label className="block text-[10px] font-bold uppercase text-gray-600 tracking-wider mb-1.5">{tipoNota === "ic" ? "Sugerencias y Plan del Especialista:" : `Agregar Evolución de Hoy (${hoyStr.split('-').reverse().join('/')})`}</label>
                     <textarea rows={3} placeholder={tipoNota === "ic" ? "Pega aquí lo que recomendó el especialista..." : "Escribe la evolución clínica, notas de turno o plan del día..."} value={nuevoTextoEvolucion} onChange={e => setNuevoTextoEvolucion(e.target.value)} className="w-full p-3 border border-gray-300 rounded-xl text-sm bg-white outline-none focus:ring-2 focus:ring-blue-400 resize-none leading-relaxed" />
-                </div>
-                <div className="flex justify-end">
+                  </div>
+                  <div className="flex justify-end">
                     <button onClick={guardarEvolucion} className={`w-full sm:w-auto px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-white shadow-md transition-colors ${tipoNota === "ic" ? "bg-purple-600 hover:bg-purple-700" : "bg-blue-600 hover:bg-blue-700"}`}>
-                    {tipoNota === "ic" ? "Guardar Respuesta IC 🩺" : "Guardar y Marcar Evolucionado 🚀"}
+                      {tipoNota === "ic" ? "Guardar Respuesta IC 🩺" : "Guardar y Marcar Evolucionado 🚀"}
                     </button>
-                </div>
+                  </div>
                 </div>
                 <div className="space-y-3 pt-2">
                 <h3 className="text-[10px] font-bold uppercase text-gray-500 tracking-wider">Historial de Evoluciones e Interconsultas</h3>
