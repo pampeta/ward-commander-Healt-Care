@@ -142,16 +142,31 @@ export const extraerContenidoGoogleDocs = async (urlOTexto: string): Promise<str
   if (!match || !match[1]) return urlOTexto;
 
   const docId = match[1];
-  const exportUrl = `https://docs.google.com/document/d/${docId}/export?format=txt`;
+  const docUrl = `https://docs.google.com/document/d/${docId}/edit`;
 
+  // 1. Intentar endpoint serverless propio de Vercel (/api/fetch-google-doc)
   try {
+    const res = await fetch(`/api/fetch-google-doc?url=${encodeURIComponent(docUrl)}`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data.text && data.text.trim().length > 0) {
+        return data.text;
+      }
+    }
+  } catch (e) {
+    console.warn("No se pudo usar /api/fetch-google-doc:", e);
+  }
+
+  // 2. Intentar export directo
+  try {
+    const exportUrl = `https://docs.google.com/document/d/${docId}/export?format=txt`;
     const res = await fetch(exportUrl);
     if (res.ok) {
       const text = await res.text();
       if (text && text.trim().length > 0) return text;
     }
   } catch (e) {
-    console.warn("No se pudo descargar directamente el Google Doc por CORS o permisos privados:", e);
+    console.warn("Direct fetch bloqueado por CORS:", e);
   }
 
   return urlOTexto;
