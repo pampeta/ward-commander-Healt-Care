@@ -1,4 +1,6 @@
-const MODELO_GEMINI = "gemini-1.5-flash"; 
+import { GoogleGenerativeAI } from "@google/generative-ai";
+
+const MODELO_PRINCIPAL = "gemini-1.5-flash"; 
 
 export const obtenerApiKeyGuardada = (apiKeyDada?: string): string => {
   if (apiKeyDada && apiKeyDada.trim()) return apiKeyDada.trim();
@@ -39,7 +41,8 @@ export const generateClinicalDocumentWithGemini = async (formData: {
     throw new Error("No hay API Key configurada. Por favor guárdala en el módulo 'Control & Métricas'.");
   }
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODELO_GEMINI}:generateContent?key=${apiKey}`;
+  const genAI = new GoogleGenerativeAI(apiKey);
+  const model = genAI.getGenerativeModel({ model: MODELO_PRINCIPAL });
 
   const prompt = `
   Eres un asistente médico experto. Genera un documento clínico basado en los siguientes datos:
@@ -49,22 +52,9 @@ export const generateClinicalDocumentWithGemini = async (formData: {
   Datos crudos: ${formData.rawData}
   `;
 
-  const response = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      contents: [{ parts: [{ text: prompt }] }]
-    })
-  });
-
-  if (!response.ok) {
-    const errJson = await response.json().catch(() => ({}));
-    throw new Error(errJson.error?.message || `Error HTTP ${response.status}`);
-  }
-
-  const data = await response.json();
+  const result = await model.generateContent(prompt);
   return {
-    text: data.candidates[0].content.parts[0].text
+    text: result.response.text()
   };
 };
 
@@ -79,37 +69,23 @@ export const consultarGeminiConArchivo = async (
     throw new Error("No hay API Key configurada. Por favor guárdala en el módulo 'Control & Métricas'.");
   }
 
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${MODELO_GEMINI}:generateContent?key=${apiKey}`;
+  const genAI = new GoogleGenerativeAI(apiKey);
+  const model = genAI.getGenerativeModel({ model: MODELO_PRINCIPAL });
 
-  const parts: any[] = [{ text: prompt }];
+  const contents: any[] = [prompt];
 
   if (archivo && archivo.base64) {
     const base64Data = archivo.base64.split(',')[1] || archivo.base64;
-    parts.push({
-      inline_data: {
-        mime_type: archivo.mimeType,
+    contents.push({
+      inlineData: {
+        mimeType: archivo.mimeType,
         data: base64Data
       }
     });
   }
 
-  const response = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ contents: [{ parts }] }),
-  });
-
-  if (!response.ok) {
-    const errorData = await response.json().catch(() => ({}));
-    throw new Error(errorData.error?.message || `Error HTTP ${response.status} al conectar con Google.`);
-  }
-  
-  const data = await response.json();
-  if (!data.candidates || data.candidates.length === 0) {
-    throw new Error("Google no devolvió ninguna respuesta válida.");
-  }
-
-  return data.candidates[0].content.parts[0].text;
+  const result = await model.generateContent(contents);
+  return result.response.text();
 };
 
 export interface EvolucionExtraida {
@@ -189,7 +165,7 @@ export const extraerPacienteDesdeDocumentoConGemini = async (
     throw new Error("No hay API Key de Gemini configurada. Por favor regístrala en el módulo 'Control & Configuración'.");
   }
 
-  // Si es un enlace de Google Docs en textoPlano, intentamos extraer el texto
+  // Si es un enlace de Google Docs en textoPlano, descargamos el texto completo
   let textoFinal = archivoOTexto.textoPlano || "";
   if (textoFinal.includes("docs.google.com/document")) {
     textoFinal = await extraerContenidoGoogleDocs(textoFinal);
@@ -240,51 +216,43 @@ Debes responder ÚNICAMENTE con un objeto JSON válido con la siguiente estructu
 Si algún dato no está explícito en el documento, deja el valor como string vacío ("") o false en curacion.activo o un array vacío [] en evoluciones/pendientes.
 `;
 
-  const parts: any[] = [{ text: prompt }];
+  const contents: any[] = [prompt];
 
   if (textoFinal && textoFinal.trim().length > 0) {
-    parts.push({ text: `\n--- TEXTO CLÍNICO PROPORCIONADO ---\n${textoFinal}` });
+    contents.push(`\n--- TEXTO CLÍNICO PROPORCIONADO ---\n${textoFinal}`);
   }
 
   if (archivoOTexto.base64 && archivoOTexto.mimeType) {
     const base64Data = archivoOTexto.base64.split(',')[1] || archivoOTexto.base64;
-    parts.push({
-      inline_data: {
-        mime_type: archivoOTexto.mimeType,
+    contents.push({
+      inlineData: {
+        mimeType: archivoOTexto.mimeType,
         data: base64Data
       }
     });
   }
 
-  const modelosAIntentar = ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-2.5-flash", "gemini-1.5-flash-8b"];
+  const genAI = new GoogleGenerativeAI(apiKey);
+  const modelosAIntentar = ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-1.5-pro"];
   let ultimoError: any = null;
 
   for (const modelo of modelosAIntentar) {
     try {
-      const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelo}:generateContent?key=${apiKey}`;
-      const response = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{ parts }],
-          generationConfig: {
-            responseMimeType: "application/json"
-          }
-        })
+      const model = genAI.getGenerativeModel({
+        model: modelo,
+        generationConfig: {
+          responseMimeType: "application/json"
+        }
       });
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error?.message || `HTTP ${response.status}`);
-      }
-
-      const data = await response.json();
-      const rawText = data.candidates?.[0]?.content?.parts?.[0]?.text;
+      const result = await model.generateContent(contents);
+      const rawText = result.response.text();
       if (!rawText) throw new Error("Respuesta vacía de Gemini");
 
       const jsonLimpio = rawText.replace(/^```json\s*/i, '').replace(/\s*```$/i, '').trim();
       return JSON.parse(jsonLimpio) as DatosPacienteExtraidos;
     } catch (err: any) {
+      console.warn(`Intento con ${modelo} falló:`, err);
       ultimoError = err;
     }
   }
