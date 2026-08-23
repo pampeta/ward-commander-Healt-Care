@@ -23,14 +23,15 @@ export const listarModelosDisponibles = async (apiKey: string): Promise<string[]
 export const obtenerMejorModelo = async (apiKey: string): Promise<string> => {
   const disponibles = await listarModelosDisponibles(apiKey);
   const preferencia = [
-    "gemini-2.5-flash",
+    "gemini-3.6-flash",
+    "gemini-3.6-pro",
     "gemini-2.0-flash",
-    "gemini-2.5-pro",
     "gemini-2.0-flash-exp",
     "gemini-flash-latest",
     "gemini-pro-latest",
     "gemini-1.5-flash",
-    "gemini-1.5-pro"
+    "gemini-1.5-pro",
+    "gemini-2.5-flash"
   ];
 
   for (const pref of preferencia) {
@@ -42,7 +43,7 @@ export const obtenerMejorModelo = async (apiKey: string): Promise<string> => {
 
   if (disponibles.length > 0) return disponibles[0];
 
-  return "gemini-2.5-flash";
+  return "gemini-3.6-flash";
 };
 
 export const obtenerApiKeyGuardada = (apiKeyDada?: string): string => {
@@ -392,14 +393,15 @@ Si algún dato no está explícito en el documento, deja el valor como string va
   // Obtener dinámicamente los modelos reales disponibles para la API key del usuario
   const disponibles = await listarModelosDisponibles(apiKey);
   const preferencia = [
-    "gemini-2.5-flash",
+    "gemini-3.6-flash",
+    "gemini-3.6-pro",
     "gemini-2.0-flash",
-    "gemini-2.5-pro",
     "gemini-2.0-flash-exp",
     "gemini-flash-latest",
     "gemini-pro-latest",
     "gemini-1.5-flash",
-    "gemini-1.5-pro"
+    "gemini-1.5-pro",
+    "gemini-2.5-flash"
   ];
 
   const modelosAIntentar: string[] = [];
@@ -418,7 +420,7 @@ Si algún dato no está explícito en el documento, deja el valor como string va
   }
 
   if (modelosAIntentar.length === 0) {
-    modelosAIntentar.push("gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash");
+    modelosAIntentar.push("gemini-3.6-flash", "gemini-2.0-flash", "gemini-1.5-flash");
   }
 
   let ultimoError: any = null;
