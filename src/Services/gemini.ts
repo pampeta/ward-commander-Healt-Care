@@ -242,8 +242,8 @@ Si algún dato no está explícito en el documento, deja el valor como string va
 
   const parts: any[] = [{ text: prompt }];
 
-  if (archivoOTexto.textoPlano) {
-    parts.push({ text: `\n--- TEXTO CLÍNICO PROPORCIONADO ---\n${archivoOTexto.textoPlano}` });
+  if (textoFinal && textoFinal.trim().length > 0) {
+    parts.push({ text: `\n--- TEXTO CLÍNICO PROPORCIONADO ---\n${textoFinal}` });
   }
 
   if (archivoOTexto.base64 && archivoOTexto.mimeType) {
@@ -256,7 +256,7 @@ Si algún dato no está explícito en el documento, deja el valor como string va
     });
   }
 
-  const modelosAIntentar = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash", "gemini-3.5-flash"];
+  const modelosAIntentar = ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-2.5-flash", "gemini-1.5-flash-8b"];
   let ultimoError: any = null;
 
   for (const modelo of modelosAIntentar) {
