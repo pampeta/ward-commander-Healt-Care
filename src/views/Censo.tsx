@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
-import { Users, Plus, Trash2, Edit3, Save, CheckCircle2, Circle, FileText, Calendar, AlertTriangle, ChevronDown, ChevronUp, X, ShieldAlert, Activity, Syringe, Bandage, Stethoscope, Cloud, Camera, Sparkles, Loader2, FileUp } from "lucide-react";
+import { Users, Plus, Trash2, Edit3, Save, CheckCircle2, Circle, FileText, Calendar, AlertTriangle, ChevronDown, ChevronUp, X, ShieldAlert, Activity, Syringe, Bandage, Stethoscope, Cloud, Camera, Sparkles, Loader2, FileUp, Key } from "lucide-react";
 import { guardarEnNube, cargarDeNube } from "../Services/cloudSync";
-import { extraerPacienteDesdeDocumentoConGemini } from "../Services/gemini";
+import { extraerPacienteDesdeDocumentoConGemini, obtenerApiKeyGuardada } from "../Services/gemini";
 
 interface Pendiente { id: string; texto: string; completado: boolean; }
 interface Evolucion { id: string; fecha: string; texto: string; tipo?: "normal" | "ic"; especialidad?: string; medico?: string; }
@@ -154,6 +154,19 @@ export default function Censo() {
   const [archivoEscaneo, setArchivoEscaneo] = useState<{ base64: string; mimeType: string; nombre: string; vistaPrevia?: string } | null>(null);
   const [textoEscaneo, setTextoEscaneo] = useState("");
   const [errorEscaneo, setErrorEscaneo] = useState("");
+  const [apiKeyLocal, setApiKeyLocal] = useState("");
+  const [mostrarConfigKey, setMostrarConfigKey] = useState(false);
+
+  useEffect(() => {
+    const k = obtenerApiKeyGuardada();
+    if (k) setApiKeyLocal(k);
+  }, []);
+
+  const guardarApiKeyLocal = (nuevaClave: string) => {
+    setApiKeyLocal(nuevaClave);
+    localStorage.setItem("wc_config", JSON.stringify({ apiKey: nuevaClave.trim() }));
+    localStorage.setItem("gemini_api_key", nuevaClave.trim());
+  };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -198,6 +211,13 @@ export default function Censo() {
       return;
     }
 
+    const keyActual = apiKeyLocal.trim() || obtenerApiKeyGuardada();
+    if (!keyActual) {
+      setErrorEscaneo("Por favor ingresa tu API Key de Gemini (Google AI Studio) abajo para que la IA procese el documento.");
+      setMostrarConfigKey(true);
+      return;
+    }
+
     setEscaneandoIA(true);
     setErrorEscaneo("");
 
@@ -206,7 +226,7 @@ export default function Censo() {
         base64: archivoEscaneo?.base64,
         mimeType: archivoEscaneo?.mimeType,
         textoPlano: textoEscaneo.trim() || undefined,
-      });
+      }, keyActual);
 
       const curacionExtraida: Curacion = datosExtraidos.curacion ? {
         activo: !!datosExtraidos.curacion.activo,
@@ -691,6 +711,42 @@ export default function Censo() {
                   La IA detecta automáticamente la cama, nombre, diagnóstico, antibióticos, <strong>evoluciones clínicas separadas por fecha</strong> e <strong>interconsultas (IC)</strong> asignando la especialidad y el doctor.
                 </p>
               </div>
+
+              {/* Configuración / Entrada directa de API Key de Gemini */}
+              {(!apiKeyLocal || mostrarConfigKey) ? (
+                <div className="bg-amber-50/80 border border-amber-200 rounded-xl p-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-xs font-bold text-amber-950 flex items-center gap-1.5">
+                      <Key className="w-3.5 h-3.5 text-amber-700" /> Clave de Gemini (Google AI Studio) <span className="text-red-500">*</span>
+                    </label>
+                    {apiKeyLocal && (
+                      <button type="button" onClick={() => setMostrarConfigKey(false)} className="text-[10px] text-gray-500 hover:text-gray-700 font-bold underline">
+                        Ocultar
+                      </button>
+                    )}
+                  </div>
+                  <input
+                    type="password"
+                    value={apiKeyLocal}
+                    onChange={(e) => guardarApiKeyLocal(e.target.value)}
+                    placeholder="Pega aquí tu clave AIzaSy..."
+                    className="w-full p-2.5 bg-white border border-amber-300 rounded-lg text-xs font-mono outline-none focus:ring-2 focus:ring-amber-500 text-gray-800"
+                  />
+                  <p className="text-[10px] text-amber-800 leading-tight">
+                    Tu clave se guarda automáticamente en este dispositivo. Si no tienes una, consíguela gratis en{" "}
+                    <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer" className="underline font-bold text-blue-700">
+                      Google AI Studio ↗
+                    </a>.
+                  </p>
+                </div>
+              ) : (
+                <div className="flex justify-between items-center bg-slate-50 px-3 py-1.5 rounded-lg border border-gray-100 text-[11px] text-gray-500">
+                  <span className="flex items-center gap-1.5"><Key className="w-3 h-3 text-green-600" /> Clave de IA configurada</span>
+                  <button type="button" onClick={() => setMostrarConfigKey(true)} className="text-purple-600 hover:text-purple-800 font-bold text-[10px]">
+                    Cambiar
+                  </button>
+                </div>
+              )}
 
               {errorEscaneo && (
                 <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-800 font-semibold flex items-center gap-2">

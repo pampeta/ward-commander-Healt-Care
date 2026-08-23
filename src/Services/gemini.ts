@@ -1,7 +1,10 @@
-const MODELO_GEMINI = "gemini-3.5-flash"; 
+const MODELO_GEMINI = "gemini-1.5-flash"; 
 
-const obtenerApiKeyGuardada = (apiKeyDada?: string): string => {
+export const obtenerApiKeyGuardada = (apiKeyDada?: string): string => {
   if (apiKeyDada && apiKeyDada.trim()) return apiKeyDada.trim();
+
+  const envKey = (import.meta.env.VITE_GEMINI_API_KEY as string | undefined)?.trim();
+  if (envKey) return envKey;
   
   if (typeof window !== "undefined") {
     try {
