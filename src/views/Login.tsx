@@ -13,11 +13,11 @@ export default function Login() {
     setCargando(true);
 
     if (esRegistro) {
-      const { error } = await supabase.auth.signUp({ email, password });
+      const { data, error } = await supabase.auth.signUp({ email, password });
       if (error) {
         alert(`Error al registrarse: ${error.message}`);
-      } else {
-        alert('¡Registro exitoso! Revisa tu correo o inicia sesión.');
+      } else if (!data.session) {
+        alert('¡Registro exitoso! Revisa tu correo para confirmar la cuenta.');
         setEsRegistro(false);
       }
     } else {
