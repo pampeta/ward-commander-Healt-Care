@@ -1,6 +1,49 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-const MODELO_PRINCIPAL = "gemini-1.5-flash"; 
+export const listarModelosDisponibles = async (apiKey: string): Promise<string[]> => {
+  try {
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data.models)) {
+        const soportados = data.models
+          .filter((m: any) => m.supportedGenerationMethods?.includes("generateContent"))
+          .map((m: any) => m.name.replace(/^models\//, ""));
+
+        console.log("Modelos habilitados en tu cuenta:", soportados);
+        return soportados;
+      }
+    }
+  } catch (e) {
+    console.warn("No se pudo consultar ListModels:", e);
+  }
+  return [];
+};
+
+export const obtenerMejorModelo = async (apiKey: string): Promise<string> => {
+  const disponibles = await listarModelosDisponibles(apiKey);
+  const preferencia = [
+    "gemini-2.5-flash",
+    "gemini-2.0-flash",
+    "gemini-2.5-pro",
+    "gemini-2.0-flash-exp",
+    "gemini-flash-latest",
+    "gemini-pro-latest",
+    "gemini-1.5-flash",
+    "gemini-1.5-pro"
+  ];
+
+  for (const pref of preferencia) {
+    if (disponibles.includes(pref)) return pref;
+  }
+
+  const algunFlash = disponibles.find(m => m.toLowerCase().includes("flash"));
+  if (algunFlash) return algunFlash;
+
+  if (disponibles.length > 0) return disponibles[0];
+
+  return "gemini-2.5-flash";
+};
 
 export const obtenerApiKeyGuardada = (apiKeyDada?: string): string => {
   if (apiKeyDada && apiKeyDada.trim()) return apiKeyDada.trim();
@@ -41,8 +84,9 @@ export const generateClinicalDocumentWithGemini = async (formData: {
     throw new Error("No hay API Key configurada. Por favor guárdala en el módulo 'Control & Métricas'.");
   }
 
+  const mejorModelo = await obtenerMejorModelo(apiKey);
   const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({ model: MODELO_PRINCIPAL });
+  const model = genAI.getGenerativeModel({ model: mejorModelo });
 
   const prompt = `
   Eres un asistente médico experto. Genera un documento clínico basado en los siguientes datos:
@@ -69,8 +113,9 @@ export const consultarGeminiConArchivo = async (
     throw new Error("No hay API Key configurada. Por favor guárdala en el módulo 'Control & Métricas'.");
   }
 
+  const mejorModelo = await obtenerMejorModelo(apiKey);
   const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({ model: MODELO_PRINCIPAL });
+  const model = genAI.getGenerativeModel({ model: mejorModelo });
 
   const contents: any[] = [prompt];
 
@@ -233,7 +278,39 @@ Si algún dato no está explícito en el documento, deja el valor como string va
   }
 
   const genAI = new GoogleGenerativeAI(apiKey);
-  const modelosAIntentar = ["gemini-1.5-flash", "gemini-2.0-flash", "gemini-1.5-pro"];
+  
+  // Obtener dinámicamente los modelos reales disponibles para la API key del usuario
+  const disponibles = await listarModelosDisponibles(apiKey);
+  const preferencia = [
+    "gemini-2.5-flash",
+    "gemini-2.0-flash",
+    "gemini-2.5-pro",
+    "gemini-2.0-flash-exp",
+    "gemini-flash-latest",
+    "gemini-pro-latest",
+    "gemini-1.5-flash",
+    "gemini-1.5-pro"
+  ];
+
+  const modelosAIntentar: string[] = [];
+
+  if (disponibles.length > 0) {
+    for (const pref of preferencia) {
+      if (disponibles.includes(pref) && !modelosAIntentar.includes(pref)) {
+        modelosAIntentar.push(pref);
+      }
+    }
+    for (const disp of disponibles) {
+      if (!modelosAIntentar.includes(disp)) {
+        modelosAIntentar.push(disp);
+      }
+    }
+  }
+
+  if (modelosAIntentar.length === 0) {
+    modelosAIntentar.push("gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash");
+  }
+
   let ultimoError: any = null;
 
   for (const modelo of modelosAIntentar) {
