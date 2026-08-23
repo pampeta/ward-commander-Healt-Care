@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
-import { Users, Plus, Trash2, Edit3, Save, CheckCircle2, Circle, FileText, Calendar, AlertTriangle, ChevronDown, ChevronUp, X, ShieldAlert, Activity, Syringe, Bandage, Stethoscope, Cloud } from "lucide-react";
+import { Users, Plus, Trash2, Edit3, Save, CheckCircle2, Circle, FileText, Calendar, AlertTriangle, ChevronDown, ChevronUp, X, ShieldAlert, Activity, Syringe, Bandage, Stethoscope, Cloud, Camera, Sparkles, Loader2, FileUp } from "lucide-react";
 import { guardarEnNube, cargarDeNube } from "../Services/cloudSync";
+import { extraerPacienteDesdeDocumentoConGemini } from "../Services/gemini";
 
 interface Pendiente { id: string; texto: string; completado: boolean; }
 interface Evolucion { id: string; fecha: string; texto: string; tipo?: "normal" | "ic"; especialidad?: string; medico?: string; }
@@ -146,6 +147,108 @@ export default function Censo() {
 
   const [modalAbierto, setModalAbierto] = useState(false);
   const [pacienteEditando, setPacienteEditando] = useState<Partial<PacienteCenso> | null>(null);
+
+  // Estados para escaneo inteligente con IA (Foto / Archivo / Texto)
+  const [modalEscaneoAbierto, setModalEscaneoAbierto] = useState(false);
+  const [escaneandoIA, setEscaneandoIA] = useState(false);
+  const [archivoEscaneo, setArchivoEscaneo] = useState<{ base64: string; mimeType: string; nombre: string; vistaPrevia?: string } | null>(null);
+  const [textoEscaneo, setTextoEscaneo] = useState("");
+  const [errorEscaneo, setErrorEscaneo] = useState("");
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setErrorEscaneo("");
+    const reader = new FileReader();
+
+    if (file.type.startsWith("image/")) {
+      reader.onload = () => {
+        const result = reader.result as string;
+        setArchivoEscaneo({
+          base64: result,
+          mimeType: file.type,
+          nombre: file.name,
+          vistaPrevia: result,
+        });
+      };
+      reader.readAsDataURL(file);
+    } else if (file.type === "application/pdf") {
+      reader.onload = () => {
+        const result = reader.result as string;
+        setArchivoEscaneo({
+          base64: result,
+          mimeType: file.type,
+          nombre: file.name,
+        });
+      };
+      reader.readAsDataURL(file);
+    } else {
+      reader.onload = () => {
+        const result = reader.result as string;
+        setTextoEscaneo(result);
+      };
+      reader.readAsText(file);
+    }
+  };
+
+  const procesarDocumentoConIA = async () => {
+    if (!archivoEscaneo && !textoEscaneo.trim()) {
+      setErrorEscaneo("Por favor toma una foto, adjunta un archivo o pega el texto clínico del paciente.");
+      return;
+    }
+
+    setEscaneandoIA(true);
+    setErrorEscaneo("");
+
+    try {
+      const datosExtraidos = await extraerPacienteDesdeDocumentoConGemini({
+        base64: archivoEscaneo?.base64,
+        mimeType: archivoEscaneo?.mimeType,
+        textoPlano: textoEscaneo.trim() || undefined,
+      });
+
+      const curacionExtraida: Curacion = datosExtraidos.curacion ? {
+        activo: !!datosExtraidos.curacion.activo,
+        tipo: datosExtraidos.curacion.tipo || "",
+        frecuenciaDias: datosExtraidos.curacion.frecuenciaDias || 3,
+        ultimaFecha: datosExtraidos.curacion.ultimaFecha || hoyStr,
+      } : { activo: false, ultimaFecha: hoyStr, frecuenciaDias: 3, tipo: "" };
+
+      const pendientesExtraidos: Pendiente[] = Array.isArray(datosExtraidos.pendientes)
+        ? datosExtraidos.pendientes.filter(Boolean).map(t => ({
+            id: Date.now().toString() + Math.random().toString().slice(2, 6),
+            texto: String(t),
+            completado: false
+          }))
+        : [];
+
+      setPacienteEditando({
+        cama: datosExtraidos.cama || "",
+        nombre: datosExtraidos.nombre || "",
+        edad: datosExtraidos.edad || "",
+        fechaIngreso: datosExtraidos.fechaIngreso || hoyStr,
+        diagnostico: datosExtraidos.diagnostico || "",
+        atbNombre: datosExtraidos.atbNombre || "",
+        atbDias: datosExtraidos.atbDias || "",
+        incobertura: datosExtraidos.incobertura || "",
+        anamnesis: datosExtraidos.anamnesis || "",
+        curacion: curacionExtraida,
+        pendientes: pendientesExtraidos,
+        invasivos: [],
+        evoluciones: [],
+      });
+
+      setModalEscaneoAbierto(false);
+      setArchivoEscaneo(null);
+      setTextoEscaneo("");
+      setModalAbierto(true);
+    } catch (err: any) {
+      setErrorEscaneo(err.message || "Error al procesar el documento con IA.");
+    } finally {
+      setEscaneandoIA(false);
+    }
+  };
 
   const [modalEvolucionAbierto, setModalEvolucionAbierto] = useState(false);
   const [pacienteSeleccionadoEvolucion, setPacienteSeleccionadoEvolucion] = useState<PacienteCenso | null>(null);
@@ -304,18 +407,32 @@ export default function Censo() {
             {!descargando && <span className="flex items-center gap-1 bg-green-50 text-green-700 font-semibold px-2 py-0.5 rounded-md border border-green-200 ml-2"><Cloud className="w-3 h-3"/> En la nube</span>}
           </div>
         </div>
-        <button
-          onClick={() => { 
-            setPacienteEditando({ 
-              fechaIngreso: hoyStr, 
-              curacion: { activo: false, ultimaFecha: hoyStr, frecuenciaDias: 3, tipo: "" } 
-            }); 
-            setModalAbierto(true); 
-          }}
-          className="w-full md:w-auto bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-xl md:rounded-lg text-sm font-bold flex justify-center items-center gap-2 shadow transition-colors"
-        >
-          <Plus className="w-4 h-4" /> Nuevo Paciente
-        </button>
+        <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+          <button
+            onClick={() => { 
+              setArchivoEscaneo(null);
+              setTextoEscaneo("");
+              setErrorEscaneo("");
+              setModalEscaneoAbierto(true); 
+            }}
+            className="flex-1 md:flex-none bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 hover:from-purple-700 hover:to-blue-700 text-white px-4 py-2.5 rounded-xl md:rounded-lg text-sm font-bold flex justify-center items-center gap-2 shadow-md transition-all shrink-0"
+          >
+            <Sparkles className="w-4 h-4 text-amber-300 animate-pulse" />
+            <span>Foto / Archivo (IA)</span>
+          </button>
+          <button
+            onClick={() => { 
+              setPacienteEditando({ 
+                fechaIngreso: hoyStr, 
+                curacion: { activo: false, ultimaFecha: hoyStr, frecuenciaDias: 3, tipo: "" } 
+              }); 
+              setModalAbierto(true); 
+            }}
+            className="flex-1 md:flex-none bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-xl md:rounded-lg text-sm font-bold flex justify-center items-center gap-2 shadow transition-colors shrink-0"
+          >
+            <Plus className="w-4 h-4" /> Manual
+          </button>
+        </div>
       </div>
 
       {descargando ? (
@@ -454,13 +571,167 @@ export default function Censo() {
         </div>
       )}
 
+      {/* MODAL DE ESCANEO INTELIGENTE CON IA */}
+      {modalEscaneoAbierto && (
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 transition-all">
+          <div className="bg-white sm:rounded-2xl rounded-t-2xl max-w-xl w-full p-5 sm:p-6 space-y-4 shadow-2xl animate-in slide-in-from-bottom-4 sm:zoom-in-95 max-h-[90vh] flex flex-col">
+            <div className="flex justify-between items-center border-b border-gray-100 pb-3 shrink-0">
+              <div className="flex items-center gap-2.5">
+                <div className="bg-purple-100 p-2 rounded-xl text-purple-700 shrink-0">
+                  <Sparkles className="w-5 h-5" />
+                </div>
+                <div>
+                  <h2 className="text-base sm:text-lg font-bold text-gray-900 leading-tight">
+                    Cargar Paciente con IA
+                  </h2>
+                  <p className="text-xs text-gray-500">
+                    Sácale una foto a la ficha o adjunta un archivo para auto-llenar los datos.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setModalEscaneoAbierto(false)}
+                className="text-gray-400 hover:text-gray-600 p-1.5 rounded-lg transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto space-y-4 pr-1">
+              {/* Botones de acción rápida: Cámara y Archivo */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <label className="flex flex-col items-center justify-center gap-2 p-4 bg-purple-50 hover:bg-purple-100/80 border-2 border-dashed border-purple-300 rounded-xl cursor-pointer transition-all text-purple-900 text-center">
+                  <Camera className="w-7 h-7 text-purple-600" />
+                  <span className="text-xs font-bold">Tomar Foto con Cámara</span>
+                  <span className="text-[10px] text-purple-600/80">Ficha clínica, pizarra o monitor</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    capture="environment"
+                    className="hidden"
+                    onChange={handleFileSelect}
+                  />
+                </label>
+
+                <label className="flex flex-col items-center justify-center gap-2 p-4 bg-blue-50 hover:bg-blue-100/80 border-2 border-dashed border-blue-300 rounded-xl cursor-pointer transition-all text-blue-900 text-center">
+                  <FileUp className="w-7 h-7 text-blue-600" />
+                  <span className="text-xs font-bold">Adjuntar Imagen o PDF</span>
+                  <span className="text-[10px] text-blue-600/80">JPG, PNG, PDF o texto</span>
+                  <input
+                    type="file"
+                    accept="image/*,application/pdf,.txt"
+                    className="hidden"
+                    onChange={handleFileSelect}
+                  />
+                </label>
+              </div>
+
+              {/* Vista previa del archivo seleccionado */}
+              {archivoEscaneo && (
+                <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 flex items-center justify-between gap-3 animate-in fade-in">
+                  <div className="flex items-center gap-3 min-w-0">
+                    {archivoEscaneo.vistaPrevia ? (
+                      <img
+                        src={archivoEscaneo.vistaPrevia}
+                        alt="Vista previa"
+                        className="w-12 h-12 object-cover rounded-lg border border-slate-200 shrink-0"
+                      />
+                    ) : (
+                      <div className="w-12 h-12 bg-blue-100 text-blue-700 flex items-center justify-center rounded-lg shrink-0">
+                        <FileText className="w-6 h-6" />
+                      </div>
+                    )}
+                    <div className="truncate">
+                      <p className="text-xs font-bold text-gray-800 truncate">{archivoEscaneo.nombre}</p>
+                      <p className="text-[10px] text-gray-500 uppercase">{archivoEscaneo.mimeType || "Archivo"}</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setArchivoEscaneo(null)}
+                    className="text-gray-400 hover:text-red-600 p-1 rounded transition-colors"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              )}
+
+              {/* Área de texto alternativo / complementario */}
+              <div>
+                <label className="block text-[11px] font-bold uppercase text-gray-500 mb-1.5 tracking-wider">
+                  O Pega el texto clínico / Epicrisis aquí:
+                </label>
+                <textarea
+                  rows={4}
+                  value={textoEscaneo}
+                  onChange={(e) => setTextoEscaneo(e.target.value)}
+                  placeholder="Ej. Paciente Don Juan de 72 años en cama 14A, ingresa por neumonía bilateral, actualmente con Ceftriaxona día 2, pendiente TAC de tórax..."
+                  className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-xs outline-none focus:ring-2 focus:ring-purple-400 resize-none leading-relaxed text-gray-800"
+                />
+              </div>
+
+              {errorEscaneo && (
+                <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-800 font-semibold flex items-center gap-2">
+                  <AlertTriangle className="w-4 h-4 text-red-600 shrink-0" />
+                  <span>{errorEscaneo}</span>
+                </div>
+              )}
+            </div>
+
+            <div className="flex flex-col sm:flex-row justify-end gap-2 pt-3 border-t border-gray-100 shrink-0">
+              <button
+                type="button"
+                onClick={() => setModalEscaneoAbierto(false)}
+                className="order-2 sm:order-1 w-full sm:w-auto px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs sm:text-sm font-bold rounded-xl transition-colors"
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={procesarDocumentoConIA}
+                disabled={escaneandoIA || (!archivoEscaneo && !textoEscaneo.trim())}
+                className="order-1 sm:order-2 w-full sm:w-auto px-6 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white text-xs sm:text-sm font-bold rounded-xl flex items-center justify-center gap-2 shadow-md disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+              >
+                {escaneandoIA ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    <span>Analizando con Gemini...</span>
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-4 h-4 text-amber-300" />
+                    <span>Extraer y Llenar Datos ✨</span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* MODALES IGUALES */}
       {modalAbierto && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-sm z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 transition-all">
           <div className="bg-white sm:rounded-2xl rounded-t-2xl max-w-2xl w-full p-5 space-y-4 shadow-2xl animate-in slide-in-from-bottom-4 sm:zoom-in-95 max-h-[90vh] flex flex-col">
-            <h2 className="text-lg font-bold text-gray-800 border-b border-gray-100 pb-3 shrink-0">
-              {pacienteEditando?.id ? "Editar Paciente" : "Agregar Paciente al Censo"}
-            </h2>
+            <div className="flex justify-between items-center border-b border-gray-100 pb-3 shrink-0">
+              <h2 className="text-lg font-bold text-gray-800">
+                {pacienteEditando?.id ? "Editar Paciente" : "Agregar Paciente al Censo"}
+              </h2>
+              {!pacienteEditando?.id && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setModalAbierto(false);
+                    setArchivoEscaneo(null);
+                    setTextoEscaneo("");
+                    setErrorEscaneo("");
+                    setModalEscaneoAbierto(true);
+                  }}
+                  className="text-xs font-bold text-purple-700 bg-purple-50 hover:bg-purple-100 border border-purple-200 px-3 py-1.5 rounded-lg flex items-center gap-1.5 transition-colors"
+                >
+                  <Sparkles className="w-3.5 h-3.5" /> Auto-llenar con Foto
+                </button>
+              )}
+            </div>
             <div className="flex-1 overflow-y-auto space-y-4 pr-1 -mr-1">
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 <div>
