@@ -254,6 +254,11 @@ export interface EvolucionExtraida {
   medico?: string;
 }
 
+export interface AntibioticoExtraido {
+  nombre: string;
+  dias?: string;
+}
+
 export interface DatosPacienteExtraidos {
   cama?: string;
   nombre?: string;
@@ -262,6 +267,7 @@ export interface DatosPacienteExtraidos {
   diagnostico?: string;
   atbNombre?: string;
   atbDias?: string;
+  antibioticos?: AntibioticoExtraido[];
   incobertura?: string;
   anamnesis?: string;
   curacion?: {
@@ -344,6 +350,10 @@ Debes responder ÚNICAMENTE con un objeto JSON válido con la siguiente estructu
   "edad": "edad en años (ej. 68)",
   "fechaIngreso": "fecha de ingreso en formato YYYY-MM-DD",
   "diagnostico": "diagnóstico principal o motivo de hospitalización",
+  "antibioticos": [
+    { "nombre": "Fluconazol", "dias": "4 días" },
+    { "nombre": "Ceftriaxona", "dias": "7 días" }
+  ],
   "atbNombre": "antibióticos indicados si los hay (ej. Ceftriaxona + Metronidazol)",
   "atbDias": "días de antibiótico (ej. 3 días)",
   "incobertura": "foco infeccioso sospechoso o confirmado (ej. Foco respiratorio)",

@@ -7,9 +7,27 @@ interface Pendiente { id: string; texto: string; completado: boolean; }
 interface Evolucion { id: string; fecha: string; texto: string; tipo?: "normal" | "ic"; especialidad?: string; medico?: string; }
 interface DispositivoInvasivo { id: string; nombre: string; fechaInstalacion: string; }
 interface Curacion { activo: boolean; ultimaFecha: string; frecuenciaDias: number; tipo: string; }
+export interface ItemAntibiotico { id: string; nombre: string; dias: string; }
+
+export function obtenerAntibioticos(p?: Partial<PacienteCenso> | null): ItemAntibiotico[] {
+  if (!p) return [];
+  if (Array.isArray(p.antibioticos) && p.antibioticos.length > 0) {
+    return p.antibioticos;
+  }
+  if (p.atbNombre && p.atbNombre.trim()) {
+    return [{
+      id: 'legacy-1',
+      nombre: p.atbNombre.trim(),
+      dias: p.atbDias?.trim() || ''
+    }];
+  }
+  return [];
+}
+
 interface PacienteCenso {
   id: string; cama: string; nombre: string; edad: string; diagnostico: string;
-  anamnesis: string; fechaIngreso: string; atbNombre: string; atbDias: string;
+  anamnesis: string; fechaIngreso: string; atbNombre?: string; atbDias?: string;
+  antibioticos?: ItemAntibiotico[];
   incobertura: string; invasivos: DispositivoInvasivo[]; curacion: Curacion;
   pendientes: Pendiente[]; evoluciones: Evolucion[]; ultimaEvolucionFecha?: string;
 }
@@ -258,6 +276,16 @@ export default function Censo() {
 
       const tieneEvoHoy = evolucionesExtraidas.some(e => e.fecha === hoyStr);
 
+      const antibioticosExtraidos: ItemAntibiotico[] = Array.isArray(datosExtraidos.antibioticos) && datosExtraidos.antibioticos.length > 0
+        ? datosExtraidos.antibioticos.filter(a => a && a.nombre && a.nombre.trim()).map((a, i) => ({
+            id: (Date.now() + i).toString(),
+            nombre: a.nombre.trim(),
+            dias: a.dias?.trim() || ""
+          }))
+        : datosExtraidos.atbNombre && datosExtraidos.atbNombre.trim()
+          ? [{ id: Date.now().toString(), nombre: datosExtraidos.atbNombre.trim(), dias: datosExtraidos.atbDias?.trim() || "" }]
+          : [];
+
       setPacienteEditando({
         cama: datosExtraidos.cama || "",
         nombre: datosExtraidos.nombre || "",
@@ -266,6 +294,7 @@ export default function Censo() {
         diagnostico: datosExtraidos.diagnostico || "",
         atbNombre: datosExtraidos.atbNombre || "",
         atbDias: datosExtraidos.atbDias || "",
+        antibioticos: antibioticosExtraidos,
         incobertura: datosExtraidos.incobertura || "",
         anamnesis: datosExtraidos.anamnesis || "",
         curacion: curacionExtraida,
@@ -433,11 +462,18 @@ export default function Censo() {
     }
 
     const curacionFinal: Curacion = pacienteEditando.curacion || { activo: false, ultimaFecha: hoyStr, frecuenciaDias: 3, tipo: "" };
+    const antibioticosFinales = obtenerAntibioticos(pacienteEditando).filter(a => a.nombre && a.nombre.trim());
+    const primerAtb = antibioticosFinales[0];
+    const atbNombreFallback = antibioticosFinales.map(a => a.nombre).join(', ') || "";
+    const atbDiasFallback = antibioticosFinales.map(a => a.dias ? `${a.nombre}: ${a.dias}` : a.nombre).join(' | ') || (primerAtb?.dias || "");
 
     if (pacienteEditando.id) {
       setPacientes(prev => prev.map(p => p.id === pacienteEditando.id ? { 
         ...p, 
         ...(pacienteEditando as PacienteCenso),
+        antibioticos: antibioticosFinales,
+        atbNombre: atbNombreFallback,
+        atbDias: atbDiasFallback,
         pendientes: Array.isArray(p.pendientes) ? p.pendientes : [],
         evoluciones: Array.isArray(p.evoluciones) ? p.evoluciones : [],
         invasivos: Array.isArray(p.invasivos) ? p.invasivos : [],
@@ -452,8 +488,9 @@ export default function Censo() {
         diagnostico: pacienteEditando.diagnostico || "",
         anamnesis: pacienteEditando.anamnesis || "",
         fechaIngreso: pacienteEditando.fechaIngreso || hoyStr,
-        atbNombre: pacienteEditando.atbNombre || "",
-        atbDias: pacienteEditando.atbDias || "",
+        atbNombre: atbNombreFallback,
+        atbDias: atbDiasFallback,
+        antibioticos: antibioticosFinales,
         incobertura: pacienteEditando.incobertura || "",
         invasivos: [],
         curacion: curacionFinal,
@@ -581,7 +618,8 @@ export default function Censo() {
             onClick={() => { 
               setPacienteEditando({ 
                 fechaIngreso: hoyStr, 
-                curacion: { activo: false, ultimaFecha: hoyStr, frecuenciaDias: 3, tipo: "" } 
+                curacion: { activo: false, ultimaFecha: hoyStr, frecuenciaDias: 3, tipo: "" },
+                antibioticos: []
               }); 
               setModalAbierto(true); 
             }}
@@ -628,7 +666,7 @@ export default function Censo() {
                       )}
                     </div>
                     <div className="flex gap-1 shrink-0">
-                      <button onClick={() => { setPacienteEditando(p); setModalAbierto(true); }} className="text-gray-400 hover:text-blue-600 p-1.5 bg-gray-50 rounded-md transition-colors" title="Editar datos">
+                      <button onClick={() => { setPacienteEditando({ ...p, antibioticos: obtenerAntibioticos(p) }); setModalAbierto(true); }} className="text-gray-400 hover:text-blue-600 p-1.5 bg-gray-50 rounded-md transition-colors" title="Editar datos">
                         <Edit3 className="w-4 h-4" />
                       </button>
                       <button onClick={() => eliminarPaciente(p.id)} className="text-gray-400 hover:text-red-600 p-1.5 bg-gray-50 rounded-md transition-colors" title="Dar de alta / Eliminar">
@@ -955,18 +993,91 @@ export default function Censo() {
                   <label className="block text-[10px] font-bold uppercase text-gray-500 mb-1 tracking-wider">Diagnóstico Principal</label>
                   <input type="text" placeholder="Ej. Neumonía grave" value={pacienteEditando?.diagnostico || ""} onChange={e => setPacienteEditando(prev => ({ ...(prev || {}), diagnostico: e.target.value }))} className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-blue-400" />
                 </div>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-indigo-50/50 p-3 rounded-xl border border-indigo-100">
-                  <div>
-                      <label className="block text-[10px] font-bold uppercase text-indigo-700 mb-1 tracking-wider">Antibiótico (ATB)</label>
-                      <input type="text" placeholder="Ej. Ceftriaxona" value={pacienteEditando?.atbNombre || ""} onChange={e => setPacienteEditando(prev => ({ ...(prev || {}), atbNombre: e.target.value }))} className="w-full p-2 border border-indigo-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-400 outline-none" />
+                <div className="bg-indigo-50/50 p-3.5 rounded-xl border border-indigo-100 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[11px] font-bold uppercase text-indigo-900 tracking-wider flex items-center gap-1.5">
+                      <Syringe className="w-4 h-4 text-indigo-600" /> Esquema Antibiótico / Antimicrobianos
+                    </label>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const lista = obtenerAntibioticos(pacienteEditando);
+                        const nuevaLista = [...lista, { id: Date.now().toString() + Math.random().toString().slice(2, 5), nombre: "", dias: "" }];
+                        setPacienteEditando(prev => ({
+                          ...(prev || {}),
+                          antibioticos: nuevaLista
+                        }));
+                      }}
+                      className="px-2.5 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-bold flex items-center gap-1 shadow-sm transition-colors"
+                    >
+                      <Plus className="w-3.5 h-3.5" /> Agregar Antibiótico
+                    </button>
                   </div>
-                  <div>
-                      <label className="block text-[10px] font-bold uppercase text-indigo-700 mb-1 tracking-wider">Días ATB</label>
-                      <input type="text" placeholder="Ej. 5 días" value={pacienteEditando?.atbDias || ""} onChange={e => setPacienteEditando(prev => ({ ...(prev || {}), atbDias: e.target.value }))} className="w-full p-2 border border-indigo-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-400 outline-none" />
+
+                  {/* Lista de Antibióticos dinámicos */}
+                  <div className="space-y-2">
+                    {obtenerAntibioticos(pacienteEditando).map((atb, idx) => (
+                      <div key={atb.id || idx} className="grid grid-cols-12 gap-2 items-center bg-white p-2.5 rounded-lg border border-indigo-100 shadow-sm">
+                        <div className="col-span-7">
+                          <label className="block text-[9px] font-bold text-gray-500 uppercase mb-0.5">Antibiótico {idx + 1}</label>
+                          <input
+                            type="text"
+                            placeholder="Ej. Fluconazol / Ceftriaxona / Meropenem"
+                            value={atb.nombre}
+                            onChange={e => {
+                              const lista = [...obtenerAntibioticos(pacienteEditando)];
+                              lista[idx] = { ...lista[idx], nombre: e.target.value };
+                              setPacienteEditando(prev => ({ ...(prev || {}), antibioticos: lista }));
+                            }}
+                            className="w-full p-2 border border-indigo-200 rounded-lg text-xs bg-gray-50 focus:bg-white focus:ring-2 focus:ring-indigo-400 outline-none"
+                          />
+                        </div>
+                        <div className="col-span-4">
+                          <label className="block text-[9px] font-bold text-gray-500 uppercase mb-0.5">Días / Duración</label>
+                          <input
+                            type="text"
+                            placeholder="Ej. 4 días"
+                            value={atb.dias}
+                            onChange={e => {
+                              const lista = [...obtenerAntibioticos(pacienteEditando)];
+                              lista[idx] = { ...lista[idx], dias: e.target.value };
+                              setPacienteEditando(prev => ({ ...(prev || {}), antibioticos: lista }));
+                            }}
+                            className="w-full p-2 border border-indigo-200 rounded-lg text-xs bg-gray-50 focus:bg-white focus:ring-2 focus:ring-indigo-400 outline-none"
+                          />
+                        </div>
+                        <div className="col-span-1 flex justify-center pt-3">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const lista = obtenerAntibioticos(pacienteEditando).filter((_, i) => i !== idx);
+                              setPacienteEditando(prev => ({ ...(prev || {}), antibioticos: lista }));
+                            }}
+                            className="text-gray-400 hover:text-red-500 p-1 rounded hover:bg-red-50 transition-colors"
+                            title="Eliminar este antibiótico"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+
+                    {obtenerAntibioticos(pacienteEditando).length === 0 && (
+                      <div className="text-center py-2.5 text-xs text-indigo-500 italic bg-white/70 rounded-lg border border-dashed border-indigo-200">
+                        Sin antibióticos registrados. Presiona <strong className="font-semibold text-indigo-700">"+ Agregar Antibiótico"</strong> para añadir los antimicrobianos que recibe el paciente.
+                      </div>
+                    )}
                   </div>
-                  <div className="sm:col-span-2 mt-1">
-                      <label className="block text-[10px] font-bold uppercase text-indigo-700 mb-1 tracking-wider">Foco de Infección / Cobertura</label>
-                      <input type="text" placeholder="Ej. NAC / ITU / Foco urinario" value={pacienteEditando?.incobertura || ""} onChange={e => setPacienteEditando(prev => ({ ...(prev || {}), incobertura: e.target.value }))} className="w-full p-2 border border-indigo-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-400 outline-none" />
+
+                  <div className="mt-1 pt-1.5 border-t border-indigo-100/60">
+                    <label className="block text-[10px] font-bold uppercase text-indigo-700 mb-1 tracking-wider">Foco de Infección / Cobertura Global</label>
+                    <input
+                      type="text"
+                      placeholder="Ej. NAC / ITU / Candidiasis esofágica / Foco abdominal"
+                      value={pacienteEditando?.incobertura || ""}
+                      onChange={e => setPacienteEditando(prev => ({ ...(prev || {}), incobertura: e.target.value }))}
+                      className="w-full p-2 border border-indigo-200 rounded-lg text-sm bg-white focus:ring-2 focus:ring-indigo-400 outline-none"
+                    />
                   </div>
                 </div>
                 <div className="bg-slate-50 p-3 rounded-xl border border-gray-200 space-y-3">
@@ -1222,7 +1333,8 @@ function ControlClinicoCard({ paciente }: { paciente: PacienteCenso }) {
     } catch (e) {}
   };
 
-  const tieneAtb = Boolean(pacienteState.atbNombre && pacienteState.atbNombre.trim());
+  const listaAtb = obtenerAntibioticos(pacienteState);
+  const tieneAtb = listaAtb.length > 0;
   const tieneInvasivos = Array.isArray(pacienteState.invasivos) && pacienteState.invasivos.length > 0;
   const tieneCuracion = Boolean(pacienteState.curacion?.activo && pacienteState.curacion?.tipo);
 
@@ -1235,9 +1347,23 @@ function ControlClinicoCard({ paciente }: { paciente: PacienteCenso }) {
       {!minimizado && (
         <div className="space-y-2.5 pt-1 text-xs">
           {tieneAtb && (
-            <div className="bg-white p-2.5 rounded-lg border border-indigo-100 shadow-sm space-y-1.5">
-              <div className="flex items-center gap-1.5 text-indigo-800 font-bold"><Syringe className="w-3.5 h-3.5 text-indigo-500" /> Antibiótico (ATB):</div>
-              <p className="text-gray-800 font-medium pl-5">{pacienteState.atbNombre} <span className="text-gray-500 font-normal">({pacienteState.atbDias || "Días no especificados"})</span></p>
+            <div className="bg-white p-2.5 rounded-lg border border-indigo-100 shadow-sm space-y-2">
+              <div className="flex items-center justify-between text-indigo-800 font-bold">
+                <div className="flex items-center gap-1.5">
+                  <Syringe className="w-3.5 h-3.5 text-indigo-500" />
+                  <span>Antibióticos ({listaAtb.length}):</span>
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                {listaAtb.map((atb, aIdx) => (
+                  <div key={atb.id || aIdx} className="flex justify-between items-center bg-indigo-50/60 p-2 rounded-lg border border-indigo-100/70">
+                    <span className="font-bold text-indigo-950 text-xs">{atb.nombre}</span>
+                    <span className="text-[11px] font-bold bg-white text-indigo-700 px-2 py-0.5 rounded border border-indigo-200 shrink-0">
+                      {atb.dias || "Días s/e"}
+                    </span>
+                  </div>
+                ))}
+              </div>
               {pacienteState.incobertura && (
                 <div className="pt-1.5 mt-1 border-t border-indigo-50 flex items-start gap-1.5 text-amber-800 font-semibold"><ShieldAlert className="w-3.5 h-3.5 text-amber-600 shrink-0 mt-0.5" /><span className="leading-snug">Posible Infección / Foco:<br/><span className="text-gray-600 font-normal">{pacienteState.incobertura}</span></span></div>
               )}
