@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Users, CheckSquare, BookOpen, User, BrainCircuit, Calendar, FileText, Menu, X } from 'lucide-react';
+import { Users, CheckSquare, BookOpen, User, BrainCircuit, Calendar, FileText, Menu, X, Calculator, GraduationCap, Activity } from 'lucide-react';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -13,12 +13,15 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTa
 
   const menuItems = [
     { id: 'censo', label: 'Censo Pacientes', icon: Users },
+    { id: 'ia', label: 'Generador Docs (IA)', icon: FileText },
+    { id: 'examenOral', label: 'Examen Oral (30%)', icon: GraduationCap },
+    { id: 'calculadoras', label: 'Calculadoras Médicas', icon: Calculator },
+    { id: 'ecg', label: 'ECG & Reuniones (10%)', icon: Activity },
+    { id: 'estudio', label: 'Plan EUNACOM & Tests', icon: BookOpen },
     { id: 'tareas', label: 'Tareas y Flujos', icon: CheckSquare },
-    { id: 'estudio', label: 'Plan EUNACOM', icon: BookOpen },
     { id: 'tutor', label: 'Instructor Clínico', icon: BrainCircuit },
-    { id: 'calendario', label: 'Calendario y Pruebas', icon: Calendar },
-    { id: 'epicrisis', label: 'Generador Docs', icon: FileText },
-    { id: 'yo', label: 'Control & Métricas', icon: User },
+    { id: 'calendario', label: 'Calendario & Turnos', icon: Calendar },
+    { id: 'yo', label: 'Control & Configuración', icon: User },
   ];
 
   // Función para cerrar el menú móvil al seleccionar una pestaña

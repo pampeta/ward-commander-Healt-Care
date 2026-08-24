@@ -1,10 +1,19 @@
 import { useState, useEffect } from "react";
 import { consultarGeminiConArchivo } from "../Services/gemini";
 import { TEMARIO_BASE } from "../data/temasEunacom";
-import { BookOpen, FileText, BrainCircuit, Paperclip, CheckCircle, Cloud } from 'lucide-react';
+import { BookOpen, FileText, BrainCircuit, Paperclip, CheckCircle, Cloud, CheckCircle2, XCircle, Sparkles, Loader2, Award } from 'lucide-react';
 import { guardarEnNube, cargarDeNube } from "../Services/cloudSync";
 
 interface Flashcard { pregunta: string; respuesta: string; }
+interface PreguntaTest {
+  id: number;
+  enunciado: string;
+  opciones: string[];
+  correcta: number; // 0-4
+  justificacion: string;
+  tema: string;
+}
+
 interface Tema { id: number; categoria: string; titulo: string; estado: "🔴 Pendiente" | "🟡 Repasando" | "🟢 Dominado"; apuntes: string; flashcards: Flashcard[]; }
 
 export default function PlanEunacom() {
@@ -40,7 +49,7 @@ export default function PlanEunacom() {
   }, [temas, descargando]);
 
   const [temaSeleccionado, setTemaSeleccionado] = useState<Tema>(TEMARIO_BASE[0] as Tema);
-  const [modo, setModo] = useState<"apuntes" | "flashcards">("apuntes");
+  const [modo, setModo] = useState<"apuntes" | "flashcards" | "simulacro">("apuntes");
   const [cargando, setCargando] = useState(false);
   const [archivoAdjunto, setArchivoAdjunto] = useState<{ nombre: string, base64: string, mimeType: string } | null>(null);
   
@@ -50,6 +59,13 @@ export default function PlanEunacom() {
   const [loteNuevo, setLoteNuevo] = useState<Flashcard[]>([]);
   const [indiceLoteNuevo, setIndiceLoteNuevo] = useState(0);
   const [mostrarRespuestaLote, setMostrarRespuestaLote] = useState(false);
+
+  // --- SIMULACRO DE EXAMEN TEÓRICO ---
+  const [tipoSimulacro, setTipoSimulacro] = useState<"teorico1" | "teorico2" | "tema">("teorico1");
+  const [preguntasTest, setPreguntasTest] = useState<PreguntaTest[]>([]);
+  const [respuestasUsuario, setRespuestasUsuario] = useState<Record<number, number>>({});
+  const [testFinalizado, setTestFinalizado] = useState<boolean>(false);
+  const [generandoTest, setGenerandoTest] = useState<boolean>(false);
 
   // Mantiene el tema seleccionado actualizado cuando los temas cambian
   useEffect(() => {
@@ -102,6 +118,81 @@ export default function PlanEunacom() {
     alert(`✅ Se han guardado ${tarjetasUnicas.length} tarjetas nuevas al mazo principal (${loteNuevo.length - tarjetasUnicas.length} omitidas por estar repetidas).`);
   };
 
+  const generarSimulacroExamen = async () => {
+    setGenerandoTest(true);
+    setPreguntasTest([]);
+    setRespuestasUsuario({});
+    setTestFinalizado(false);
+
+    let temarioAlcance = "";
+    if (tipoSimulacro === "teorico1") {
+      temarioAlcance = "Examen Teórico 1 (Semana 7): CARDIOLOGÍA (SCA, Arritmias, IC, Valvulopatías, TEP), GASTROENTEROLOGÍA (DHC, HDA, Pancreatitis, Diarreas) y ENFERMEDADES RESPIRATORIAS (NAC, EPOC, Asma, Derrame pleural).";
+    } else if (tipoSimulacro === "teorico2") {
+      temarioAlcance = "Examen Teórico 2 (Semana 14): ENFERMEDADES INFECCIOSAS (Sepsis, ITU, VIH, Antibióticos), NEFROLOGÍA (IRA, ERC, Acidosis/Alcalosis, Trastornos del Potasio/Sodio), HEMATO-ONCOLOGÍA (Anemias, Linfomas, Lisis tumoral, Neutropenia febril), NUTRICIÓN Y DIABETES (CAD, Hipoglicemia, Insulinoterapia), REUMATOLOGÍA (LES, AR, Gota, Vasculitis), ENDOCRINOLOGÍA (Tiroides, Cushing, Suprarrenal) y GERIATRÍA (Delirium, Demencia).";
+    } else {
+      temarioAlcance = `Tema específico: ${temaSeleccionado.titulo} (${temaSeleccionado.categoria})`;
+    }
+
+    const prompt = `
+Actúa como la Comisión Evaluadora de Exámenes Teóricos de Medicina Interna de la Universidad de Magallanes (UMAG) y creador experto de preguntas EUNACOM Medicina Interna.
+Genera un simulacro de 5 CASOS CLÍNICOS DE SELECCIÓN MÚLTIPLE de alta fidelidad sobre el temario: "${temarioAlcance}".
+
+REQUISITOS ESTRICTOS DE CADA PREGUNTA:
+- Formato caso clínico: Paciente con edad, antecedentes, motivo de consulta, signos vitales y datos paraclínicos.
+- 5 alternativas (A, B, C, D, E) de las cuales solo una es la correcta.
+- Enfoque EUNACOM: Diagnóstico diferencial más probable, examen de confirmación de elección, conducta terapéutica inicial o criterios de hospitalización/derivación GES.
+- Justificación clínica fundamentada con fisiopatología y guías clínicas MINSAL/GES.
+
+REGLA: Devuelve ÚNICAMENTE un arreglo JSON válido (sin markdown):
+[
+  {
+    "id": 1,
+    "enunciado": "Paciente masculino de 68 años con antecedentes de DHC...",
+    "opciones": ["A) Alternativa 1", "B) Alternativa 2", "C) Alternativa 3", "D) Alternativa 4", "E) Alternativa 5"],
+    "correcta": 0,
+    "justificacion": "La respuesta correcta es A porque según las guías clínicas...",
+    "tema": "Gastroenterología"
+  }
+]
+`;
+
+    try {
+      const resText = await consultarGeminiConArchivo(prompt);
+      const limpio = resText.replace(/```json/gi, '').replace(/```/g, '').trim();
+      const parseadas: PreguntaTest[] = JSON.parse(limpio);
+      setPreguntasTest(parseadas);
+    } catch (e: any) {
+      alert(`Error al generar preguntas con IA: ${e.message}`);
+    } finally {
+      setGenerandoTest(false);
+    }
+  };
+
+  const seleccionarOpcion = (preguntaId: number, opcionIdx: number) => {
+    if (testFinalizado) return;
+    setRespuestasUsuario(prev => ({ ...prev, [preguntaId]: opcionIdx }));
+  };
+
+  const calcularNotaSimulacro = () => {
+    if (preguntasTest.length === 0) return { correctas: 0, total: 0, porcentaje: 0, nota: 1.0 };
+    let correctas = 0;
+    preguntasTest.forEach(p => {
+      if (respuestasUsuario[p.id] === p.correcta) correctas += 1;
+    });
+    const total = preguntasTest.length;
+    const porcentaje = Math.round((correctas / total) * 100);
+    // Escala 70% exigencia (UMAG):
+    let nota = 1.0;
+    if (porcentaje >= 70) {
+      nota = 4.0 + ((porcentaje - 70) / 30) * 3.0;
+    } else {
+      nota = 1.0 + (porcentaje / 70) * 3.0;
+    }
+    return { correctas, total, porcentaje, nota: parseFloat(nota.toFixed(1)) };
+  };
+
+  const resultadoSimulacro = calcularNotaSimulacro();
+
   const actualizarApuntes = (texto: string) => setTemas(temas.map(t => t.id === temaSeleccionado.id ? { ...t, apuntes: texto } : t));
   const calculoProgreso = temas.length > 0 ? Math.round((temas.filter(t => t.estado === "🟢 Dominado").length / temas.length) * 100) : 0;
 
@@ -115,15 +206,15 @@ export default function PlanEunacom() {
   }
 
   return (
-    <div className="p-3 md:p-6 max-w-7xl mx-auto md:h-full flex flex-col space-y-5 md:space-y-6 bg-gray-50 md:overflow-hidden">
+    <div className="p-3 md:p-6 max-w-7xl mx-auto md:h-full flex flex-col space-y-4 md:space-y-6 bg-gray-50 md:overflow-hidden">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 md:p-5 rounded-2xl shadow-sm border border-gray-100 shrink-0">
         <div className="space-y-1">
           <div className="flex items-center gap-2.5">
             <BookOpen className="w-6 h-6 md:w-7 md:h-7 text-emerald-600" />
-            <h1 className="text-xl md:text-2xl font-extrabold text-gray-950 tracking-tight">Plan EUNACOM</h1>
+            <h1 className="text-xl md:text-2xl font-extrabold text-gray-950 tracking-tight">Plan EUNACOM & Teóricos UMAG</h1>
           </div>
           <div className="flex items-center gap-2 text-xs md:text-sm text-gray-500">
-            <span>{temas.length} Temas • Gestión de estudio personal con IA.</span>
+            <span>{temas.length} Temas Oficiales • Apuntes, Flashcards y Simulacros de Exámenes.</span>
             {!descargando && <span className="flex items-center gap-1 bg-emerald-50 text-emerald-700 font-semibold px-2 py-0.5 rounded-md border border-emerald-200 ml-2"><Cloud className="w-3 h-3"/> Nube</span>}
           </div>
         </div>
@@ -141,7 +232,7 @@ export default function PlanEunacom() {
       <div className="flex flex-col md:flex-row gap-5 md:gap-6 items-start flex-1 md:overflow-hidden min-h-0 w-full">
         <div className="w-full md:w-80 flex-shrink-0 flex flex-col h-[350px] md:h-full">
           <div className="bg-white p-4 md:p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col overflow-hidden flex-1 min-h-0">
-            <h2 className="text-base font-bold text-gray-950 mb-3 flex items-center gap-2 shrink-0"><FileText className="w-4 h-4 text-gray-500" /> Índice Temático</h2>
+            <h2 className="text-base font-bold text-gray-950 mb-3 flex items-center gap-2 shrink-0"><FileText className="w-4 h-4 text-gray-500" /> Índice Temático EUNACOM</h2>
             <nav className="space-y-2.5 overflow-y-auto pr-2 -mr-2 flex-1 min-h-0 pb-2">
               {temas.map(tema => (
                 <button key={tema.id} onClick={() => seleccionarTema(tema)} className={`w-full text-left p-3.5 rounded-xl transition-all border shrink-0 ${temaSeleccionado?.id === tema.id ? 'bg-emerald-50 border-emerald-200 shadow-sm' : 'hover:bg-gray-50 border-gray-100'}`}>
@@ -149,7 +240,7 @@ export default function PlanEunacom() {
                   <p className="text-sm font-semibold text-gray-950 leading-tight mb-2">{tema.titulo}</p>
                   <div className="flex justify-between items-center gap-2 pt-1 border-t border-gray-100 text-xs">
                     <span className="font-bold text-gray-700">{tema.estado}</span>
-                    <span className="text-[10px] bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-bold">🧠 {tema.flashcards?.length || 0} guardadas</span>
+                    <span className="text-[10px] bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-bold">🧠 {tema.flashcards?.length || 0}</span>
                   </div>
                 </button>
               ))}
@@ -158,8 +249,8 @@ export default function PlanEunacom() {
         </div>
 
         {temaSeleccionado && (
-          <div className="flex-1 w-full bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-gray-100 space-y-5 md:space-y-6 flex flex-col md:overflow-hidden min-h-0 md:h-full">
-            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 border-b border-gray-100 pb-4 shrink-0">
+          <div className="flex-1 w-full bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4 md:space-y-5 flex flex-col md:overflow-hidden min-h-0 md:h-full">
+            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 border-b border-gray-100 pb-3 shrink-0">
               <div className="space-y-0.5">
                   <p className="text-[11px] font-medium text-emerald-700 uppercase tracking-wider">{temaSeleccionado.categoria}</p>
                   <h2 className="text-lg md:text-xl font-extrabold text-gray-950 tracking-tight leading-tight">{temaSeleccionado.titulo}</h2>
@@ -173,18 +264,25 @@ export default function PlanEunacom() {
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-2.5 p-1.5 bg-gray-100 rounded-xl border border-gray-200 shrink-0">
-              <button onClick={() => setModo("apuntes")} className={`flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold transition-all ${modo === "apuntes" ? 'bg-emerald-600 text-white shadow-md' : 'text-gray-600 hover:bg-gray-200'}`}>📝 Apuntes</button>
-              <button onClick={() => setModo("flashcards")} className={`flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold transition-all ${modo === "flashcards" ? 'bg-purple-600 text-white shadow-md' : 'text-gray-600 hover:bg-gray-200'}`}>🧠 Flashcards IA <span className="text-xs opacity-60">({temaSeleccionado.flashcards?.length || 0})</span></button>
+            {/* Selector de 3 Modos: Apuntes, Flashcards, Simulacro */}
+            <div className="grid grid-cols-3 gap-2 p-1.5 bg-gray-100 rounded-xl border border-gray-200 shrink-0">
+              <button onClick={() => setModo("apuntes")} className={`flex items-center justify-center gap-2 py-2 rounded-lg text-xs md:text-sm font-semibold transition-all ${modo === "apuntes" ? 'bg-emerald-600 text-white shadow-md' : 'text-gray-600 hover:bg-gray-200'}`}>📝 Apuntes</button>
+              <button onClick={() => setModo("flashcards")} className={`flex items-center justify-center gap-2 py-2 rounded-lg text-xs md:text-sm font-semibold transition-all ${modo === "flashcards" ? 'bg-purple-600 text-white shadow-md' : 'text-gray-600 hover:bg-gray-200'}`}>🧠 Flashcards</button>
+              <button onClick={() => setModo("simulacro")} className={`flex items-center justify-center gap-2 py-2 rounded-lg text-xs md:text-sm font-semibold transition-all ${modo === "simulacro" ? 'bg-blue-600 text-white shadow-md' : 'text-gray-600 hover:bg-gray-200'}`}>🎯 Simulacros Teóricos</button>
             </div>
 
             <div className="flex-1 md:overflow-y-auto pr-2 -mr-2 bg-[#fafafa] p-3 rounded-xl border border-gray-100 min-h-0">
-              {modo === "apuntes" ? (
+              
+              {/* MODO 1: APUNTES */}
+              {modo === "apuntes" && (
                 <div className="flex flex-col h-full space-y-3">
                   <label className="text-xs md:text-sm text-gray-600 font-medium">Escribe tus apuntes, perlas clínicas o mnemotecnias (se guardan automáticamente):</label>
                   <textarea value={temaSeleccionado.apuntes} onChange={(e) => actualizarApuntes(e.target.value)} className="flex-1 w-full p-4 border border-gray-200 rounded-xl bg-white shadow-inner focus:ring-2 focus:ring-emerald-200 focus:border-emerald-300 transition-all text-sm md:text-base resize-none leading-relaxed min-h-[250px] md:min-h-0" placeholder="Escribe aquí tus apuntes del tema..." />
                 </div>
-              ) : (
+              )}
+
+              {/* MODO 2: FLASHCARDS */}
+              {modo === "flashcards" && (
                 <div className="flex flex-col h-full items-center space-y-5">
                   <div className="flex flex-col gap-3 w-full bg-white p-4 rounded-xl border border-gray-100 shadow-sm shrink-0">
                       {archivoAdjunto ? (
@@ -235,6 +333,162 @@ export default function PlanEunacom() {
                   )}
                 </div>
               )}
+
+              {/* MODO 3: SIMULACRO DE EXÁMENES TEÓRICOS */}
+              {modo === "simulacro" && (
+                <div className="space-y-4">
+                  
+                  {/* Selector de Examen */}
+                  <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm space-y-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                      <button
+                        onClick={() => setTipoSimulacro("teorico1")}
+                        className={`p-2.5 rounded-xl border text-xs font-bold text-left transition-all ${
+                          tipoSimulacro === "teorico1" ? "bg-blue-50 border-blue-400 text-blue-900 ring-2 ring-blue-300" : "bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100"
+                        }`}
+                      >
+                        <p className="font-bold">📝 Examen Teórico 1 (12.5%)</p>
+                        <p className="text-[10px] text-gray-500 font-normal mt-0.5">Cardio, Gastro y Respiratorio</p>
+                      </button>
+
+                      <button
+                        onClick={() => setTipoSimulacro("teorico2")}
+                        className={`p-2.5 rounded-xl border text-xs font-bold text-left transition-all ${
+                          tipoSimulacro === "teorico2" ? "bg-purple-50 border-purple-400 text-purple-900 ring-2 ring-purple-300" : "bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100"
+                        }`}
+                      >
+                        <p className="font-bold">📝 Examen Teórico 2 (12.5%)</p>
+                        <p className="text-[10px] text-gray-500 font-normal mt-0.5">Infecto, Nefro, Reuma, Endócrino...</p>
+                      </button>
+
+                      <button
+                        onClick={() => setTipoSimulacro("tema")}
+                        className={`p-2.5 rounded-xl border text-xs font-bold text-left transition-all ${
+                          tipoSimulacro === "tema" ? "bg-emerald-50 border-emerald-400 text-emerald-900 ring-2 ring-emerald-300" : "bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100"
+                        }`}
+                      >
+                        <p className="font-bold">🎯 Test de este Tema</p>
+                        <p className="text-[10px] text-gray-500 font-normal mt-0.5">{temaSeleccionado.titulo}</p>
+                      </button>
+                    </div>
+
+                    <button
+                      onClick={generarSimulacroExamen}
+                      disabled={generandoTest}
+                      className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl flex items-center justify-center gap-2 shadow-sm transition-all disabled:opacity-50"
+                    >
+                      {generandoTest ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          <span>Generando casos clínicos EUNACOM con Gemini...</span>
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="w-4 h-4" />
+                          <span>Generar 5 Casos Clínicos con IA ✨</span>
+                        </>
+                      )}
+                    </button>
+                  </div>
+
+                  {/* Preguntas del Test */}
+                  {preguntasTest.length > 0 && (
+                    <div className="space-y-4">
+                      {preguntasTest.map((p, pIdx) => {
+                        const seleccionada = respuestasUsuario[p.id];
+                        const esCorrecta = seleccionada === p.correcta;
+
+                        return (
+                          <div key={p.id} className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm space-y-3">
+                            <div className="flex justify-between items-start">
+                              <span className="text-[10px] bg-blue-100 text-blue-800 font-bold px-2 py-0.5 rounded-md uppercase">
+                                Caso {pIdx + 1} • {p.tema}
+                              </span>
+                              {testFinalizado && (
+                                <span className={`text-xs font-bold flex items-center gap-1 ${
+                                  esCorrecta ? 'text-emerald-600' : 'text-red-600'
+                                }`}>
+                                  {esCorrecta ? <><CheckCircle2 className="w-4 h-4" /> Correcta</> : <><XCircle className="w-4 h-4" /> Incorrecta</>}
+                                </span>
+                              )}
+                            </div>
+
+                            <p className="text-xs md:text-sm text-gray-900 font-medium leading-relaxed">
+                              {p.enunciado}
+                            </p>
+
+                            <div className="space-y-1.5">
+                              {p.opciones.map((opcion, oIdx) => {
+                                const esEstaSeleccionada = seleccionada === oIdx;
+                                const esLaCorrecta = p.correcta === oIdx;
+
+                                let estiloOpcion = "bg-gray-50 border-gray-200 text-gray-700 hover:bg-gray-100";
+                                if (testFinalizado) {
+                                  if (esLaCorrecta) estiloOpcion = "bg-emerald-100 border-emerald-400 text-emerald-950 font-bold";
+                                  else if (esEstaSeleccionada && !esLaCorrecta) estiloOpcion = "bg-red-100 border-red-300 text-red-900 font-bold";
+                                } else if (esEstaSeleccionada) {
+                                  estiloOpcion = "bg-blue-50 border-blue-400 text-blue-900 font-bold ring-2 ring-blue-300";
+                                }
+
+                                return (
+                                  <button
+                                    key={oIdx}
+                                    onClick={() => seleccionarOpcion(p.id, oIdx)}
+                                    className={`w-full p-2.5 rounded-lg border text-xs text-left transition-all ${estiloOpcion}`}
+                                  >
+                                    {opcion}
+                                  </button>
+                                );
+                              })}
+                            </div>
+
+                            {testFinalizado && (
+                              <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-800 leading-relaxed">
+                                <p className="font-bold text-blue-900 mb-0.5">Fundamentación Clínica EUNACOM:</p>
+                                <p>{p.justificacion}</p>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+
+                      {/* Botón de Finalizar Test */}
+                      {!testFinalizado ? (
+                        <button
+                          onClick={() => setTestFinalizado(true)}
+                          disabled={Object.keys(respuestasUsuario).length < preguntasTest.length}
+                          className="w-full py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs md:text-sm rounded-xl shadow-md transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                        >
+                          <CheckCircle className="w-4 h-4" />
+                          Finalizar Simulacro y Ver Calificación Oficial
+                        </button>
+                      ) : (
+                        <div className="bg-white p-4 rounded-xl border-2 border-emerald-200 shadow-md flex flex-col sm:flex-row sm:items-center justify-between gap-3 animate-in zoom-in-95">
+                          <div className="flex items-center gap-3">
+                            <Award className="w-8 h-8 text-emerald-600" />
+                            <div>
+                              <h4 className="font-bold text-gray-900 text-sm">Resultado del Simulacro</h4>
+                              <p className="text-xs text-gray-500">
+                                {resultadoSimulacro.correctas} de {resultadoSimulacro.total} correctas ({resultadoSimulacro.porcentaje}%) • Exigencia 70%
+                              </p>
+                            </div>
+                          </div>
+                          <div className={`px-4 py-2 rounded-xl text-center font-black text-base border ${
+                            resultadoSimulacro.nota >= 4.0 ? 'bg-emerald-50 text-emerald-800 border-emerald-300' : 'bg-red-50 text-red-800 border-red-300'
+                          }`}>
+                            Nota: {resultadoSimulacro.nota.toFixed(1)}
+                            <span className="block text-[10px] uppercase font-bold">
+                              {resultadoSimulacro.nota >= 4.0 ? 'Aprobado 🎓' : 'Reprobado ❌'}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                </div>
+              )}
+
             </div>
           </div>
         )}

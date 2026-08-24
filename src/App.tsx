@@ -9,11 +9,14 @@ import Tareas from './views/Tareas';
 import PlanEunacom from './views/PlanEunacom';
 import TutorClinico from "./views/TutorClinico";
 import CalendarioPruebas from "./views/CalendarioPruebas";
+import ExamenOral from "./views/ExamenOral";
+import CalculadorasMedicas from "./views/CalculadorasMedicas";
+import EcgReunionClinica from "./views/EcgReunionClinica";
 
 export default function App() {
   const [session, setSession] = useState<any>(null);
   const [cargandoSesion, setCargandoSesion] = useState(true);
-  const [activeTab, setActiveTab] = useState<string>("ia");
+  const [activeTab, setActiveTab] = useState<string>("censo");
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -59,8 +62,14 @@ export default function App() {
         return <TutorClinico />;
       case "calendario":
         return <CalendarioPruebas />;
+      case "examenOral":
+        return <ExamenOral />;
+      case "calculadoras":
+        return <CalculadorasMedicas />;
+      case "ecg":
+        return <EcgReunionClinica />;
       default:
-        return <IAModuleDesktop />;
+        return <Censo />;
     }
   };
 
