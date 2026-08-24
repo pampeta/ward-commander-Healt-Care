@@ -1,1 +1,127 @@
-@import "tailwindcss"; 
+@import "tailwindcss";
+
+/* =========================================================
+   MODO NOCHE CLÍNICO / TURNO DE RESIDENCIA (DARK THEME)
+   Preserva alto contraste de textos y colores de insignias
+   ========================================================= */
+
+html.dark {
+  color-scheme: dark;
+}
+
+html.dark body {
+  background-color: #0b0f19 !important;
+  color: #f8fafc !important;
+}
+
+html.dark main {
+  background-color: #0b0f19 !important;
+}
+
+/* Tarjetas y Contenedores */
+html.dark .bg-white {
+  background-color: #1e293b !important;
+  color: #f8fafc !important;
+}
+
+html.dark .bg-gray-50,
+html.dark .bg-slate-50,
+html.dark .bg-slate-50\/50,
+html.dark .bg-\[\#fafafa\] {
+  background-color: #0f172a !important;
+}
+
+html.dark .bg-gray-100 {
+  background-color: #334155 !important;
+  color: #f8fafc !important;
+}
+
+html.dark .bg-gray-200 {
+  background-color: #475569 !important;
+}
+
+/* Tipografías y Contraste */
+html.dark .text-gray-950,
+html.dark .text-gray-900,
+html.dark .text-gray-800 {
+  color: #f8fafc !important;
+}
+
+html.dark .text-gray-700,
+html.dark .text-gray-600 {
+  color: #cbd5e1 !important;
+}
+
+html.dark .text-gray-500,
+html.dark .text-gray-400 {
+  color: #94a3b8 !important;
+}
+
+/* Bordes */
+html.dark .border-gray-100,
+html.dark .border-gray-200,
+html.dark .border-gray-300,
+html.dark .border-slate-100,
+html.dark .border-slate-200 {
+  border-color: #334155 !important;
+}
+
+/* Formularios: Inputs, Selects, Textareas */
+html.dark input,
+html.dark textarea,
+html.dark select {
+  background-color: #0f172a !important;
+  color: #f8fafc !important;
+  border-color: #334155 !important;
+}
+
+html.dark input::placeholder,
+html.dark textarea::placeholder {
+  color: #64748b !important;
+}
+
+/* Píldoras e Insignias de Colores (Preservación Clínica) */
+/* Púrpura */
+html.dark .bg-purple-50 { background-color: rgba(147, 51, 234, 0.18) !important; }
+html.dark .bg-purple-100 { background-color: rgba(147, 51, 234, 0.3) !important; }
+html.dark .text-purple-700,
+html.dark .text-purple-800,
+html.dark .text-purple-900,
+html.dark .text-purple-950 { color: #c084fc !important; }
+html.dark .border-purple-200,
+html.dark .border-purple-300 { border-color: #7e22ce !important; }
+
+/* Esmeralda / Verde */
+html.dark .bg-emerald-50 { background-color: rgba(16, 185, 129, 0.18) !important; }
+html.dark .bg-emerald-100 { background-color: rgba(16, 185, 129, 0.3) !important; }
+html.dark .text-emerald-700,
+html.dark .text-emerald-800,
+html.dark .text-emerald-900 { color: #34d399 !important; }
+html.dark .border-emerald-200,
+html.dark .border-emerald-300 { border-color: #059669 !important; }
+
+/* Azul */
+html.dark .bg-blue-50 { background-color: rgba(59, 130, 246, 0.18) !important; }
+html.dark .bg-blue-100 { background-color: rgba(59, 130, 246, 0.3) !important; }
+html.dark .text-blue-700,
+html.dark .text-blue-800,
+html.dark .text-blue-900 { color: #60a5fa !important; }
+html.dark .border-blue-200,
+html.dark .border-blue-300 { border-color: #2563eb !important; }
+
+/* Ámbar / Amarillo */
+html.dark .bg-amber-50 { background-color: rgba(245, 158, 11, 0.18) !important; }
+html.dark .bg-amber-100 { background-color: rgba(245, 158, 11, 0.3) !important; }
+html.dark .text-amber-700,
+html.dark .text-amber-800,
+html.dark .text-amber-900 { color: #fbbf24 !important; }
+html.dark .border-amber-200,
+html.dark .border-amber-300 { border-color: #d97706 !important; }
+
+/* Rojo / Rosa */
+html.dark .bg-red-50, html.dark .bg-rose-50 { background-color: rgba(239, 68, 68, 0.18) !important; }
+html.dark .bg-red-100, html.dark .bg-rose-100 { background-color: rgba(239, 68, 68, 0.3) !important; }
+html.dark .text-red-700, html.dark .text-red-800, html.dark .text-red-900,
+html.dark .text-rose-700, html.dark .text-rose-800, html.dark .text-rose-900 { color: #f87171 !important; }
+html.dark .border-red-200, html.dark .border-red-300,
+html.dark .border-rose-200 { border-color: #dc2626 !important; }
