@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { consultarGeminiConArchivo } from '../Services/gemini';
-import { GraduationCap, Award, Play, RotateCcw, Send, Loader2, CheckCircle2, AlertCircle, FileCheck, UserCheck } from 'lucide-react';
+import { GraduationCap, Award, Play, RotateCcw, Send, Loader2, CheckCircle2, AlertCircle, FileCheck, UserCheck, Shuffle, Cloud, History, Calendar } from 'lucide-react';
+import { guardarEnNube, cargarDeNube } from '../Services/cloudSync';
 
 interface MensajeExamen {
   remitente: 'comision' | 'interno';
@@ -22,24 +23,79 @@ interface EvaluacionPauta {
   aspectosMejorar: string[];
 }
 
-const TEMAS_OFICIALES = [
-  'Cardiología: Síndrome Coronario Agudo / Fibrilación Auricular descompensada',
-  'Cardiología: Insuficiencia Cardíaca Aguda / Edema Pulmonar Agudo',
-  'Gastroenterología: Hemorragia Digestiva Alta en Daño Hepático Crónico (DHC)',
-  'Gastroenterología: Pancreatitis Aguda Grave / Criterios de Severidad',
-  'Nefrología: Injuria Renal Aguda (IRA) / Urgencias Dialíticas / Hiperkalemia',
-  'Nefrología: Síndrome Nefrítico vs Nefrótico / Crisis Hipertensiva',
-  'Broncopulmonar: Neumonía Adquirida en la Comunidad (NAC) grave / CURB-65',
-  'Broncopulmonar: Tromboembolismo Pulmonar Agudo (TEP) / Scores y Manejo',
-  'Diabetes & Nutrición: Cetoacidosis Diabética (CAD) / Síndrome Hiperosmolar',
-  'Infectología: Sepsis / Shock Séptico de Foco Urinario o Pulmonar',
-  'Hematología: Síndrome Purpúrico / Neutropenia Febril / Anemias Graves',
-  'Reumatología: Lupus Eritematoso Sistémico / Artritis Séptica vs Cristales'
+interface RegistroHistorialExamen {
+  id: string;
+  fecha: string;
+  tema: string;
+  evaluacion: EvaluacionPauta;
+}
+
+const TEMAS_CLINICOS_COMPLETOS = [
+  // CARDIOLOGÍA
+  'Cardiología: Síndrome Coronario Agudo (IAMCEST vs IAMSEST / Angina Inestable)',
+  'Cardiología: Insuficiencia Cardíaca Aguda / Edema Pulmonar Agudo / Shock Cardiogénico',
+  'Cardiología: Fibrilación Auricular con Respuesta Ventricular Rápida descompensada',
+  'Cardiología: Taquiarritmias: Taquicardia Paroxística Supraventricular (TPSV) / Flutter Auricular',
+  'Cardiología: Bradiarritmias: Bloqueo AV Completo / Bradicardia Sintomática',
+  'Cardiología: Tromboembolismo Pulmonar Agudo (TEP) masivo y submasivo',
+  'Cardiología: Endocarditis Infecciosa Aguda / Criterios de Duke',
+  'Cardiología: Pericarditis Aguda / Taponamiento Cardíaco',
+  'Cardiología: Estenosis Aórtica Severa Sintomática / Insuficiencia Mitral Aguda',
+
+  // GASTROENTEROLOGÍA & HEPATOLOGÍA
+  'Gastroenterología: Hemorragia Digestiva Alta Variceal en paciente con Cirrosis (DHC)',
+  'Gastroenterología: Hemorragia Digestiva Alta No Variceal (Úlcera Péptica Sangrante)',
+  'Gastroenterología: Pancreatitis Aguda Grave / Criterios de Severidad (BISAP / Ranson)',
+  'Gastroenterología: Encefalopatía Hepática / Síndrome Hepatorrenal en DHC',
+  'Gastroenterología: Diarrea Aguda con Deshidratación Severa / Sospecha de Clostridioides difficile',
+  'Gastroenterología: Enfermedad Inflamatoria Intestinal (Crisis de Colitis Ulcerosa)',
+  'Gastroenterología: Falla Hepática Aguda Grave (FHAG) / Daño Hepático Fulminante',
+
+  // NEFROLOGÍA & MEDIO INTERNO
+  'Nefrología: Injuria Renal Aguda (IRA) Oligúrica / Urgencias Dialíticas',
+  'Nefrología: Hiperkalemia Severa con Cambios Electrocardiográficos',
+  'Nefrología: Hiponatremia Severa Sintomática (Manejo con NaCl 3% y riesgo de mielinolisis)',
+  'Nefrología: Síndrome Nefrítico Agudo (GNPE / Glomerulonefritis Rápidamente Progresiva)',
+  'Nefrología: Síndrome Nefrótico Descompensado / Trombosis de Vena Renal',
+  'Nefrología: Crisis Hipertensiva: Emergencia Hipertensiva con Daño de Órgano Blanco',
+  'Nefrología: Trastornos Ácido-Base Complejos (Acidosis Láctica / Cetoacidosis)',
+
+  // BRONCOPULMONAR
+  'Broncopulmonar: Neumonía Adquirida en la Comunidad (NAC) Grave / CURB-65 / Shock Séptico',
+  'Broncopulmonar: Crisis Asmática Severa / Estado Asmático en Urgencias',
+  'Broncopulmonar: EPOC Reagudizado Grave con Insuficiencia Respiratoria Hipercápnica',
+  'Broncopulmonar: Derrame Pleural Masivo / Empiema Pleural',
+  'Broncopulmonar: Hemoptisis Masiva en paciente con TBC o Cáncer Pulmonar',
+
+  // NUTRICIÓN & DIABETES / ENDOCRINOLOGÍA
+  'Diabetes & Nutrición: Cetoacidosis Diabética (CAD) descompensada',
+  'Diabetes & Nutrición: Estado Hiperosmolar Hiperglicémico (EHH)',
+  'Diabetes & Nutrición: Hipoglicemia Severa en paciente diabético con ERC',
+  'Endocrinología: Crisis Tirotóxica (Tormenta Tiroidea)',
+  'Endocrinología: Coma Mixedematoso / Hipotiroidismo Severo',
+  'Endocrinología: Insuficiencia Suprarrenal Aguda / Crisis Addisoniana',
+  'Endocrinología: Hipercalcemia Maligna Severa',
+
+  // INFECTOLOGÍA
+  'Infectología: Sepsis y Shock Séptico de Foco Urinario / Neumónico',
+  'Infectología: Neutropenia Febril de Alto Riesgo en paciente hemato-oncológico',
+  'Infectología: Infección por VIH / Neumonía por Pneumocystis jirovecii / Meningitis Criptocócica',
+  'Infectología: Meningitis Bacteriana Aguda del Adulto',
+  'Infectología: Infección de Piel y Partes Blandas Necrosante (Fascitis Necrosante)',
+
+  // HEMATOLOGÍA & REUMATOLOGÍA
+  'Hematología: Síndrome Purpúrico / Púrpura Trombocitopénica Trombótica (PTT) vs PTI',
+  'Hematología: Síndrome de Lisis Tumoral Aguda',
+  'Hematología: Anemia Hemolítica Autoinmune Severa / Pancitopenia en Estudio',
+  'Reumatología: Crisis de Lupus Eritematoso Sistémico con Nefritis Lúpica',
+  'Reumatología: Monoartritis Aguda: Artritis Séptica vs Crisis de Gota',
+
+  // GERIATRÍA
+  'Geriatría: Síndrome Confusional Agudo (Delirium Hipoactivo / Hiperactivo) en Adulto Mayor'
 ];
 
 export default function ExamenOral() {
-  const [temaSeleccionado, setTemaSeleccionado] = useState<string>(TEMAS_OFICIALES[0]);
-  const [comisionDocente, setComisionDocente] = useState<string>('Dr. Mario Mayanz & Dra. Danissa Haro');
+  const [temaSeleccionado, setTemaSeleccionado] = useState<string>(TEMAS_CLINICOS_COMPLETOS[0]);
   const [enExamen, setEnExamen] = useState<boolean>(false);
   const [cargando, setCargando] = useState<boolean>(false);
   const [mensajes, setMensajes] = useState<MensajeExamen[]>([]);
@@ -47,7 +103,36 @@ export default function ExamenOral() {
   const [evaluacionFinal, setEvaluacionFinal] = useState<EvaluacionPauta | null>(null);
   const [generandoActa, setGenerandoActa] = useState<boolean>(false);
 
+  const [historialExamenes, setHistorialExamenes] = useState<RegistroHistorialExamen[]>([]);
+  const [sincronizandoNube, setSincronizandoNube] = useState<boolean>(true);
+  const [mostrarHistorialModal, setMostrarHistorialModal] = useState<boolean>(false);
+
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Cargar Historial desde la Nube al Iniciar
+  useEffect(() => {
+    async function sincronizarHistorial() {
+      const datosNube = await cargarDeNube('examen_oral_historial');
+      if (datosNube && Array.isArray(datosNube) && datosNube.length > 0) {
+        setHistorialExamenes(datosNube);
+      } else {
+        const local = localStorage.getItem('wc_examen_oral_historial');
+        if (local) {
+          try { setHistorialExamenes(JSON.parse(local)); } catch (e) {}
+        }
+      }
+      setSincronizandoNube(false);
+    }
+    sincronizarHistorial();
+  }, []);
+
+  // Guardar en la Nube al cambiar historial
+  useEffect(() => {
+    if (!sincronizandoNube && historialExamenes.length > 0) {
+      localStorage.setItem('wc_examen_oral_historial', JSON.stringify(historialExamenes));
+      guardarEnNube('examen_oral_historial', historialExamenes);
+    }
+  }, [historialExamenes, sincronizandoNube]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -55,22 +140,25 @@ export default function ExamenOral() {
     }
   }, [mensajes]);
 
+  const sortearTemaAleatorio = () => {
+    const randomIdx = Math.floor(Math.random() * TEMAS_CLINICOS_COMPLETOS.length);
+    setTemaSeleccionado(TEMAS_CLINICOS_COMPLETOS[randomIdx]);
+  };
+
   const iniciarExamen = async () => {
     setEnExamen(true);
     setEvaluacionFinal(null);
     setCargando(true);
 
     const promptInicial = `
-Actúa como la Comisión Docente de Pregrado de Medicina Interna de la Universidad de Magallanes (Hospital Clínico de Magallanes), integrada por: ${comisionDocente}.
-Estamos iniciando el EXAMEN ORAL DE PREGRADO (Semana 15 - Carácter Reprobatorio - Pondera 30%).
-
-El tema sorteado para el interno es: "${temaSeleccionado}".
+Actúa como un Médico Tutor Evaluador Senior de Medicina Interna para un examen oral de pregrado.
+Estamos iniciando la evaluación oral clínica sobre el tema: "${temaSeleccionado}".
 
 INSTRUCCIONES CLÍNICAS:
 1. Saluda al interno con formalidad académica médica.
 2. Preséntale la VIÑETA CLÍNICA INICIAL del paciente (Edad, sexo, motivo de consulta a Urgencias o sala, anamnesis próxima breve, antecedentes mórbidos y signos vitales de ingreso).
 3. Pídele al interno que exponga su enfrentamiento inicial, examen físico segmentario dirigido y sus primeras hipótesis diagnósticas.
-4. Mantén un tono docente, formal y exigente acorde al internado de medicina interna chileno.
+4. Mantén un tono docente, formal, estructurado y exigente acorde al internado de medicina interna chileno y perfil EUNACOM.
 `;
 
     try {
@@ -109,20 +197,20 @@ INSTRUCCIONES CLÍNICAS:
     setCargando(true);
 
     const historialContexto = nuevosMensajes
-      .map(m => `${m.remitente === 'comision' ? 'COMISIÓN' : 'INTERNO'}: ${m.texto}`)
+      .map(m => `${m.remitente === 'comision' ? 'TUTOR EVALUADOR' : 'INTERNO'}: ${m.texto}`)
       .join('\n\n');
 
     const promptContinuar = `
-Eres la Comisión Docente de Medicina Interna UMAG (${comisionDocente}).
+Eres el Tutor Evaluador Senior de Medicina Interna.
 Continúa evaluando al interno en su examen oral sobre: "${temaSeleccionado}".
 
 HISTORIAL DE LA EVALUACIÓN:
 ${historialContexto}
 
-INSTRUCCIÓN DE LA COMISIÓN:
-- Analiza la respuesta del interno. Si solicitó exámenes complementarios (laboratorio, ECG, imágenes, gases), entrégale los resultados concretos con valores numéricos y hallazgos radiológicos/ECG.
+INSTRUCCIÓN DEL EVALUADOR:
+- Analiza la respuesta del interno. Si solicitó exámenes complementarios (laboratorio, ECG, imágenes, gases), entrégale los resultados concretos con valores numéricos y hallazgos radiológicos/ECG verosímiles.
 - Hazle preguntas de seguimiento sobre: diagnósticos diferenciales, estratificación de gravedad (scores como CURB-65, MELD, Child-Pugh, TIMI, Wells, etc.), conducta terapéutica precisa (fármacos con dosis y vías, medidas generales) o criterios de ingreso a UCI/UTI o garantías GES si aplica.
-- Si el examen ya lleva suficiente profundidad (3 o más intercambios), haz una última pregunta de integración teórica o fisiopatológica para concluir la deliberación.
+- Si el examen ya lleva suficiente profundidad (3 o más intercambios), haz una última pregunta de integración teórica o fisiopatológica para concluir la sesión.
 `;
 
     try {
@@ -146,23 +234,22 @@ INSTRUCCIÓN DE LA COMISIÓN:
     setGenerandoActa(true);
 
     const historialCompleto = mensajes
-      .map(m => `${m.remitente === 'comision' ? 'COMISIÓN DOCENTE' : 'INTERNO DE MEDICINA'}: ${m.texto}`)
+      .map(m => `${m.remitente === 'comision' ? 'TUTOR EVALUADOR' : 'INTERNO DE MEDICINA'}: ${m.texto}`)
       .join('\n\n');
 
     const promptCalificacion = `
-Eres la Comisión Docente de Medicina Interna de la Universidad de Magallanes (Hospital Clínico de Magallanes).
+Eres el Médico Tutor Evaluador de Medicina Interna.
 Has finalizado el examen oral del interno sobre el tema: "${temaSeleccionado}".
 
-Debes calificar el desempeño del interno según la PAUTA OFICIAL DE EVALUACIÓN DE EXAMEN ORAL DE PREGRADO INTERNADO MEDICINA INTERNA UMAG con notas chilenas de 1.0 a 7.0 (donde 4.0 es la nota mínima de aprobación al 70% de exigencia).
+Debes calificar el desempeño del interno con notas chilenas de 1.0 a 7.0 (donde 4.0 es la nota mínima de aprobación al 70% de exigencia) en los siguientes 7 acápites clínicos:
 
-Ponderaciones de la Rúbrica:
 1. Analiza adecuadamente el cuadro clínico del paciente con el fin de recabar la información (10% de ponderación) -> Calificación de 1.0 a 7.0
 2. Es capaz de interpretar pruebas diagnósticas generales (10% de ponderación) -> Calificación de 1.0 a 7.0
 3. Realiza una aproximación diagnóstica de acuerdo a la información provista (10% de ponderación) -> Calificación de 1.0 a 7.0
 4. Formula hipótesis diagnósticas (10% de ponderación) -> Calificación de 1.0 a 7.0
 5. Plantea diagnósticos diferenciales (10% de ponderación) -> Calificación de 1.0 a 7.0
 6. Define de forma general la conducta a seguir (20% de ponderación) -> Calificación de 1.0 a 7.0
-7. Demuestra conocimiento teórico al responder las preguntas por la comisión (30% de ponderación) -> Calificación de 1.0 a 7.0
+7. Demuestra conocimiento teórico al responder las preguntas (30% de ponderación) -> Calificación de 1.0 a 7.0
 
 HISTORIAL DEL EXAMEN:
 ${historialCompleto}
@@ -188,6 +275,17 @@ REGLA: Devuelve ÚNICAMENTE un objeto JSON válido con esta estructura exacta (s
       const limpio = resText.replace(/```json/gi, '').replace(/```/g, '').trim();
       const pauta: EvaluacionPauta = JSON.parse(limpio);
       setEvaluacionFinal(pauta);
+
+      // Guardar en Historial en la Nube
+      const nuevoRegistro: RegistroHistorialExamen = {
+        id: Date.now().toString(),
+        fecha: new Date().toLocaleDateString('es-CL'),
+        tema: temaSeleccionado,
+        evaluacion: pauta
+      };
+
+      setHistorialExamenes(prev => [nuevoRegistro, ...prev]);
+
     } catch (e: any) {
       alert(`Error al generar el acta de evaluación: ${e.message}`);
     } finally {
@@ -207,82 +305,121 @@ REGLA: Devuelve ÚNICAMENTE un objeto JSON válido con esta estructura exacta (s
           <div>
             <div className="flex items-center gap-2">
               <h1 className="text-xl md:text-2xl font-bold text-gray-900 leading-tight">
-                Simulador de Examen Oral de Pregrado
+                Simulador de Examen Oral Clínico (IA)
               </h1>
-              <span className="text-[10px] bg-purple-100 text-purple-800 font-bold px-2 py-0.5 rounded-full border border-purple-200">
-                Pondera 30% • Reprobatorio
-              </span>
+              {!sincronizandoNube && (
+                <span className="flex items-center gap-1 text-[10px] bg-emerald-50 text-emerald-700 font-bold px-2 py-0.5 rounded-md border border-emerald-200">
+                  <Cloud className="w-3 h-3" /> Nube
+                </span>
+              )}
             </div>
             <p className="text-xs text-gray-500 mt-0.5">
-              Comisión evaluadora docente con rúbrica oficial UMAG - Hospital Clínico de Magallanes.
+              Entrenamiento interactivo de casos clínicos complejos con evaluación formativa y rúbrica oficial.
             </p>
           </div>
         </div>
 
-        {!enExamen ? (
-          <button
-            onClick={iniciarExamen}
-            disabled={cargando}
-            className="px-5 py-2.5 bg-purple-600 hover:bg-purple-700 text-white text-xs md:text-sm font-bold rounded-xl flex items-center gap-2 shadow-md transition-all disabled:opacity-50"
-          >
-            {cargando ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
-            Iniciar Examen Oral
-          </button>
-        ) : (
-          <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2">
+          {historialExamenes.length > 0 && !enExamen && (
             <button
-              onClick={finalizarYCalificar}
-              disabled={generandoActa || mensajes.length < 3}
-              className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 shadow-sm transition-all disabled:opacity-50"
+              onClick={() => setMostrarHistorialModal(!mostrarHistorialModal)}
+              className="px-3.5 py-2 bg-gray-100 hover:bg-gray-200 text-gray-700 text-xs font-bold rounded-xl flex items-center gap-1.5 transition-colors border"
             >
-              {generandoActa ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileCheck className="w-4 h-4" />}
-              Finalizar y Deliberar Nota
+              <History className="w-3.5 h-3.5" />
+              <span>Historial ({historialExamenes.length})</span>
             </button>
+          )}
+
+          {!enExamen ? (
             <button
-              onClick={() => { setEnExamen(false); setMensajes([]); setEvaluacionFinal(null); }}
-              className="p-2 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-xl transition-colors"
-              title="Reiniciar"
+              onClick={iniciarExamen}
+              disabled={cargando}
+              className="px-5 py-2.5 bg-purple-600 hover:bg-purple-700 text-white text-xs md:text-sm font-bold rounded-xl flex items-center gap-2 shadow-md transition-all disabled:opacity-50"
             >
-              <RotateCcw className="w-4 h-4" />
+              {cargando ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
+              Iniciar Caso Clínico
             </button>
-          </div>
-        )}
+          ) : (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={finalizarYCalificar}
+                disabled={generandoActa || mensajes.length < 3}
+                className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded-xl flex items-center gap-1.5 shadow-sm transition-all disabled:opacity-50"
+              >
+                {generandoActa ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileCheck className="w-4 h-4" />}
+                Finalizar y Deliberar Nota
+              </button>
+              <button
+                onClick={() => { setEnExamen(false); setMensajes([]); setEvaluacionFinal(null); }}
+                className="p-2 bg-gray-100 hover:bg-gray-200 text-gray-600 rounded-xl transition-colors"
+                title="Reiniciar"
+              >
+                <RotateCcw className="w-4 h-4" />
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Selector de Configuración si no está en examen */}
+      {/* Historial Modal / Desplegable */}
+      {mostrarHistorialModal && !enExamen && (
+        <div className="bg-white p-4 md:p-5 rounded-2xl border border-purple-200 shadow-lg space-y-3 animate-in fade-in">
+          <div className="flex justify-between items-center border-b pb-2">
+            <h3 className="font-bold text-gray-800 text-sm flex items-center gap-1.5">
+              <History className="w-4 h-4 text-purple-600" /> Historial de Exámenes Guardados en la Nube
+            </h3>
+            <button onClick={() => setMostrarHistorialModal(false)} className="text-gray-400 hover:text-gray-600 text-xs font-bold">Cerrar</button>
+          </div>
+          <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+            {historialExamenes.map(h => (
+              <div
+                key={h.id}
+                onClick={() => setEvaluacionFinal(h.evaluacion)}
+                className="p-3 bg-gray-50 hover:bg-purple-50 rounded-xl border border-gray-200 flex justify-between items-center cursor-pointer transition-colors"
+              >
+                <div className="truncate pr-2">
+                  <p className="font-bold text-gray-900 text-xs truncate">{h.tema}</p>
+                  <p className="text-[10px] text-gray-400 flex items-center gap-1 mt-0.5">
+                    <Calendar className="w-3 h-3" /> {h.fecha}
+                  </p>
+                </div>
+                <div className={`px-2.5 py-1 rounded-lg font-black text-xs shrink-0 border ${
+                  h.evaluacion.notaFinal >= 4.0 ? 'bg-emerald-50 text-emerald-800 border-emerald-300' : 'bg-red-50 text-red-800 border-red-300'
+                }`}>
+                  Nota: {h.evaluacion.notaFinal.toFixed(1)}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Selector de Temario Extenso y Sorteo */}
       {!enExamen && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-white p-5 rounded-2xl border border-gray-100 shadow-sm animate-in fade-in">
-          <div>
-            <label className="block text-xs font-bold uppercase text-gray-600 mb-1.5 tracking-wider">
-              Tema Clínico Sorteado (Temario Oficial)
+        <div className="bg-white p-5 rounded-2xl border border-gray-100 shadow-sm space-y-3 animate-in fade-in">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <label className="block text-xs font-bold uppercase text-gray-700 tracking-wider">
+              Temario Clínico de Medicina Interna ({TEMAS_CLINICOS_COMPLETOS.length} Casos Disponibles)
             </label>
-            <select
-              value={temaSeleccionado}
-              onChange={e => setTemaSeleccionado(e.target.value)}
-              className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs md:text-sm outline-none focus:ring-2 focus:ring-purple-400 text-gray-800"
+            <button
+              type="button"
+              onClick={sortearTemaAleatorio}
+              className="w-fit px-3 py-1.5 bg-purple-50 hover:bg-purple-100 text-purple-800 text-xs font-bold rounded-lg border border-purple-200 flex items-center gap-1.5 transition-colors shadow-sm"
             >
-              {TEMAS_OFICIALES.map((tema, i) => (
-                <option key={i} value={tema}>{tema}</option>
-              ))}
-            </select>
+              <Shuffle className="w-3.5 h-3.5 text-purple-600" />
+              <span>🎲 Sortear Caso Clínico Aleatorio</span>
+            </button>
           </div>
 
-          <div>
-            <label className="block text-xs font-bold uppercase text-gray-600 mb-1.5 tracking-wider">
-              Comisión Evaluadora Designada
-            </label>
-            <select
-              value={comisionDocente}
-              onChange={e => setComisionDocente(e.target.value)}
-              className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs md:text-sm outline-none focus:ring-2 focus:ring-purple-400 text-gray-800"
-            >
-              <option value="Dr. Mario Mayanz & Dra. Danissa Haro">Dr. Mario Mayanz (Director) & Dra. Danissa Haro (Medicina)</option>
-              <option value="Dra. Andrea Chávez & Dr. Joaquín Muñoz">Dra. Andrea Chávez & Dr. Joaquín Muñoz (Medicina Interna)</option>
-              <option value="Dr. Stanko Karelovic & Dr. Francisco Araneda">Dr. Stanko Karelovic (Gastro) & Dr. Francisco Araneda (Infecto)</option>
-              <option value="Dr. Mauro Correa & Dra. Valeska Glasinovich">Dr. Mauro Correa (Nefro) & Dra. Valeska Glasinovich (Bronco)</option>
-              <option value="Dr. Marcelo Montaner & Dr. Zosimo Maravi">Dr. Marcelo Montaner (Cardio) & Dr. Zosimo Maravi (Reuma)</option>
-            </select>
-          </div>
+          <select
+            value={temaSeleccionado}
+            onChange={e => setTemaSeleccionado(e.target.value)}
+            className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-xs md:text-sm outline-none focus:ring-2 focus:ring-purple-400 text-gray-800 font-medium"
+          >
+            {TEMAS_CLINICOS_COMPLETOS.map((tema, i) => (
+              <option key={i} value={tema}>{tema}</option>
+            ))}
+          </select>
         </div>
       )}
 
@@ -293,8 +430,8 @@ REGLA: Devuelve ÚNICAMENTE un objeto JSON válido con esta estructura exacta (s
             <div className="flex items-center gap-2">
               <Award className="w-6 h-6 text-purple-600" />
               <div>
-                <h2 className="text-lg font-bold text-gray-900">Acta Oficial de Calificación de Examen Oral</h2>
-                <p className="text-xs text-gray-500">Comisión: {comisionDocente} • Tema: {temaSeleccionado}</p>
+                <h2 className="text-lg font-bold text-gray-900">Acta de Calificación y Retroalimentación</h2>
+                <p className="text-xs text-gray-500 truncate max-w-xl">{temaSeleccionado}</p>
               </div>
             </div>
             <div className={`px-4 py-2 rounded-xl text-center font-black text-lg border ${
@@ -333,13 +470,13 @@ REGLA: Devuelve ÚNICAMENTE un objeto JSON válido con esta estructura exacta (s
               <span className="text-base font-bold text-purple-950">{evaluacionFinal.conductaASeguir.toFixed(1)}</span>
             </div>
             <div className="bg-purple-50 p-3 rounded-xl border border-purple-200 sm:col-span-2">
-              <span className="text-purple-900 font-bold block text-[10px] uppercase">7. Conocimiento Teórico Comision (30%)</span>
+              <span className="text-purple-900 font-bold block text-[10px] uppercase">7. Conocimiento Teórico (30%)</span>
               <span className="text-base font-bold text-purple-950">{evaluacionFinal.conocimientoTeorico.toFixed(1)}</span>
             </div>
           </div>
 
           <div className="bg-slate-50 p-4 rounded-xl border space-y-2 text-xs">
-            <h3 className="font-bold text-gray-800 text-sm">Dictamen y Retroalimentación de la Comisión:</h3>
+            <h3 className="font-bold text-gray-800 text-sm">Dictamen y Retroalimentación Clínica:</h3>
             <p className="text-gray-700 leading-relaxed italic">{evaluacionFinal.comentariosComision}</p>
             
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
@@ -364,14 +501,14 @@ REGLA: Devuelve ÚNICAMENTE un objeto JSON válido con esta estructura exacta (s
         </div>
       )}
 
-      {/* Sala de Examen Oral / Chat con la Comisión */}
+      {/* Sala de Examen Oral / Chat con el Tutor Evaluador */}
       {enExamen && (
         <div className="bg-white rounded-2xl border border-gray-100 shadow-sm flex flex-col h-[650px] overflow-hidden">
           
           <div className="p-3.5 bg-slate-900 text-white flex items-center justify-between shrink-0">
             <div className="flex items-center gap-2">
               <UserCheck className="w-4 h-4 text-purple-400" />
-              <span className="text-xs font-bold">Comisión Evaluadora en Sesión</span>
+              <span className="text-xs font-bold">Tutor Evaluador de Medicina Interna</span>
             </div>
             <span className="text-[11px] text-slate-400 font-mono">
               {temaSeleccionado.split(':')[0]}
@@ -385,7 +522,7 @@ REGLA: Devuelve ÚNICAMENTE un objeto JSON válido con esta estructura exacta (s
                 <div key={idx} className={`flex gap-3 ${esComision ? 'justify-start' : 'justify-end'}`}>
                   {esComision && (
                     <div className="w-8 h-8 rounded-full bg-purple-600 text-white flex items-center justify-center text-xs font-bold shrink-0 shadow-sm">
-                      🏛️
+                      🩺
                     </div>
                   )}
                   <div className={`max-w-[85%] rounded-2xl p-3.5 text-xs md:text-sm leading-relaxed shadow-sm ${
@@ -394,7 +531,7 @@ REGLA: Devuelve ÚNICAMENTE un objeto JSON válido con esta estructura exacta (s
                       : 'bg-purple-600 text-white'
                   }`}>
                     <div className="flex justify-between items-center mb-1 text-[10px] opacity-75 font-semibold">
-                      <span>{esComision ? comisionDocente : 'Tu Respuesta'}</span>
+                      <span>{esComision ? 'Tutor Evaluador' : 'Tu Respuesta'}</span>
                       {m.tiempo && <span>{m.tiempo}</span>}
                     </div>
                     <div className="whitespace-pre-wrap">{m.texto}</div>
@@ -406,7 +543,7 @@ REGLA: Devuelve ÚNICAMENTE un objeto JSON válido con esta estructura exacta (s
             {cargando && (
               <div className="flex items-center gap-2 text-xs text-purple-700 bg-purple-50 p-3 rounded-xl w-fit border border-purple-200 animate-pulse">
                 <Loader2 className="w-4 h-4 animate-spin" />
-                <span>La Comisión Docente está deliberando y formulando preguntas...</span>
+                <span>El Tutor Evaluador está analizando tu respuesta y formulando el siguiente paso...</span>
               </div>
             )}
           </div>

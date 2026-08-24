@@ -14,9 +14,9 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTa
   const menuItems = [
     { id: 'censo', label: 'Censo Pacientes', icon: Users },
     { id: 'ia', label: 'Generador Docs (IA)', icon: FileText },
-    { id: 'examenOral', label: 'Examen Oral (30%)', icon: GraduationCap },
+    { id: 'examenOral', label: 'Examen Oral Clínico', icon: GraduationCap },
     { id: 'calculadoras', label: 'Calculadoras Médicas', icon: Calculator },
-    { id: 'ecg', label: 'ECG & Reuniones (10%)', icon: Activity },
+    { id: 'ecg', label: 'ECG & Reuniones', icon: Activity },
     { id: 'estudio', label: 'Plan EUNACOM & Tests', icon: BookOpen },
     { id: 'tareas', label: 'Tareas y Flujos', icon: CheckSquare },
     { id: 'tutor', label: 'Instructor Clínico', icon: BrainCircuit },
