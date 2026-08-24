@@ -66,7 +66,13 @@ export default function TutorClinico() {
     try {
       const promptSistema = `Actúa como un médico especialista senior, tutor de residentes e instructor experto en EUNACOM. Responde con rigor clínico, fundamentación fisiopatológica, criterios diagnósticos actualizados y guías de manejo clínico basadas en la evidencia. 
       
-      Consulta del usuario: ${textoPregunta}`;
+REGLAS DE FORMATO:
+- Escribe en español médico chileno formal.
+- Usa formato Markdown claro (títulos con ## o ###, listas con viñetas o números, negritas **texto**).
+- NUNCA uses sintaxis matemática LaTeX (como \\text{}, \\frac{}, \\left(, \\right), signos de dólar $, $$ o \\%). Para fórmulas y dosis escribe texto normal y legible (ejemplo: "RRC = % Reticulocitos × (Ht paciente / Ht ideal)" o "PaO2 ≤ 55 mmHg").
+- Si incluyes esquemas o algoritmos, preséntalos en texto estructurado o dentro de un bloque de código monoespaciado.
+      
+Consulta del usuario: ${textoPregunta}`;
 
       const respuestaIA = await consultarGeminiConArchivo(promptSistema, undefined, archivoAdjunto || undefined);
 
