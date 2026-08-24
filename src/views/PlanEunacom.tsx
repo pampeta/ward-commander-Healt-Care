@@ -3,6 +3,7 @@ import { consultarGeminiConArchivo } from "../Services/gemini";
 import { TEMARIO_BASE } from "../data/temasEunacom";
 import { BookOpen, FileText, BrainCircuit, Paperclip, CheckCircle, Cloud, CheckCircle2, XCircle, Sparkles, Loader2, Award } from 'lucide-react';
 import { guardarEnNube, cargarDeNube } from "../Services/cloudSync";
+import { MarkdownClinico } from "../components/MarkdownClinico";
 
 interface Flashcard { pregunta: string; respuesta: string; }
 interface PreguntaTest {
@@ -443,9 +444,9 @@ REGLA: Devuelve ÚNICAMENTE un arreglo JSON válido (sin markdown):
                             </div>
 
                             {testFinalizado && (
-                              <div className="p-3 bg-slate-50 border border-slate-200 rounded-lg text-xs text-slate-800 leading-relaxed">
-                                <p className="font-bold text-blue-900 mb-0.5">Fundamentación Clínica EUNACOM:</p>
-                                <p>{p.justificacion}</p>
+                              <div className="p-3 bg-slate-50 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700 rounded-lg text-xs text-slate-800 dark:text-slate-200 leading-relaxed">
+                                <p className="font-bold text-blue-900 dark:text-blue-400 mb-1">Fundamentación Clínica EUNACOM:</p>
+                                <MarkdownClinico contenido={p.justificacion} />
                               </div>
                             )}
                           </div>

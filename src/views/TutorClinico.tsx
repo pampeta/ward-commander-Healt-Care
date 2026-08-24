@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { consultarGeminiConArchivo } from "../Services/gemini";
 import { BrainCircuit, Paperclip, SendHorizontal, BotMessageSquare, UserRound, X, FileText, Cloud } from "lucide-react";
 import { guardarEnNube, cargarDeNube } from "../Services/cloudSync";
+import { MarkdownClinico } from "../components/MarkdownClinico";
 
 export default function TutorClinico() {
   const [promptUsuario, setPromptUsuario] = useState("");
@@ -120,16 +121,9 @@ export default function TutorClinico() {
                     <div className={`p-3.5 md:p-4 rounded-2xl text-[13px] md:text-sm leading-relaxed shadow-sm ${
                       msg.remitente === 'usuario' 
                       ? 'bg-blue-600 text-white rounded-br-sm' 
-                      : 'bg-white border border-gray-200 text-gray-800 rounded-bl-sm'
+                      : 'bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-slate-100 rounded-bl-sm'
                     }`}>
-                      <div className="font-sans whitespace-pre-wrap word-break break-words overflow-hidden">
-                        {msg.texto.split(/(\*\*.*?\*\*)/g).map((part, i) => {
-                          if (part.startsWith('**') && part.endsWith('**')) {
-                            return <strong key={i} className={msg.remitente === 'usuario' ? 'text-white' : 'text-gray-950'}>{part.slice(2, -2)}</strong>;
-                          }
-                          return part;
-                        })}
-                      </div>
+                      <MarkdownClinico contenido={msg.texto} isUser={msg.remitente === 'usuario'} />
                     </div>
 
                   </div>

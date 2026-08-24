@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { consultarGeminiConArchivo } from '../Services/gemini';
 import { Activity, Phone, Users, Sparkles, Loader2, Copy, CheckCircle2, Zap, FileText } from 'lucide-react';
+import { MarkdownClinico } from '../components/MarkdownClinico';
 
 const TUTORES_REUNIONES = [
   { id: 1, especialidad: 'Cardiología', tutor: 'Dr. Marcelo Montaner', cel: '9 8803 6244', fechaSugerida: '09/09/2026', temas: 'SCA, Fibrilación Auricular, Insuficiencia Cardíaca Descompensada' },
@@ -310,8 +311,8 @@ Genera una GUÍA COMPLETA Y ESTRUCTURA DE DIAPOSITIVAS lista para exponer que in
                     {copiado ? <><CheckCircle2 className="w-3.5 h-3.5" /> ¡Copiado!</> : <><Copy className="w-3.5 h-3.5" /> Copiar Guion</>}
                   </button>
                 </div>
-                <div className="p-4 bg-slate-50 border border-gray-200 rounded-xl text-xs md:text-sm leading-relaxed text-gray-800 whitespace-pre-wrap max-h-[500px] overflow-y-auto font-sans">
-                  {guionGenerado}
+                <div className="p-4 bg-slate-50 dark:bg-slate-800/80 border border-gray-200 dark:border-slate-700 rounded-xl text-xs md:text-sm leading-relaxed text-gray-800 dark:text-slate-100 max-h-[500px] overflow-y-auto font-sans">
+                  <MarkdownClinico contenido={guionGenerado} />
                 </div>
               </div>
             )}

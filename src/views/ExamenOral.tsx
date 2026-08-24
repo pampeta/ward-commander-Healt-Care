@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { consultarGeminiConArchivo } from '../Services/gemini';
 import { GraduationCap, Award, Play, RotateCcw, Send, Loader2, CheckCircle2, AlertCircle, FileCheck, UserCheck, Shuffle, Cloud, History, Calendar } from 'lucide-react';
 import { guardarEnNube, cargarDeNube } from '../Services/cloudSync';
+import { MarkdownClinico } from '../components/MarkdownClinico';
 
 interface MensajeExamen {
   remitente: 'comision' | 'interno';
@@ -527,14 +528,14 @@ REGLA: Devuelve ÚNICAMENTE un objeto JSON válido con esta estructura exacta (s
                   )}
                   <div className={`max-w-[85%] rounded-2xl p-3.5 text-xs md:text-sm leading-relaxed shadow-sm ${
                     esComision
-                      ? 'bg-white border border-gray-200 text-gray-800'
+                      ? 'bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 text-gray-800 dark:text-slate-100'
                       : 'bg-purple-600 text-white'
                   }`}>
                     <div className="flex justify-between items-center mb-1 text-[10px] opacity-75 font-semibold">
                       <span>{esComision ? 'Tutor Evaluador' : 'Tu Respuesta'}</span>
                       {m.tiempo && <span>{m.tiempo}</span>}
                     </div>
-                    <div className="whitespace-pre-wrap">{m.texto}</div>
+                    <MarkdownClinico contenido={m.texto} isUser={!esComision} />
                   </div>
                 </div>
               );

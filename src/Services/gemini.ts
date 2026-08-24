@@ -228,7 +228,9 @@ export const consultarGeminiConArchivo = async (
   const genAI = new GoogleGenerativeAI(apiKey);
   const model = genAI.getGenerativeModel({ model: mejorModelo });
 
-  const contents: any[] = [prompt];
+  const promptAfinado = `${prompt}\n\n[INSTRUCCIÓN DE FORMATO: Responde con formato Markdown limpio. Para términos médicos, scores, fórmulas o porcentajes, utiliza símbolos estándar legibles (≥, ≤, →, %, α, β) en lugar de código matemático LaTeX con signos de dólar ($...$, \\%, \\ge, \\alpha)].`;
+
+  const contents: any[] = [promptAfinado];
 
   if (archivo && archivo.base64) {
     const base64Data = archivo.base64.split(',')[1] || archivo.base64;
