@@ -1517,7 +1517,25 @@ export default function Censo() {
 }
 
 function ControlClinicoCard({ paciente }: { paciente: PacienteCenso }) {
-  const [minimizado, setMinimizado] = useState(false);
+  const [minimizado, setMinimizado] = useState<boolean>(() => {
+    try {
+      const guardado = localStorage.getItem(`wc_control_min_${paciente.id}`);
+      return guardado !== null ? guardado === "true" : false;
+    } catch {
+      return false;
+    }
+  });
+
+  const toggleMinimizado = () => {
+    setMinimizado(prev => {
+      const nuevo = !prev;
+      try {
+        localStorage.setItem(`wc_control_min_${paciente.id}`, String(nuevo));
+      } catch {}
+      return nuevo;
+    });
+  };
+
   const [nombreInv, setNombreInv] = useState("");
   const [fechaInv, setFechaInv] = useState(new Date().toISOString().split("T")[0]);
   const [pacienteState, setPacienteState] = useState(paciente);
@@ -1580,7 +1598,7 @@ function ControlClinicoCard({ paciente }: { paciente: PacienteCenso }) {
 
   return (
     <div className="mt-2.5 bg-indigo-50/40 border border-indigo-100 rounded-xl p-3 shadow-sm space-y-2 transition-all">
-      <div className="flex items-center justify-between text-indigo-900 font-bold text-xs cursor-pointer select-none" onClick={() => setMinimizado(!minimizado)}>
+      <div className="flex items-center justify-between text-indigo-900 font-bold text-xs cursor-pointer select-none" onClick={toggleMinimizado}>
         <div className="flex items-center gap-1.5"><Activity className="w-4 h-4 text-indigo-600 shrink-0" /><span>Control ATB, Infección & Invasivos</span></div>
         <button className="p-1 hover:bg-indigo-100 rounded-md transition-colors" title={minimizado ? "Expandir" : "Minimizar"}>{minimizado ? <ChevronDown className="w-4 h-4 text-indigo-700" /> : <ChevronUp className="w-4 h-4 text-indigo-700" />}</button>
       </div>
@@ -1656,7 +1674,25 @@ function ControlClinicoCard({ paciente }: { paciente: PacienteCenso }) {
 }
 
 function AlertaGesCard({ pacienteId, gesDetectados }: { pacienteId: string; gesDetectados: PatologiaGes[] }) {
-  const [minimizado, setMinimizado] = useState(false);
+  const [minimizado, setMinimizado] = useState<boolean>(() => {
+    try {
+      const guardado = localStorage.getItem(`wc_ges_min_${pacienteId}`);
+      return guardado !== null ? guardado === "true" : false;
+    } catch {
+      return false;
+    }
+  });
+
+  const toggleMinimizado = () => {
+    setMinimizado(prev => {
+      const nuevo = !prev;
+      try {
+        localStorage.setItem(`wc_ges_min_${pacienteId}`, String(nuevo));
+      } catch {}
+      return nuevo;
+    });
+  };
+
   const [estadoGes, setEstadoGes] = useState<Record<number, string>>(() => {
     try {
       const guardado = localStorage.getItem(`ges_estado_${pacienteId}`);
@@ -1677,7 +1713,7 @@ function AlertaGesCard({ pacienteId, gesDetectados }: { pacienteId: string; gesD
 
   return (
     <div className="mt-3 bg-amber-50/50 border border-amber-200 rounded-xl p-3 shadow-sm space-y-2 transition-all">
-      <div className="flex items-center justify-between text-amber-800 font-bold text-xs cursor-pointer select-none" onClick={() => setMinimizado(!minimizado)}>
+      <div className="flex items-center justify-between text-amber-800 font-bold text-xs cursor-pointer select-none" onClick={toggleMinimizado}>
         <div className="flex items-center gap-1.5"><AlertTriangle className="w-4 h-4 shrink-0 text-amber-500" /><span>Alerta GES Detectada ({gesVisibles.length})</span></div>
         <button className="p-1 hover:bg-amber-100 rounded-md transition-colors" title={minimizado ? "Expandir" : "Minimizar"}>{minimizado ? <ChevronDown className="w-4 h-4 text-amber-700" /> : <ChevronUp className="w-4 h-4 text-amber-700" />}</button>
       </div>

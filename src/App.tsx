@@ -12,10 +12,50 @@ import CalendarioPruebas from "./views/CalendarioPruebas";
 import ExamenOral from "./views/ExamenOral";
 import CalculadorasMedicas from "./views/CalculadorasMedicas";
 import EcgReunionClinica from "./views/EcgReunionClinica";
+const PESTANAS_VALIDAS = ["censo", "ia", "examenOral", "calculadoras", "ecg", "estudio", "tareas", "tutor", "calendario", "yo"];
+
+function obtenerPestanaInicial(): string {
+  if (typeof window !== "undefined") {
+    const hash = window.location.hash.replace(/^#\/?/, "").trim();
+    if (hash && PESTANAS_VALIDAS.includes(hash)) return hash;
+
+    try {
+      const guardada = localStorage.getItem("wardcommander_active_tab");
+      if (guardada && PESTANAS_VALIDAS.includes(guardada)) return guardada;
+    } catch {}
+  }
+  return "censo";
+}
+
 export default function App() {
   const [session, setSession] = useState<any>(null);
   const [cargandoSesion, setCargandoSesion] = useState(true);
-  const [activeTab, setActiveTab] = useState<string>("censo");
+  const [activeTab, setActiveTabState] = useState<string>(obtenerPestanaInicial);
+
+  const setActiveTab = (nuevaPestana: string) => {
+    setActiveTabState(nuevaPestana);
+    try {
+      localStorage.setItem("wardcommander_active_tab", nuevaPestana);
+      if (typeof window !== "undefined") {
+        window.location.hash = nuevaPestana;
+      }
+    } catch {}
+  };
+
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash.replace(/^#\/?/, "").trim();
+      if (hash && PESTANAS_VALIDAS.includes(hash)) {
+        setActiveTabState(hash);
+        try {
+          localStorage.setItem("wardcommander_active_tab", hash);
+        } catch {}
+      }
+    };
+
+    window.addEventListener("hashchange", handleHashChange);
+    return () => window.removeEventListener("hashchange", handleHashChange);
+  }, []);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
