@@ -1,5 +1,21 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
+/**
+ * Lista de modelos en orden estricto de prioridad.
+ * gemini-3.6-flash es el modelo insignia estándar y prioridad absoluta.
+ * gemini-2.5-flash y otros 2.5 están completamente excluidos porque Google devuelve 404 a nuevas cuentas.
+ */
+const MODELOS_PRIORITARIOS = [
+  "gemini-3.6-flash",
+  "gemini-3.6-pro",
+  "gemini-2.0-flash",
+  "gemini-2.0-flash-exp",
+  "gemini-flash-latest",
+  "gemini-pro-latest",
+  "gemini-1.5-flash",
+  "gemini-1.5-pro"
+];
+
 export const listarModelosDisponibles = async (apiKey: string): Promise<string[]> => {
   try {
     const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
@@ -8,7 +24,8 @@ export const listarModelosDisponibles = async (apiKey: string): Promise<string[]
       if (Array.isArray(data.models)) {
         const soportados = data.models
           .filter((m: any) => m.supportedGenerationMethods?.includes("generateContent"))
-          .map((m: any) => m.name.replace(/^models\//, ""));
+          .map((m: any) => m.name.replace(/^models\//, ""))
+          .filter((name: string) => !name.includes("2.5")); // Excluir 2.5 obsoleto
 
         console.log("Modelos habilitados en tu cuenta:", soportados);
         return soportados;
@@ -20,32 +37,47 @@ export const listarModelosDisponibles = async (apiKey: string): Promise<string[]
   return [];
 };
 
-export const obtenerMejorModelo = async (apiKey: string): Promise<string> => {
+export const obtenerListaModelosAIntentar = async (apiKey: string): Promise<string[]> => {
   const disponibles = await listarModelosDisponibles(apiKey);
-  const preferencia = [
-    "gemini-3.6-flash",
-    "gemini-3.5-flash",
-    "gemini-3.5-flash-lite",
-    "gemini-3.1-flash-lite",
-    "gemini-2.5-flash",
-    "gemini-2.0-flash",
-    "gemini-1.5-flash",
-    "gemini-1.5-flash-latest",
-    "gemini-2.0-flash-lite",
-    "gemini-2.5-pro",
-    "gemini-1.5-pro"
-  ];
+  const lista: string[] = [];
 
-  for (const pref of preferencia) {
-    if (disponibles.includes(pref)) return pref;
+  // 1. Agregar prioritarios si figuran en los disponibles de la cuenta
+  for (const pref of MODELOS_PRIORITARIOS) {
+    if (disponibles.includes(pref) && !lista.includes(pref)) {
+      lista.push(pref);
+    }
   }
 
-  const algunFlash = disponibles.find(m => m.toLowerCase().includes("flash"));
-  if (algunFlash) return algunFlash;
+  // 2. Agregar otros modelos disponibles que no sean 2.5
+  for (const disp of disponibles) {
+    if (!lista.includes(disp) && !disp.includes("2.5")) {
+      lista.push(disp);
+    }
+  }
 
-  if (disponibles.length > 0) return disponibles[0];
+  // 3. Si la lista quedó vacía, usar lista por defecto de prioritarios
+  if (lista.length === 0) {
+    return [...MODELOS_PRIORITARIOS];
+  }
 
-  return "gemini-3.6-flash";
+  // Asegurar que gemini-3.6-flash siempre esté en la primera posición
+  if (!lista.includes("gemini-3.6-flash")) {
+    lista.unshift("gemini-3.6-flash");
+  } else {
+    // Mover gemini-3.6-flash al principio
+    const idx = lista.indexOf("gemini-3.6-flash");
+    if (idx > 0) {
+      lista.splice(idx, 1);
+      lista.unshift("gemini-3.6-flash");
+    }
+  }
+
+  return lista;
+};
+
+export const obtenerMejorModelo = async (apiKey: string): Promise<string> => {
+  const modelos = await obtenerListaModelosAIntentar(apiKey);
+  return modelos[0] || "gemini-3.6-flash";
 };
 
 export const obtenerApiKeyGuardada = (apiKeyDada?: string): string => {
@@ -75,6 +107,41 @@ export const obtenerApiKeyGuardada = (apiKeyDada?: string): string => {
   return "";
 };
 
+export const extraerContenidoGoogleDocs = async (urlOTexto: string): Promise<string> => {
+  const match = urlOTexto.match(/docs\.google\.com\/document\/d\/([a-zA-Z0-9_-]+)/);
+  if (!match || !match[1]) return urlOTexto;
+
+  const docId = match[1];
+  const docUrl = `https://docs.google.com/document/d/${docId}/edit`;
+
+  // 1. Intentar endpoint serverless propio de Vercel (/api/fetch-google-doc)
+  try {
+    const res = await fetch(`/api/fetch-google-doc?url=${encodeURIComponent(docUrl)}`);
+    if (res.ok) {
+      const data = await res.json();
+      if (data.text && data.text.trim().length > 0) {
+        return data.text;
+      }
+    }
+  } catch (e) {
+    console.warn("No se pudo usar /api/fetch-google-doc:", e);
+  }
+
+  // 2. Intentar export directo
+  try {
+    const exportUrl = `https://docs.google.com/document/d/${docId}/export?format=txt`;
+    const res = await fetch(exportUrl);
+    if (res.ok) {
+      const text = await res.text();
+      if (text && text.trim().length > 0) return text;
+    }
+  } catch (e) {
+    console.warn("Direct fetch bloqueado por CORS:", e);
+  }
+
+  return urlOTexto;
+};
+
 export const generateClinicalDocumentWithGemini = async (formData: {
   tipoDocumento: string;
   esqueletoFormat: string;
@@ -94,10 +161,6 @@ export const generateClinicalDocumentWithGemini = async (formData: {
   if (formData.linkGoogleDocs && formData.linkGoogleDocs.includes("docs.google.com/document")) {
     textoGoogleDocs = await extraerContenidoGoogleDocs(formData.linkGoogleDocs);
   }
-
-  const mejorModelo = await obtenerMejorModelo(apiKey);
-  const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({ model: mejorModelo });
 
   const prompt = `
 Eres un asistente médico clínico de alta precisión. Tu tarea es redactar un documento clínico formal, completo y profesional en base a la información proporcionada.
@@ -135,10 +198,24 @@ Genera el documento completo listo para la ficha clínica, siguiendo rigurosamen
     }
   }
 
-  const result = await model.generateContent(contents);
-  return {
-    text: result.response.text()
-  };
+  const genAI = new GoogleGenerativeAI(apiKey);
+  const modelos = await obtenerListaModelosAIntentar(apiKey);
+  let ultimoError: any = null;
+
+  for (const nombreModelo of modelos) {
+    try {
+      const model = genAI.getGenerativeModel({ model: nombreModelo });
+      const result = await model.generateContent(contents);
+      return {
+        text: result.response.text()
+      };
+    } catch (err: any) {
+      console.warn(`[generateClinicalDocumentWithGemini] Falló con ${nombreModelo}:`, err?.message || err);
+      ultimoError = err;
+    }
+  }
+
+  throw new Error(`Error generando documento clínico con IA: ${ultimoError?.message || "No se pudo generar"}`);
 };
 
 export interface EvolucionExtraidaDetallada {
@@ -215,20 +292,30 @@ Si solo hay una evolución del día, devuelve un array con 1 elemento.
     }
   }
 
-  const mejorModelo = await obtenerMejorModelo(apiKey);
   const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({
-    model: mejorModelo,
-    generationConfig: { responseMimeType: "application/json" }
-  });
+  const modelos = await obtenerListaModelosAIntentar(apiKey);
+  let ultimoError: any = null;
 
-  const result = await model.generateContent(contents);
-  const rawText = result.response.text();
-  if (!rawText) throw new Error("Respuesta vacía de Gemini");
+  for (const nombreModelo of modelos) {
+    try {
+      const model = genAI.getGenerativeModel({
+        model: nombreModelo,
+        generationConfig: { responseMimeType: "application/json" }
+      });
+      const result = await model.generateContent(contents);
+      const rawText = result.response.text();
+      if (!rawText) throw new Error("Respuesta vacía de Gemini");
 
-  const jsonLimpio = rawText.replace(/^```json\s*/i, '').replace(/\s*```$/i, '').trim();
-  const parsed = JSON.parse(jsonLimpio);
-  return Array.isArray(parsed) ? parsed : [parsed];
+      const jsonLimpio = rawText.replace(/^```json\s*/i, '').replace(/\s*```$/i, '').trim();
+      const parsed = JSON.parse(jsonLimpio);
+      return Array.isArray(parsed) ? parsed : [parsed];
+    } catch (err: any) {
+      console.warn(`[extraerEvolucionConGemini] Falló con ${nombreModelo}:`, err?.message || err);
+      ultimoError = err;
+    }
+  }
+
+  throw new Error(`Error al extraer evolución con IA: ${ultimoError?.message || "No se pudo procesar"}`);
 };
 
 export const consultarGeminiConArchivo = async (
@@ -241,10 +328,6 @@ export const consultarGeminiConArchivo = async (
   if (!apiKey) {
     throw new Error("No hay API Key configurada. Por favor guárdala en el módulo 'Control & Métricas'.");
   }
-
-  const mejorModelo = await obtenerMejorModelo(apiKey);
-  const genAI = new GoogleGenerativeAI(apiKey);
-  const model = genAI.getGenerativeModel({ model: mejorModelo });
 
   const promptAfinado = `${prompt}\n\n[INSTRUCCIÓN DE FORMATO: Responde con formato Markdown limpio. Para términos médicos, scores, fórmulas o porcentajes, utiliza símbolos estándar legibles (≥, ≤, →, %, α, β) en lugar de código matemático LaTeX con signos de dólar ($...$, \\%, \\ge, \\alpha)].`;
 
@@ -273,8 +356,22 @@ export const consultarGeminiConArchivo = async (
     });
   }
 
-  const result = await model.generateContent(contents);
-  return result.response.text();
+  const genAI = new GoogleGenerativeAI(apiKey);
+  const modelos = await obtenerListaModelosAIntentar(apiKey);
+  let ultimoError: any = null;
+
+  for (const nombreModelo of modelos) {
+    try {
+      const model = genAI.getGenerativeModel({ model: nombreModelo });
+      const result = await model.generateContent(contents);
+      return result.response.text();
+    } catch (err: any) {
+      console.warn(`[consultarGeminiConArchivo] Falló con ${nombreModelo}:`, err?.message || err);
+      ultimoError = err;
+    }
+  }
+
+  throw new Error(`Error al conectar con Gemini: ${ultimoError?.message || "No se pudo completar la consulta"}`);
 };
 
 export interface EvolucionExtraida {
@@ -310,41 +407,6 @@ export interface DatosPacienteExtraidos {
   pendientes?: string[];
   evoluciones?: EvolucionExtraida[];
 }
-
-export const extraerContenidoGoogleDocs = async (urlOTexto: string): Promise<string> => {
-  const match = urlOTexto.match(/docs\.google\.com\/document\/d\/([a-zA-Z0-9_-]+)/);
-  if (!match || !match[1]) return urlOTexto;
-
-  const docId = match[1];
-  const docUrl = `https://docs.google.com/document/d/${docId}/edit`;
-
-  // 1. Intentar endpoint serverless propio de Vercel (/api/fetch-google-doc)
-  try {
-    const res = await fetch(`/api/fetch-google-doc?url=${encodeURIComponent(docUrl)}`);
-    if (res.ok) {
-      const data = await res.json();
-      if (data.text && data.text.trim().length > 0) {
-        return data.text;
-      }
-    }
-  } catch (e) {
-    console.warn("No se pudo usar /api/fetch-google-doc:", e);
-  }
-
-  // 2. Intentar export directo
-  try {
-    const exportUrl = `https://docs.google.com/document/d/${docId}/export?format=txt`;
-    const res = await fetch(exportUrl);
-    if (res.ok) {
-      const text = await res.text();
-      if (text && text.trim().length > 0) return text;
-    }
-  } catch (e) {
-    console.warn("Direct fetch bloqueado por CORS:", e);
-  }
-
-  return urlOTexto;
-};
 
 export const extraerPacienteDesdeDocumentoConGemini = async (
   archivoOTexto: {
@@ -440,40 +502,7 @@ Si algún dato no está explícito en el documento, deja el valor como string va
   }
 
   const genAI = new GoogleGenerativeAI(apiKey);
-  
-  // Obtener dinámicamente los modelos reales disponibles para la API key del usuario
-  const disponibles = await listarModelosDisponibles(apiKey);
-  const preferencia = [
-    "gemini-3.6-flash",
-    "gemini-3.6-pro",
-    "gemini-2.0-flash",
-    "gemini-2.0-flash-exp",
-    "gemini-flash-latest",
-    "gemini-pro-latest",
-    "gemini-1.5-flash",
-    "gemini-1.5-pro",
-    "gemini-2.5-flash"
-  ];
-
-  const modelosAIntentar: string[] = [];
-
-  if (disponibles.length > 0) {
-    for (const pref of preferencia) {
-      if (disponibles.includes(pref) && !modelosAIntentar.includes(pref)) {
-        modelosAIntentar.push(pref);
-      }
-    }
-    for (const disp of disponibles) {
-      if (!modelosAIntentar.includes(disp)) {
-        modelosAIntentar.push(disp);
-      }
-    }
-  }
-
-  if (modelosAIntentar.length === 0) {
-    modelosAIntentar.push("gemini-3.6-flash", "gemini-2.0-flash", "gemini-1.5-flash");
-  }
-
+  const modelosAIntentar = await obtenerListaModelosAIntentar(apiKey);
   let ultimoError: any = null;
 
   for (const modelo of modelosAIntentar) {
