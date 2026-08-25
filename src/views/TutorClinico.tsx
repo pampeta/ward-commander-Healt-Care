@@ -96,13 +96,7 @@ function exportarAPdf(titulo: string, contenidoMarkdown: string, espacioClinico:
   const fechaHoy = new Date().toLocaleDateString('es-CL', { day: '2-digit', month: 'long', year: 'numeric' });
   const contenidoHtml = markdownClinicoAHtml(contenidoMarkdown);
 
-  const ventanaImpresion = window.open('', '_blank');
-  if (!ventanaImpresion) {
-    alert("Por favor permite las ventanas emergentes para exportar a PDF.");
-    return;
-  }
-
-  ventanaImpresion.document.write(`
+  const htmlDocumento = `
     <!DOCTYPE html>
     <html>
     <head>
@@ -114,8 +108,17 @@ function exportarAPdf(titulo: string, contenidoMarkdown: string, espacioClinico:
         .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #059669; padding-bottom: 12px; margin-bottom: 20px; }
         .badge { background-color: #ecfdf5; color: #047857; font-weight: bold; padding: 4px 10px; border-radius: 6px; font-size: 9pt; border: 1px solid #a7f3d0; }
         .footer { border-top: 1px solid #e5e7eb; margin-top: 30px; padding-top: 10px; font-size: 9pt; color: #6b7280; text-align: center; }
-        h1, h2, h3 { page-break-after: avoid; }
-        pre { background: #f9fafb; border: 1px solid #e5e7eb; padding: 10px; border-radius: 6px; font-size: 9pt; }
+        h1, h2, h3 { page-break-after: avoid; color: #111827; }
+        h1 { font-size: 16pt; margin-top: 0; }
+        h2 { font-size: 13pt; color: #065f46; border-bottom: 1px solid #e5e7eb; padding-bottom: 4px; }
+        h3 { font-size: 11.5pt; color: #047857; }
+        ul, ol { margin-top: 6px; margin-bottom: 12px; padding-left: 24px; }
+        li { margin-bottom: 4px; }
+        p { margin-top: 6px; margin-bottom: 10px; }
+        pre { background: #f9fafb; border: 1px solid #e5e7eb; padding: 10px; border-radius: 6px; font-size: 9pt; white-space: pre-wrap; word-break: break-word; }
+        table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 10pt; }
+        th, td { border: 1px solid #d1d5db; padding: 8px; text-align: left; }
+        th { background-color: #f3f4f6; font-weight: bold; }
         @media print { body { padding: 0; } }
       </style>
     </head>
@@ -136,15 +139,52 @@ function exportarAPdf(titulo: string, contenidoMarkdown: string, espacioClinico:
       <div class="footer">
         Generado con <strong>Ward Commander</strong> • Guías de Práctica Clínica y Preparación EUNACOM.
       </div>
-      <script>
-        window.onload = function() {
-          window.print();
-        }
-      </script>
     </body>
     </html>
-  `);
-  ventanaImpresion.document.close();
+  `;
+
+  // Crear un iframe invisible en la misma página para evitar bloqueo de ventanas emergentes (popups)
+  const iframe = document.createElement('iframe');
+  iframe.style.position = 'fixed';
+  iframe.style.right = '0';
+  iframe.style.bottom = '0';
+  iframe.style.width = '0';
+  iframe.style.height = '0';
+  iframe.style.border = '0';
+  iframe.style.visibility = 'hidden';
+  document.body.appendChild(iframe);
+
+  const doc = iframe.contentWindow?.document || iframe.contentDocument;
+  if (!doc) {
+    // Fallback directo a descarga de archivo HTML listo para imprimir si el iframe falla
+    const blob = new Blob([htmlDocumento], { type: 'text/html;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${titulo.toLowerCase().replace(/[^a-z0-9]/gi, '_')}.html`;
+    link.click();
+    URL.revokeObjectURL(url);
+    return;
+  }
+
+  doc.open();
+  doc.write(htmlDocumento);
+  doc.close();
+
+  setTimeout(() => {
+    try {
+      iframe.contentWindow?.focus();
+      iframe.contentWindow?.print();
+    } catch (e) {
+      console.warn("Error al imprimir desde iframe:", e);
+    } finally {
+      setTimeout(() => {
+        if (document.body.contains(iframe)) {
+          document.body.removeChild(iframe);
+        }
+      }, 3000);
+    }
+  }, 300);
 }
 
 async function copiarParaGoogleDocs(contenidoMarkdown: string, espacioClinico: string): Promise<boolean> {
