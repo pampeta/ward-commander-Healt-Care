@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { consultarGeminiConArchivo } from "../Services/gemini";
 import { TEMARIO_BASE } from "../data/temasEunacom";
-import { BookOpen, FileText, BrainCircuit, Paperclip, CheckCircle, Cloud, CheckCircle2, XCircle, Sparkles, Loader2, Award } from 'lucide-react';
+import { BookOpen, FileText, BrainCircuit, Paperclip, CheckCircle, Cloud, CheckCircle2, XCircle, Sparkles, Loader2, Award, Maximize2, Minimize2, Trash2, X, RotateCcw } from 'lucide-react';
 import { guardarEnNube, cargarDeNube } from "../Services/cloudSync";
 import { MarkdownClinico } from "../components/MarkdownClinico";
 
@@ -61,6 +61,10 @@ export default function PlanEunacom() {
   const [indiceLoteNuevo, setIndiceLoteNuevo] = useState(0);
   const [mostrarRespuestaLote, setMostrarRespuestaLote] = useState(false);
 
+  // Estado de expansión / modo enfoque para maximizar espacio
+  const [espacioExpandido, setEspacioExpandido] = useState(false);
+  const [modalFlashcardFullscreen, setModalFlashcardFullscreen] = useState(false);
+
   // --- SIMULACRO DE EXAMEN TEÓRICO ---
   const [tipoSimulacro, setTipoSimulacro] = useState<"teorico1" | "teorico2" | "tema">("teorico1");
   const [preguntasTest, setPreguntasTest] = useState<PreguntaTest[]>([]);
@@ -92,6 +96,17 @@ export default function PlanEunacom() {
 
   const cambiarEstadoTema = (nuevoEstado: "🔴 Pendiente" | "🟡 Repasando" | "🟢 Dominado") => {
     setTemas(temas.map(t => t.id === temaSeleccionado.id ? { ...t, estado: nuevoEstado } : t));
+  };
+
+  const eliminarTarjetaActual = (e?: React.MouseEvent) => {
+    e?.stopPropagation();
+    if (!temaSeleccionado.flashcards || temaSeleccionado.flashcards.length === 0) return;
+    if (!window.confirm("¿Seguro que deseas eliminar esta flashcard del tema?")) return;
+    
+    const nuevasFlashcards = temaSeleccionado.flashcards.filter((_, idx) => idx !== indiceTarjeta);
+    setTemas(temas.map(t => t.id === temaSeleccionado.id ? { ...t, flashcards: nuevasFlashcards } : t));
+    setIndiceTarjeta(prev => Math.max(0, Math.min(prev, nuevasFlashcards.length - 1)));
+    setMostrarRespuesta(false);
   };
 
   const generarFlashcards = async () => {
@@ -199,65 +214,115 @@ REGLA: Devuelve ÚNICAMENTE un arreglo JSON válido (sin markdown):
 
   if (descargando) {
     return (
-      <div className="h-full flex flex-col items-center justify-center space-y-3 bg-gray-50">
+      <div className="h-full flex flex-col items-center justify-center space-y-3 bg-gray-50 dark:bg-slate-900">
         <div className="w-8 h-8 border-4 border-emerald-200 border-t-emerald-600 rounded-full animate-spin"></div>
-        <p className="text-gray-500 font-semibold text-sm">Sincronizando apuntes...</p>
+        <p className="text-gray-500 dark:text-slate-400 font-semibold text-sm">Sincronizando apuntes con la nube...</p>
       </div>
     );
   }
 
   return (
-    <div className="p-3 md:p-6 max-w-7xl mx-auto md:h-full flex flex-col space-y-4 md:space-y-6 bg-gray-50 md:overflow-hidden">
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 md:p-5 rounded-2xl shadow-sm border border-gray-100 shrink-0">
+    <div className="p-3 md:p-6 max-w-[1600px] w-full mx-auto md:h-full flex flex-col space-y-3 md:space-y-4 bg-gray-50 dark:bg-slate-900 md:overflow-hidden">
+      
+      {/* CABECERA PRINCIPAL */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-slate-800 p-4 md:p-5 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 shrink-0">
         <div className="space-y-1">
           <div className="flex items-center gap-2.5">
-            <BookOpen className="w-6 h-6 md:w-7 md:h-7 text-emerald-600" />
-            <h1 className="text-xl md:text-2xl font-extrabold text-gray-950 tracking-tight">Plan EUNACOM & Teóricos UMAG</h1>
+            <BookOpen className="w-6 h-6 md:w-7 md:h-7 text-emerald-600 dark:text-emerald-400" />
+            <h1 className="text-xl md:text-2xl font-extrabold text-gray-950 dark:text-white tracking-tight">Plan EUNACOM & Teóricos UMAG</h1>
           </div>
-          <div className="flex items-center gap-2 text-xs md:text-sm text-gray-500">
+          <div className="flex items-center gap-2 text-xs md:text-sm text-gray-500 dark:text-slate-400">
             <span>{temas.length} Temas Oficiales • Apuntes, Flashcards y Simulacros de Exámenes.</span>
-            {!descargando && <span className="flex items-center gap-1 bg-emerald-50 text-emerald-700 font-semibold px-2 py-0.5 rounded-md border border-emerald-200 ml-2"><Cloud className="w-3 h-3"/> Nube</span>}
+            {!descargando && <span className="flex items-center gap-1 bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 font-semibold px-2 py-0.5 rounded-md border border-emerald-200 dark:border-emerald-800 ml-2"><Cloud className="w-3 h-3"/> Nube</span>}
           </div>
         </div>
-        <div className="flex items-center gap-3 bg-gray-100 p-2 rounded-full border border-gray-200 shrink-0 self-start sm:self-center">
-            <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-emerald-100 flex items-center justify-center border-2 border-emerald-200">
-                <span className="text-lg md:text-xl font-bold text-emerald-700">{calculoProgreso}%</span>
+        <div className="flex items-center gap-3 bg-gray-100 dark:bg-slate-700 p-2 rounded-full border border-gray-200 dark:border-slate-600 shrink-0 self-start sm:self-center">
+            <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-emerald-100 dark:bg-emerald-950 flex items-center justify-center border-2 border-emerald-200 dark:border-emerald-700">
+                <span className="text-lg md:text-xl font-bold text-emerald-700 dark:text-emerald-300">{calculoProgreso}%</span>
             </div>
             <div className="pr-3">
-                <p className="text-sm md:text-base font-semibold text-gray-900">Dominado</p>
-                <p className="text-[11px] md:text-xs text-gray-500">De {temas.length} temas totales</p>
+                <p className="text-sm md:text-base font-semibold text-gray-900 dark:text-white">Dominado</p>
+                <p className="text-[11px] md:text-xs text-gray-500 dark:text-slate-400">De {temas.length} temas totales</p>
             </div>
         </div>
       </div>
 
-      <div className="flex flex-col md:flex-row gap-5 md:gap-6 items-start flex-1 md:overflow-hidden min-h-0 w-full">
-        <div className="w-full md:w-80 flex-shrink-0 flex flex-col h-[350px] md:h-full">
-          <div className="bg-white p-4 md:p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col overflow-hidden flex-1 min-h-0">
-            <h2 className="text-base font-bold text-gray-950 mb-3 flex items-center gap-2 shrink-0"><FileText className="w-4 h-4 text-gray-500" /> Índice Temático EUNACOM</h2>
-            <nav className="space-y-2.5 overflow-y-auto pr-2 -mr-2 flex-1 min-h-0 pb-2">
-              {temas.map(tema => (
-                <button key={tema.id} onClick={() => seleccionarTema(tema)} className={`w-full text-left p-3.5 rounded-xl transition-all border shrink-0 ${temaSeleccionado?.id === tema.id ? 'bg-emerald-50 border-emerald-200 shadow-sm' : 'hover:bg-gray-50 border-gray-100'}`}>
-                  <p className="text-[11px] font-medium text-emerald-700 uppercase tracking-wider mb-1">{tema.categoria}</p>
-                  <p className="text-sm font-semibold text-gray-950 leading-tight mb-2">{tema.titulo}</p>
-                  <div className="flex justify-between items-center gap-2 pt-1 border-t border-gray-100 text-xs">
-                    <span className="font-bold text-gray-700">{tema.estado}</span>
-                    <span className="text-[10px] bg-purple-100 text-purple-700 px-2 py-0.5 rounded-full font-bold">🧠 {tema.flashcards?.length || 0}</span>
-                  </div>
-                </button>
-              ))}
-            </nav>
+      {/* CONTENEDOR PRINCIPAL: ÍNDICE Y ÁREA DE ESTUDIO */}
+      <div className="flex flex-col md:flex-row gap-4 md:gap-5 items-start flex-1 md:overflow-hidden min-h-0 w-full">
+        
+        {/* ÍNDICE TEMÁTICO (Ocultable en Modo Expandido) */}
+        {!espacioExpandido && (
+          <div className="w-full md:w-80 flex-shrink-0 flex flex-col h-[320px] md:h-full transition-all duration-300">
+            <div className="bg-white dark:bg-slate-800 p-4 md:p-5 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 flex flex-col overflow-hidden flex-1 min-h-0">
+              <h2 className="text-base font-bold text-gray-950 dark:text-white mb-3 flex items-center gap-2 shrink-0">
+                <FileText className="w-4 h-4 text-emerald-600 dark:text-emerald-400" /> Índice Temático EUNACOM
+              </h2>
+              <nav className="space-y-2 overflow-y-auto pr-1.5 -mr-1.5 flex-1 min-h-0 pb-2">
+                {temas.map(tema => (
+                  <button 
+                    key={tema.id} 
+                    onClick={() => seleccionarTema(tema)} 
+                    className={`w-full text-left p-3 rounded-xl transition-all border shrink-0 ${
+                      temaSeleccionado?.id === tema.id 
+                        ? 'bg-emerald-50 dark:bg-emerald-950/50 border-emerald-300 dark:border-emerald-700 shadow-sm' 
+                        : 'bg-gray-50/50 dark:bg-slate-850 hover:bg-gray-100 dark:hover:bg-slate-750 border-gray-200/70 dark:border-slate-700'
+                    }`}
+                  >
+                    <p className="text-[10px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider mb-0.5">{tema.categoria}</p>
+                    <p className="text-xs sm:text-sm font-bold text-gray-950 dark:text-slate-100 leading-tight mb-1.5">{tema.titulo}</p>
+                    <div className="flex justify-between items-center gap-2 pt-1 border-t border-gray-200/50 dark:border-slate-700 text-xs">
+                      <span className="text-[11px] font-semibold text-gray-700 dark:text-slate-300">{tema.estado}</span>
+                      <span className="text-[10px] bg-purple-100 dark:bg-purple-950 text-purple-700 dark:text-purple-300 px-2 py-0.5 rounded-full font-bold border border-purple-200 dark:border-purple-800">
+                        🧠 {tema.flashcards?.length || 0}
+                      </span>
+                    </div>
+                  </button>
+                ))}
+              </nav>
+            </div>
           </div>
-        </div>
+        )}
 
+        {/* ÁREA DE ESTUDIO ACTIVA */}
         {temaSeleccionado && (
-          <div className="flex-1 w-full bg-white p-4 md:p-6 rounded-2xl shadow-sm border border-gray-100 space-y-4 md:space-y-5 flex flex-col md:overflow-hidden min-h-0 md:h-full">
-            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 border-b border-gray-100 pb-3 shrink-0">
+          <div className="flex-1 w-full bg-white dark:bg-slate-800 p-4 md:p-6 rounded-2xl shadow-sm border border-gray-100 dark:border-slate-700 space-y-4 flex flex-col md:overflow-hidden min-h-0 md:h-full">
+            
+            {/* Barra superior del tema activo */}
+            <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-3 border-b border-gray-100 dark:border-slate-700 pb-3 shrink-0">
               <div className="space-y-0.5">
-                  <p className="text-[11px] font-medium text-emerald-700 uppercase tracking-wider">{temaSeleccionado.categoria}</p>
-                  <h2 className="text-lg md:text-xl font-extrabold text-gray-950 tracking-tight leading-tight">{temaSeleccionado.titulo}</h2>
+                  <p className="text-[11px] font-bold text-emerald-700 dark:text-emerald-400 uppercase tracking-wider">{temaSeleccionado.categoria}</p>
+                  <h2 className="text-lg md:text-2xl font-black text-gray-950 dark:text-white tracking-tight leading-tight">{temaSeleccionado.titulo}</h2>
               </div>
-              <div className="flex items-center gap-2 self-start sm:self-center shrink-0">
-                  <select value={temaSeleccionado.estado} onChange={(e) => cambiarEstadoTema(e.target.value as any)} className="flex items-center gap-2 px-3 py-1.5 bg-gray-100 hover:bg-gray-200 border border-gray-200 rounded-full text-xs font-semibold text-gray-900 transition-colors outline-none cursor-pointer shadow-sm">
+              <div className="flex items-center gap-2 self-start sm:self-center shrink-0 flex-wrap">
+                  
+                  {/* Botón de Expandir / Modo Enfoque */}
+                  <button
+                    onClick={() => setEspacioExpandido(!espacioExpandido)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all border shadow-2xs ${
+                      espacioExpandido 
+                        ? 'bg-emerald-600 text-white border-emerald-600' 
+                        : 'bg-gray-100 hover:bg-gray-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-gray-800 dark:text-slate-200 border-gray-200 dark:border-slate-600'
+                    }`}
+                    title={espacioExpandido ? "Mostrar índice temático" : "Expandir área de lectura y apuntes"}
+                  >
+                    {espacioExpandido ? (
+                      <>
+                        <Minimize2 className="w-3.5 h-3.5" />
+                        <span>Ver Índice</span>
+                      </>
+                    ) : (
+                      <>
+                        <Maximize2 className="w-3.5 h-3.5" />
+                        <span>Ampliar Espacio</span>
+                      </>
+                    )}
+                  </button>
+
+                  <select 
+                    value={temaSeleccionado.estado} 
+                    onChange={(e) => cambiarEstadoTema(e.target.value as any)} 
+                    className="px-3 py-1.5 bg-gray-100 hover:bg-gray-200 dark:bg-slate-700 dark:hover:bg-slate-600 border border-gray-200 dark:border-slate-600 rounded-xl text-xs font-bold text-gray-900 dark:text-white transition-colors outline-none cursor-pointer shadow-2xs"
+                  >
                       <option value="🔴 Pendiente">🔴 Pendiente</option>
                       <option value="🟡 Repasando">🟡 Repasando</option>
                       <option value="🟢 Dominado">🟢 Dominado</option>
@@ -266,71 +331,230 @@ REGLA: Devuelve ÚNICAMENTE un arreglo JSON válido (sin markdown):
             </div>
 
             {/* Selector de 3 Modos: Apuntes, Flashcards, Simulacro */}
-            <div className="grid grid-cols-3 gap-2 p-1.5 bg-gray-100 rounded-xl border border-gray-200 shrink-0">
-              <button onClick={() => setModo("apuntes")} className={`flex items-center justify-center gap-2 py-2 rounded-lg text-xs md:text-sm font-semibold transition-all ${modo === "apuntes" ? 'bg-emerald-600 text-white shadow-md' : 'text-gray-600 hover:bg-gray-200'}`}>📝 Apuntes</button>
-              <button onClick={() => setModo("flashcards")} className={`flex items-center justify-center gap-2 py-2 rounded-lg text-xs md:text-sm font-semibold transition-all ${modo === "flashcards" ? 'bg-purple-600 text-white shadow-md' : 'text-gray-600 hover:bg-gray-200'}`}>🧠 Flashcards</button>
-              <button onClick={() => setModo("simulacro")} className={`flex items-center justify-center gap-2 py-2 rounded-lg text-xs md:text-sm font-semibold transition-all ${modo === "simulacro" ? 'bg-blue-600 text-white shadow-md' : 'text-gray-600 hover:bg-gray-200'}`}>🎯 Simulacros Teóricos</button>
+            <div className="grid grid-cols-3 gap-2 p-1.5 bg-gray-100 dark:bg-slate-750 rounded-xl border border-gray-200 dark:border-slate-700 shrink-0">
+              <button 
+                onClick={() => setModo("apuntes")} 
+                className={`flex items-center justify-center gap-2 py-2 rounded-lg text-xs sm:text-sm font-bold transition-all ${
+                  modo === "apuntes" ? 'bg-emerald-600 text-white shadow-md' : 'text-gray-600 dark:text-slate-300 hover:bg-gray-200 dark:hover:bg-slate-700'
+                }`}
+              >
+                📝 Apuntes
+              </button>
+              <button 
+                onClick={() => setModo("flashcards")} 
+                className={`flex items-center justify-center gap-2 py-2 rounded-lg text-xs sm:text-sm font-bold transition-all ${
+                  modo === "flashcards" ? 'bg-purple-600 text-white shadow-md' : 'text-gray-600 dark:text-slate-300 hover:bg-gray-200 dark:hover:bg-slate-700'
+                }`}
+              >
+                🧠 Flashcards ({temaSeleccionado.flashcards?.length || 0})
+              </button>
+              <button 
+                onClick={() => setModo("simulacro")} 
+                className={`flex items-center justify-center gap-2 py-2 rounded-lg text-xs sm:text-sm font-bold transition-all ${
+                  modo === "simulacro" ? 'bg-blue-600 text-white shadow-md' : 'text-gray-600 dark:text-slate-300 hover:bg-gray-200 dark:hover:bg-slate-700'
+                }`}
+              >
+                🎯 Simulacros Teóricos
+              </button>
             </div>
 
-            <div className="flex-1 md:overflow-y-auto pr-2 -mr-2 bg-[#fafafa] p-3 rounded-xl border border-gray-100 min-h-0">
+            {/* CONTENEDOR INTERNO DEL MODO */}
+            <div className="flex-1 md:overflow-y-auto bg-slate-50/80 dark:bg-slate-900/60 p-3 sm:p-4 md:p-6 rounded-2xl border border-gray-200/80 dark:border-slate-700 min-h-0 flex flex-col">
               
               {/* MODO 1: APUNTES */}
               {modo === "apuntes" && (
-                <div className="flex flex-col h-full space-y-3">
-                  <label className="text-xs md:text-sm text-gray-600 font-medium">Escribe tus apuntes, perlas clínicas o mnemotecnias (se guardan automáticamente):</label>
-                  <textarea value={temaSeleccionado.apuntes} onChange={(e) => actualizarApuntes(e.target.value)} className="flex-1 w-full p-4 border border-gray-200 rounded-xl bg-white shadow-inner focus:ring-2 focus:ring-emerald-200 focus:border-emerald-300 transition-all text-sm md:text-base resize-none leading-relaxed min-h-[250px] md:min-h-0" placeholder="Escribe aquí tus apuntes del tema..." />
+                <div className="flex flex-col h-full space-y-3 flex-1">
+                  <div className="flex justify-between items-center shrink-0">
+                    <label className="text-xs sm:text-sm text-gray-700 dark:text-slate-200 font-bold">
+                      📝 Apuntes, esquemas y perlas de este tema:
+                    </label>
+                    <span className="text-[11px] text-gray-400 font-medium">
+                      Guardado automático en nube ☁️
+                    </span>
+                  </div>
+                  <textarea 
+                    value={temaSeleccionado.apuntes} 
+                    onChange={(e) => actualizarApuntes(e.target.value)} 
+                    className="flex-1 w-full p-4 md:p-5 border border-gray-200 dark:border-slate-700 rounded-2xl bg-white dark:bg-slate-800 text-gray-900 dark:text-white shadow-inner focus:ring-2 focus:ring-emerald-400 focus:border-emerald-500 transition-all text-sm md:text-base resize-none leading-relaxed min-h-[300px]" 
+                    placeholder="Escribe aquí tus apuntes, algoritmos diagnósticos, dosis clave o criterios MINSAL/GES..." 
+                  />
                 </div>
               )}
 
               {/* MODO 2: FLASHCARDS */}
               {modo === "flashcards" && (
-                <div className="flex flex-col h-full items-center space-y-5">
-                  <div className="flex flex-col gap-3 w-full bg-white p-4 rounded-xl border border-gray-100 shadow-sm shrink-0">
+                <div className="flex flex-col h-full items-center space-y-4 flex-1">
+                  
+                  {/* Barra de Generación con IA */}
+                  <div className="flex flex-col sm:flex-row gap-2.5 w-full bg-white dark:bg-slate-800 p-3.5 rounded-xl border border-gray-200 dark:border-slate-700 shadow-sm shrink-0">
                       {archivoAdjunto ? (
-                        <div className="flex items-center gap-2.5 bg-emerald-50 text-emerald-800 px-3 py-2 rounded-full text-xs border border-emerald-200">
-                          📄 <span className="font-semibold">{archivoAdjunto.nombre}</span>
-                          <button onClick={() => setArchivoAdjunto(null)} className="ml-auto text-red-500 font-bold px-1.5 py-0.5 rounded-full hover:bg-red-100 transition-colors">X</button>
+                        <div className="flex items-center gap-2 bg-emerald-50 dark:bg-emerald-950 text-emerald-800 dark:text-emerald-300 px-3 py-2 rounded-xl text-xs border border-emerald-200 dark:border-emerald-800 flex-1">
+                          📄 <span className="font-semibold truncate">{archivoAdjunto.nombre}</span>
+                          <button onClick={() => setArchivoAdjunto(null)} className="ml-auto text-red-500 font-bold px-1.5 py-0.5 rounded-full hover:bg-red-100">X</button>
                         </div>
                       ) : (
-                        <div className="flex gap-2 items-center flex-wrap">
+                        <div className="flex gap-2 items-center flex-1">
                           <input type="file" id="subir-pdf-eunacom" accept=".pdf, image/*" onChange={handleSubirArchivo} className="hidden" />
-                          <label htmlFor="subir-pdf-eunacom" className="flex-1 flex justify-center items-center gap-2 px-4 py-2.5 bg-gray-100 hover:bg-gray-200 text-gray-900 border border-gray-200 rounded-lg text-sm font-semibold cursor-pointer transition-colors"><Paperclip className="w-4 h-4 text-gray-500" />Adjuntar Documento <span className="hidden sm:inline">(PDF/Imagen)</span></label>
+                          <label htmlFor="subir-pdf-eunacom" className="flex-1 flex justify-center items-center gap-2 px-3 py-2.5 bg-gray-100 hover:bg-gray-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-gray-800 dark:text-slate-200 border border-gray-200 dark:border-slate-600 rounded-xl text-xs font-bold cursor-pointer transition-colors">
+                            <Paperclip className="w-4 h-4 text-purple-600 dark:text-purple-400" />
+                            <span>Adjuntar PDF / Foto de estudio</span>
+                          </label>
                         </div>
                       )}
-                      <button onClick={generarFlashcards} disabled={cargando} className="w-full flex justify-center items-center gap-2.5 px-6 py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-bold disabled:opacity-50 transition-all shadow"><BrainCircuit className="w-5 h-5" />{cargando ? "Generando..." : "Generar Nuevas⚡"}</button>
+                      <button 
+                        onClick={generarFlashcards} 
+                        disabled={cargando} 
+                        className="px-5 py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs sm:text-sm font-bold disabled:opacity-50 transition-all shadow-sm flex items-center justify-center gap-2 shrink-0"
+                      >
+                        <BrainCircuit className="w-4 h-4" />
+                        {cargando ? "Generando con Gemini..." : "Generar Flashcards IA ✨"}
+                      </button>
                   </div>
 
+                  {/* Lote Nuevo Recién Generado */}
                   {loteNuevo.length > 0 && (
-                    <div className="w-full bg-amber-50 border-2 border-amber-300 rounded-xl p-4 flex flex-col items-center space-y-3.5 shadow-md shrink-0">
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between w-full gap-2 border-b border-amber-100 pb-2.5">
-                          <span className="text-[11px] font-medium text-amber-900 uppercase tracking-wider">✨ Lote Nuevo Generado</span>
-                          <button onClick={guardarLoteEnMazo} className="flex items-center gap-2 px-3.5 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-lg text-xs font-semibold shadow transition-all self-start sm:self-center"><CheckCircle className="w-4 h-4" /> Guardar {loteNuevo.length} en Mazo</button>
+                    <div className="w-full max-w-4xl bg-amber-50 dark:bg-amber-950/40 border-2 border-amber-300 dark:border-amber-700 rounded-2xl p-4 sm:p-5 flex flex-col items-center space-y-3 shadow-md shrink-0 animate-in fade-in">
+                        <div className="flex flex-col sm:flex-row sm:items-center justify-between w-full gap-2 border-b border-amber-200 dark:border-amber-800 pb-2">
+                          <span className="text-xs font-black text-amber-900 dark:text-amber-200 uppercase tracking-wider flex items-center gap-1.5">
+                            <Sparkles className="w-4 h-4 text-amber-600 animate-spin" /> Lote Nuevo Generado ({loteNuevo.length} tarjetas)
+                          </span>
+                          <button onClick={guardarLoteEnMazo} className="flex items-center gap-2 px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow transition-all">
+                            <CheckCircle className="w-4 h-4" /> Guardar Todo al Mazo
+                          </button>
                         </div>
-                        <div className="text-amber-700 font-bold mb-1 text-sm">Tarjeta Nueva {indiceLoteNuevo + 1} de {loteNuevo.length}</div>
-                        <div onClick={() => setMostrarRespuestaLote(!mostrarRespuestaLote)} className={`w-full p-6 md:p-8 rounded-2xl shadow-sm flex items-center justify-center text-center cursor-pointer transition-all ${mostrarRespuestaLote ? 'bg-amber-100 border-2 border-amber-300' : 'bg-white border border-amber-200'} min-h-[200px]`}>
-                          <p className={`text-lg md:text-2xl font-medium ${mostrarRespuestaLote ? 'text-amber-900' : 'text-gray-900'}`}>{mostrarRespuestaLote ? loteNuevo[indiceLoteNuevo].respuesta : loteNuevo[indiceLoteNuevo].pregunta}</p>
+
+                        <div className="text-amber-800 dark:text-amber-300 font-bold text-xs">
+                          Tarjeta Nueva {indiceLoteNuevo + 1} de {loteNuevo.length}
                         </div>
-                        <div className="flex justify-center gap-3 w-full border-t border-amber-100 pt-3.5 flex-wrap">
-                          <button onClick={() => { setIndiceLoteNuevo(Math.max(0, indiceLoteNuevo - 1)); setMostrarRespuestaLote(false); }} disabled={indiceLoteNuevo === 0} className="px-3.5 py-1.5 bg-white border border-gray-200 rounded-lg text-xs font-semibold text-gray-700 disabled:opacity-50">◀ Anterior</button>
-                          <button onClick={() => { setIndiceLoteNuevo(Math.min(loteNuevo.length - 1, indiceLoteNuevo + 1)); setMostrarRespuestaLote(false); }} disabled={indiceLoteNuevo === loteNuevo.length - 1} className="px-3.5 py-1.5 bg-amber-600 text-white rounded-lg text-xs font-semibold disabled:opacity-50">Siguiente ▶</button>
+
+                        <div 
+                          onClick={() => setMostrarRespuestaLote(!mostrarRespuestaLote)} 
+                          className={`w-full p-6 md:p-8 rounded-2xl shadow-md flex flex-col justify-between cursor-pointer transition-all min-h-[220px] select-none ${
+                            mostrarRespuestaLote 
+                              ? 'bg-amber-100 dark:bg-amber-900/60 border-2 border-amber-400 text-amber-950 dark:text-amber-100' 
+                              : 'bg-white dark:bg-slate-800 border-2 border-amber-200 dark:border-amber-800 text-gray-900 dark:text-white'
+                          }`}
+                        >
+                          <div className="flex justify-between items-center pb-2 border-b border-amber-200/60 text-xs font-bold uppercase">
+                            <span>{mostrarRespuestaLote ? '💡 RESPUESTA' : '❓ PREGUNTA'}</span>
+                            <span className="text-[10px] text-amber-700">(Clic para voltear)</span>
+                          </div>
+                          <div className="my-auto py-3 text-center text-sm md:text-base font-medium leading-relaxed">
+                            <MarkdownClinico contenido={mostrarRespuestaLote ? loteNuevo[indiceLoteNuevo].respuesta : loteNuevo[indiceLoteNuevo].pregunta} />
+                          </div>
+                          <div className="text-[10px] text-gray-400 text-center">Toca para dar vuelta</div>
+                        </div>
+
+                        <div className="flex justify-center gap-3 w-full pt-1 flex-wrap">
+                          <button onClick={() => { setIndiceLoteNuevo(Math.max(0, indiceLoteNuevo - 1)); setMostrarRespuestaLote(false); }} disabled={indiceLoteNuevo === 0} className="px-4 py-2 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-xs font-bold text-gray-700 dark:text-slate-200 disabled:opacity-40">◀ Anterior</button>
+                          <button onClick={() => setMostrarRespuestaLote(!mostrarRespuestaLote)} className="px-4 py-2 bg-amber-600 text-white rounded-xl text-xs font-bold">Voltear 🔄</button>
+                          <button onClick={() => { setIndiceLoteNuevo(Math.min(loteNuevo.length - 1, indiceLoteNuevo + 1)); setMostrarRespuestaLote(false); }} disabled={indiceLoteNuevo === loteNuevo.length - 1} className="px-4 py-2 bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 rounded-xl text-xs font-bold text-gray-700 dark:text-slate-200 disabled:opacity-40">Siguiente ▶</button>
                         </div>
                     </div>
                   )}
 
+                  {/* Tarjetas Guardadas del Mazo con Alto Contraste */}
                   {temaSeleccionado.flashcards && temaSeleccionado.flashcards.length > 0 ? (
-                      <div className="w-full flex flex-col items-center flex-1 my-auto h-full space-y-4 min-h-[250px]">
-                        <div className="text-gray-600 text-sm font-bold tracking-tight shrink-0">Tarjeta Guardada {indiceTarjeta + 1} de {temaSeleccionado.flashcards.length}</div>
-                        <div onClick={() => setMostrarRespuesta(!mostrarRespuesta)} className={`w-full flex-1 p-6 md:p-8 rounded-2xl shadow-xl flex items-center justify-center text-center cursor-pointer transition-all ${mostrarRespuesta ? 'bg-purple-50 border-2 border-purple-200' : 'bg-white border border-gray-100'} min-h-[200px]`}>
-                          <p className={`text-xl md:text-3xl font-medium ${mostrarRespuesta ? 'text-purple-900' : 'text-gray-900'}`}>{mostrarRespuesta ? temaSeleccionado.flashcards[indiceTarjeta].respuesta : temaSeleccionado.flashcards[indiceTarjeta].pregunta}</p>
+                      <div className="w-full flex flex-col items-center flex-1 my-auto h-full space-y-4 min-h-[320px] max-w-4xl">
+                        
+                        {/* Cabecera de la tarjeta */}
+                        <div className="flex items-center justify-between w-full px-2">
+                          <span className="text-xs font-bold text-gray-600 dark:text-slate-300 uppercase tracking-wider bg-white dark:bg-slate-800 px-3.5 py-1.5 rounded-xl border border-gray-200 dark:border-slate-700 shadow-2xs">
+                            Tarjeta Guardada {indiceTarjeta + 1} de {temaSeleccionado.flashcards.length}
+                          </span>
+                          
+                          <div className="flex items-center gap-2">
+                            <button
+                              onClick={() => setModalFlashcardFullscreen(true)}
+                              className="text-xs text-purple-700 dark:text-purple-300 font-bold bg-purple-50 dark:bg-purple-950/50 hover:bg-purple-100 px-3 py-1.5 rounded-xl border border-purple-200 dark:border-purple-800 flex items-center gap-1 transition-colors shadow-2xs"
+                              title="Ver a pantalla completa"
+                            >
+                              <Maximize2 className="w-3.5 h-3.5" />
+                              <span className="hidden sm:inline">Pantalla Completa</span>
+                            </button>
+                            <button
+                              onClick={eliminarTarjetaActual}
+                              className="text-xs text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 p-1.5 rounded-xl border border-transparent hover:border-red-200 transition-colors"
+                              title="Eliminar esta flashcard"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
                         </div>
-                        <p className="text-xs text-gray-400 mt-1.5 shrink-0">(Haz clic para voltear)</p>
-                        <div className="flex justify-center gap-3.5 mt-5 flex-wrap shrink-0 pb-4">
-                          <button onClick={() => { setIndiceTarjeta(Math.max(0, indiceTarjeta - 1)); setMostrarRespuesta(false); }} disabled={indiceTarjeta === 0} className="px-5 py-2 bg-gray-100 hover:bg-gray-200 rounded-xl text-xs sm:text-sm font-semibold text-gray-900 disabled:opacity-50 transition-colors shadow-sm">◀ Anterior</button>
-                          <button onClick={() => { setIndiceTarjeta(Math.min(temaSeleccionado.flashcards.length - 1, indiceTarjeta + 1)); setMostrarRespuesta(false); }} disabled={indiceTarjeta === temaSeleccionado.flashcards.length - 1} className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs sm:text-sm font-semibold disabled:opacity-50 transition-colors shadow-sm">Siguiente ▶</button>
+
+                        {/* CUERPO DE LA TARJETA (CON FONDO NÍTIDO Y ELEVACIÓN) */}
+                        <div 
+                          onClick={() => setMostrarRespuesta(!mostrarRespuesta)} 
+                          className={`w-full flex-1 p-6 md:p-8 rounded-3xl shadow-xl flex flex-col justify-between cursor-pointer transition-all duration-300 transform select-none min-h-[260px] md:min-h-[320px] ${
+                            mostrarRespuesta 
+                              ? 'bg-gradient-to-br from-emerald-50 via-teal-50/70 to-emerald-100/50 dark:from-slate-850 dark:via-emerald-950/40 dark:to-slate-850 border-2 border-emerald-400 dark:border-emerald-500 shadow-emerald-500/10' 
+                              : 'bg-white dark:bg-slate-800 border-2 border-indigo-200 dark:border-slate-700 shadow-indigo-500/10'
+                          }`}
+                        >
+                          {/* Badge de cara */}
+                          <div className="flex justify-between items-center pb-3 border-b border-gray-200/70 dark:border-slate-700/70">
+                            <span className={`text-xs font-black uppercase tracking-wider px-3.5 py-1 rounded-lg flex items-center gap-1.5 shadow-2xs ${
+                              mostrarRespuesta 
+                                ? 'bg-emerald-600 text-white' 
+                                : 'bg-indigo-600 text-white'
+                            }`}>
+                              {mostrarRespuesta ? '💡 RESPUESTA & FUNDAMENTACIÓN' : '❓ CASO / PREGUNTA CLÍNICA'}
+                            </span>
+                            <span className="text-[11px] text-gray-400 dark:text-slate-400 font-medium">
+                              (Toca para voltear)
+                            </span>
+                          </div>
+
+                          {/* Contenido Clínico */}
+                          <div className="my-auto py-4 text-center overflow-y-auto max-h-[340px] px-2">
+                            <div className={`text-base sm:text-lg md:text-xl font-medium leading-relaxed ${
+                              mostrarRespuesta ? 'text-emerald-950 dark:text-emerald-100' : 'text-gray-900 dark:text-white'
+                            }`}>
+                              <MarkdownClinico contenido={mostrarRespuesta ? temaSeleccionado.flashcards[indiceTarjeta].respuesta : temaSeleccionado.flashcards[indiceTarjeta].pregunta} />
+                            </div>
+                          </div>
+
+                          {/* Pie de la tarjeta */}
+                          <div className="pt-3 border-t border-gray-200/70 dark:border-slate-700/70 flex justify-between items-center text-[11px] text-gray-400 dark:text-slate-400">
+                            <span>{temaSeleccionado.categoria}</span>
+                            <span className="font-semibold text-purple-600 dark:text-purple-400 flex items-center gap-1">
+                              <RotateCcw className="w-3 h-3" /> Haz clic para dar vuelta
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Controles de Navegación */}
+                        <div className="flex items-center justify-center gap-3 w-full pt-1 flex-wrap">
+                          <button 
+                            onClick={() => { setIndiceTarjeta(Math.max(0, indiceTarjeta - 1)); setMostrarRespuesta(false); }} 
+                            disabled={indiceTarjeta === 0} 
+                            className="px-5 py-2.5 bg-white dark:bg-slate-800 hover:bg-gray-100 dark:hover:bg-slate-700 rounded-xl text-xs sm:text-sm font-bold text-gray-800 dark:text-slate-200 border border-gray-200 dark:border-slate-700 disabled:opacity-40 transition-all shadow-sm"
+                          >
+                            ◀ Anterior
+                          </button>
+                          <button 
+                            onClick={() => setMostrarRespuesta(!mostrarRespuesta)} 
+                            className="px-6 py-2.5 bg-purple-600 hover:bg-purple-700 text-white rounded-xl text-xs sm:text-sm font-bold transition-all shadow-md flex items-center gap-1.5"
+                          >
+                            🔄 {mostrarRespuesta ? "Ver Pregunta" : "Ver Respuesta"}
+                          </button>
+                          <button 
+                            onClick={() => { setIndiceTarjeta(Math.min(temaSeleccionado.flashcards.length - 1, indiceTarjeta + 1)); setMostrarRespuesta(false); }} 
+                            disabled={indiceTarjeta === temaSeleccionado.flashcards.length - 1} 
+                            className="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs sm:text-sm font-bold disabled:opacity-40 transition-all shadow-sm"
+                          >
+                            Siguiente ▶
+                          </button>
                         </div>
                       </div>
                   ) : (
-                    !loteNuevo.length && <div className="flex-1 flex flex-col items-center justify-center text-gray-400 text-center space-y-3 p-10 h-full"><BrainCircuit className="w-12 h-12 text-gray-300" /><p className="text-sm">No hay flashcards guardadas en este tema.</p></div>
+                    !loteNuevo.length && (
+                      <div className="flex-1 flex flex-col items-center justify-center text-gray-400 text-center space-y-3 p-10 h-full">
+                        <BrainCircuit className="w-14 h-14 text-purple-300 dark:text-purple-900" />
+                        <p className="text-base font-bold text-gray-600 dark:text-slate-300">No hay flashcards guardadas en este tema.</p>
+                        <p className="text-xs text-gray-400 max-w-sm">Presiona "Generar Flashcards IA" arriba o adjunta un PDF/imagen para crear un mazo de preguntas clave.</p>
+                      </div>
+                    )
                   )}
                 </div>
               )}
@@ -494,6 +718,96 @@ REGLA: Devuelve ÚNICAMENTE un arreglo JSON válido (sin markdown):
           </div>
         )}
       </div>
+
+      {/* MODAL GIGANTE DE PANTALLA COMPLETA PARA FLASHCARDS */}
+      {modalFlashcardFullscreen && temaSeleccionado.flashcards && temaSeleccionado.flashcards.length > 0 && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-900 border-2 border-purple-300 dark:border-purple-800 rounded-3xl w-full max-w-5xl h-[90vh] max-h-[850px] shadow-2xl flex flex-col justify-between p-4 sm:p-8 relative overflow-hidden">
+            
+            {/* Cabecera del modal */}
+            <div className="flex justify-between items-center pb-3 border-b border-gray-200 dark:border-slate-800 shrink-0">
+              <div className="flex items-center gap-2">
+                <span className="bg-purple-100 dark:bg-purple-950 text-purple-800 dark:text-purple-300 text-xs font-black px-3 py-1 rounded-full uppercase tracking-wider border border-purple-200 dark:border-purple-800">
+                  {temaSeleccionado.categoria}
+                </span>
+                <h3 className="text-sm sm:text-base font-bold text-gray-900 dark:text-white truncate max-w-xs sm:max-w-md">
+                  {temaSeleccionado.titulo}
+                </h3>
+              </div>
+              
+              <div className="flex items-center gap-3">
+                <span className="text-xs font-bold text-gray-500 dark:text-slate-400">
+                  Tarjeta {indiceTarjeta + 1} de {temaSeleccionado.flashcards.length}
+                </span>
+                <button
+                  onClick={() => setModalFlashcardFullscreen(false)}
+                  className="p-2 bg-gray-100 hover:bg-gray-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-gray-700 dark:text-slate-200 rounded-full transition-colors"
+                  title="Cerrar pantalla completa"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Tarjeta Gigante Interactiva */}
+            <div
+              onClick={() => setMostrarRespuesta(!mostrarRespuesta)}
+              className={`flex-1 my-4 p-6 sm:p-12 rounded-3xl shadow-xl flex flex-col justify-between cursor-pointer transition-all duration-300 transform select-none overflow-y-auto ${
+                mostrarRespuesta
+                  ? 'bg-gradient-to-br from-emerald-50 via-teal-50 to-emerald-100/60 dark:from-slate-850 dark:via-emerald-950/50 dark:to-slate-850 border-2 border-emerald-500 shadow-emerald-500/20'
+                  : 'bg-gradient-to-br from-white via-slate-50 to-indigo-50/40 dark:from-slate-850 dark:via-slate-850 dark:to-slate-900 border-2 border-indigo-300 dark:border-slate-700 shadow-indigo-500/20'
+              }`}
+            >
+              <div className="flex justify-between items-center pb-3 border-b border-gray-200/70 dark:border-slate-700/70">
+                <span className={`text-xs sm:text-sm font-black uppercase tracking-wider px-4 py-1.5 rounded-lg shadow-sm ${
+                  mostrarRespuesta ? 'bg-emerald-600 text-white' : 'bg-indigo-600 text-white'
+                }`}>
+                  {mostrarRespuesta ? '💡 RESPUESTA & FUNDAMENTACIÓN CLÍNICA' : '❓ CASO / PREGUNTA EUNACOM'}
+                </span>
+                <span className="text-xs text-gray-400 font-medium">
+                  Toca para voltear 🔄
+                </span>
+              </div>
+
+              <div className="my-auto py-6 text-center text-lg sm:text-2xl md:text-3xl font-medium leading-relaxed px-2 sm:px-6">
+                <MarkdownClinico contenido={mostrarRespuesta ? temaSeleccionado.flashcards[indiceTarjeta].respuesta : temaSeleccionado.flashcards[indiceTarjeta].pregunta} />
+              </div>
+
+              <div className="pt-3 border-t border-gray-200/70 dark:border-slate-700/70 text-center text-xs text-purple-600 dark:text-purple-400 font-bold">
+                🔄 Haz clic en la tarjeta para alternar entre pregunta y respuesta
+              </div>
+            </div>
+
+            {/* Controles de Navegación del modal */}
+            <div className="flex items-center justify-between gap-3 pt-2 shrink-0 flex-wrap">
+              <button
+                onClick={() => { setIndiceTarjeta(Math.max(0, indiceTarjeta - 1)); setMostrarRespuesta(false); }}
+                disabled={indiceTarjeta === 0}
+                className="px-6 py-3 bg-gray-100 dark:bg-slate-800 hover:bg-gray-200 dark:hover:bg-slate-700 text-gray-900 dark:text-white rounded-2xl text-sm font-bold disabled:opacity-40 transition-all border border-gray-200 dark:border-slate-700"
+              >
+                ◀ Tarjeta Anterior
+              </button>
+
+              <button
+                onClick={() => setMostrarRespuesta(!mostrarRespuesta)}
+                className="px-8 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-2xl text-sm font-bold shadow-lg transition-all flex items-center gap-2"
+              >
+                🔄 {mostrarRespuesta ? "Ver Pregunta" : "Ver Respuesta"}
+              </button>
+
+              <button
+                onClick={() => { setIndiceTarjeta(Math.min(temaSeleccionado.flashcards.length - 1, indiceTarjeta + 1)); setMostrarRespuesta(false); }}
+                disabled={indiceTarjeta === temaSeleccionado.flashcards.length - 1}
+                className="px-6 py-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl text-sm font-bold disabled:opacity-40 transition-all shadow-md"
+              >
+                Siguiente Tarjeta ▶
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
