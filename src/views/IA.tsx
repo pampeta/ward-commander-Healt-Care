@@ -381,9 +381,10 @@ export const IAModuleDesktop: React.FC = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 items-start">
         
-        <div className="lg:col-span-6 bg-white p-4 md:p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col gap-4">
+        {/* COLUMNA IZQUIERDA: FORMULARIO Y DATOS */}
+        <div className="bg-white p-4 md:p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col gap-4">
           
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
@@ -534,7 +535,7 @@ export const IAModuleDesktop: React.FC = () => {
               )}
             </div>
             <textarea 
-              className="w-full p-3 md:p-4 bg-gray-50 border border-gray-200 rounded-xl text-xs md:text-sm h-full min-h-[140px] font-mono outline-none focus:ring-2 focus:ring-blue-400 transition-shadow resize-none leading-relaxed text-gray-800 flex-1"
+              className="w-full p-3 md:p-4 bg-gray-50 border border-gray-200 rounded-xl text-xs md:text-sm h-48 md:h-56 font-mono outline-none focus:ring-2 focus:ring-blue-400 transition-shadow resize-none leading-relaxed text-gray-800"
               placeholder="Pega aquí laboratorios, evolución intrahospitalaria, notas de interconsulta..."
               value={rawData} 
               onChange={e => setRawData(e.target.value)}
@@ -583,10 +584,10 @@ export const IAModuleDesktop: React.FC = () => {
           {error && <div className="p-3 bg-red-50 border border-red-200 text-red-800 rounded-xl text-xs font-semibold shrink-0">{error}</div>}
         </div>
 
-        {/* CORRECCIÓN: Quitamos max-h-[85vh] en móvil para el panel derecho */}
-        <div className="flex flex-col md:h-full space-y-4 lg:max-h-full min-h-[300px]">
+        {/* COLUMNA DERECHA: DOCUMENTO ESTRUCTURADO (50% de la pantalla) */}
+        <div className="bg-white p-4 md:p-6 rounded-2xl border border-gray-100 shadow-sm flex flex-col min-h-[500px] lg:sticky lg:top-4">
           {output ? (
-            <div className="bg-white p-4 md:p-6 rounded-2xl border border-gray-100 shadow-sm flex flex-col h-full animate-in zoom-in-95 duration-300">
+            <div className="flex flex-col h-full animate-in zoom-in-95 duration-300">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-gray-100 pb-3 md:pb-4 shrink-0">
                 <div className="flex items-center gap-2">
                   <FileText className="w-5 h-5 text-emerald-600" />
@@ -600,17 +601,19 @@ export const IAModuleDesktop: React.FC = () => {
                 </button>
               </div>
               
-              <div className="mt-4 bg-gray-50 border border-gray-100 p-4 md:p-5 rounded-xl font-sans text-[13px] md:text-sm text-gray-800 leading-relaxed flex-1 overflow-y-auto whitespace-pre-wrap select-all shadow-inner">
+              <div className="mt-4 bg-gray-50 border border-gray-100 p-4 md:p-5 rounded-xl font-sans text-[13px] md:text-sm text-gray-800 leading-relaxed overflow-y-auto whitespace-pre-wrap select-all shadow-inner max-h-[75vh]">
                 {renderHighlightedOutput(output)}
               </div>
             </div>
           ) : (
-            <div className="border-2 border-dashed border-gray-200 rounded-2xl p-8 md:p-12 text-center text-gray-400 h-full min-h-[300px] flex flex-col items-center justify-center bg-white/50">
-              <div className="bg-gray-50 p-4 rounded-full mb-3">
-                <FileText className="w-8 h-8 text-gray-300" />
+            <div className="border-2 border-dashed border-gray-200 rounded-2xl p-8 md:p-12 text-center text-gray-400 h-full min-h-[450px] flex flex-col items-center justify-center bg-gray-50/50">
+              <div className="bg-purple-50 p-4 rounded-full mb-3 text-purple-600">
+                <FileText className="w-8 h-8" />
               </div>
-              <p className="text-sm font-medium text-gray-500 mb-1">Área de Visualización</p>
-              <p className="text-xs max-w-xs leading-relaxed">El borrador clínico estructurado por Gemini con el estilo del médico emisor aparecerá en este panel listo para copiar.</p>
+              <p className="text-sm font-bold text-gray-700 mb-1">Área de Visualización del Documento</p>
+              <p className="text-xs max-w-sm text-gray-500 leading-relaxed">
+                El borrador clínico generado por Gemini adaptado al estilo del médico emisor seleccionado aparecerá en este panel listo para revisar y copiar a la ficha clínica.
+              </p>
             </div>
           )}
         </div>
