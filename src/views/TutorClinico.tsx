@@ -3,10 +3,178 @@ import { consultarGeminiConArchivo } from "../Services/gemini";
 import { 
   BrainCircuit, Paperclip, SendHorizontal, BotMessageSquare, UserRound, 
   X, FileText, Cloud, Plus, Trash2, Eraser, Edit2, Check, 
-  ChevronLeft, ChevronRight, Menu, BookOpen
+  ChevronLeft, ChevronRight, Menu, BookOpen, Download, Copy, Printer, FileDown
 } from "lucide-react";
 import { guardarEnNube, cargarDeNube } from "../Services/cloudSync";
 import { MarkdownClinico } from "../components/MarkdownClinico";
+
+function markdownClinicoAHtml(md: string): string {
+  let html = md
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+
+  html = html.replace(/^### (.*$)/gim, '<h3 style="color:#047857; font-size:13pt; margin-top:14px; margin-bottom:6px; font-weight:bold; border-bottom:1px solid #d1fae5; padding-bottom:3px;">$1</h3>');
+  html = html.replace(/^## (.*$)/gim, '<h2 style="color:#065f46; font-size:15pt; margin-top:18px; margin-bottom:8px; font-weight:bold; border-bottom:2px solid #10b981; padding-bottom:4px;">$1</h2>');
+  html = html.replace(/^# (.*$)/gim, '<h1 style="color:#064e3b; font-size:17pt; margin-top:22px; margin-bottom:10px; font-weight:bold; border-bottom:2px solid #059669; padding-bottom:6px;">$1</h1>');
+
+  html = html.replace(/\*\*\*(.*?)\*\*\*/gim, '<strong><em>$1</em></strong>');
+  html = html.replace(/\*\*(.*?)\*\*/gim, '<strong style="color:#111827;">$1</strong>');
+  html = html.replace(/\*(.*?)\*/gim, '<em>$1</em>');
+
+  html = html.replace(/```([\s\S]*?)```/gim, '<pre style="background:#f3f4f6; border:1px solid #e5e7eb; border-radius:6px; padding:10px; font-family:Consolas, monospace; font-size:9.5pt; overflow-x:auto; margin:10px 0;">$1</pre>');
+
+  html = html.replace(/^\s*[-•]\s+(.*$)/gim, '<li style="margin-bottom:4px; line-height:1.5;">$1</li>');
+  html = html.replace(/(<li.*<\/li>)/gim, '<ul style="padding-left:20px; margin:8px 0;">$1</ul>');
+
+  html = html.replace(/^\s*(\d+)\.\s+(.*$)/gim, '<li style="margin-bottom:4px; line-height:1.5;"><strong>$1.</strong> $2</li>');
+
+  html = html.replace(/\n\n+/g, '</p><p style="margin:8px 0; line-height:1.6; color:#374151;">');
+  html = html.replace(/\n/g, '<br/>');
+
+  return `<p style="margin:8px 0; line-height:1.6; color:#374151;">${html}</p>`;
+}
+
+function exportarAWord(titulo: string, contenidoMarkdown: string, espacioClinico: string) {
+  const fechaHoy = new Date().toLocaleDateString('es-CL', { day: '2-digit', month: 'long', year: 'numeric' });
+  const contenidoHtml = markdownClinicoAHtml(contenidoMarkdown);
+
+  const plantillaWord = `
+    <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
+    <head>
+      <meta charset="utf-8">
+      <title>${titulo}</title>
+      <style>
+        body { font-family: 'Segoe UI', Calibri, Arial, sans-serif; font-size: 11pt; color: #1f2937; line-height: 1.6; padding: 24px; }
+        .header-doc { border-bottom: 2px solid #059669; padding-bottom: 12px; margin-bottom: 20px; }
+        .badge { background-color: #ecfdf5; color: #047857; font-weight: bold; padding: 4px 10px; border-radius: 6px; font-size: 9pt; border: 1px solid #a7f3d0; }
+        .footer-doc { border-top: 1px solid #e5e7eb; margin-top: 30px; padding-top: 10px; font-size: 9pt; color: #6b7280; text-align: center; }
+        h1, h2, h3 { font-family: 'Segoe UI Semibold', Arial, sans-serif; }
+        p { margin: 8px 0; }
+        ul, ol { margin: 8px 0; }
+        strong { color: #111827; }
+      </style>
+    </head>
+    <body>
+      <div class="header-doc">
+        <table style="width: 100%; border: none;">
+          <tr>
+            <td>
+              <span style="font-size: 16pt; font-weight: bold; color: #064e3b; font-family: Georgia, serif; font-style: italic;">El Rincón del Interno</span><br/>
+              <span style="font-size: 10pt; color: #4b5563;">Instructor Clínico IA • Hospital Clínico de Magallanes</span>
+            </td>
+            <td style="text-align: right;">
+              <span class="badge">${espacioClinico}</span><br/>
+              <span style="font-size: 9pt; color: #6b7280;">${fechaHoy}</span>
+            </td>
+          </tr>
+        </table>
+      </div>
+      <div class="content-doc">
+        ${contenidoHtml}
+      </div>
+      <div class="footer-doc">
+        Documento clínico generado con <strong>Ward Commander</strong> • Basado en Guías Clínicas MINSAL, KDIGO, GOLD y EUNACOM.
+      </div>
+    </body>
+    </html>
+  `;
+
+  const blob = new Blob(['\ufeff' + plantillaWord], { type: 'application/msword;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  const nombreLimpio = titulo.toLowerCase().replace(/[^a-z0-9]/gi, '_').slice(0, 35) || 'consulta_clinica';
+  link.download = `${nombreLimpio}_instructor_clinico.doc`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
+function exportarAPdf(titulo: string, contenidoMarkdown: string, espacioClinico: string) {
+  const fechaHoy = new Date().toLocaleDateString('es-CL', { day: '2-digit', month: 'long', year: 'numeric' });
+  const contenidoHtml = markdownClinicoAHtml(contenidoMarkdown);
+
+  const ventanaImpresion = window.open('', '_blank');
+  if (!ventanaImpresion) {
+    alert("Por favor permite las ventanas emergentes para exportar a PDF.");
+    return;
+  }
+
+  ventanaImpresion.document.write(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="utf-8">
+      <title>${titulo} - Instructor Clínico</title>
+      <style>
+        @page { size: letter; margin: 18mm 16mm; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; font-size: 11pt; color: #1f2937; line-height: 1.6; margin: 0; padding: 20px; }
+        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #059669; padding-bottom: 12px; margin-bottom: 20px; }
+        .badge { background-color: #ecfdf5; color: #047857; font-weight: bold; padding: 4px 10px; border-radius: 6px; font-size: 9pt; border: 1px solid #a7f3d0; }
+        .footer { border-top: 1px solid #e5e7eb; margin-top: 30px; padding-top: 10px; font-size: 9pt; color: #6b7280; text-align: center; }
+        h1, h2, h3 { page-break-after: avoid; }
+        pre { background: #f9fafb; border: 1px solid #e5e7eb; padding: 10px; border-radius: 6px; font-size: 9pt; }
+        @media print { body { padding: 0; } }
+      </style>
+    </head>
+    <body>
+      <div class="header">
+        <div>
+          <div style="font-size: 17pt; font-weight: bold; color: #064e3b; font-style: italic; font-family: Georgia, serif;">El Rincón del Interno</div>
+          <div style="font-size: 10pt; color: #4b5563;">Instructor Clínico IA • Medicina Interna</div>
+        </div>
+        <div style="text-align: right;">
+          <span class="badge">${espacioClinico}</span>
+          <div style="font-size: 9pt; color: #6b7280; margin-top: 4px;">${fechaHoy}</div>
+        </div>
+      </div>
+      <div class="content">
+        ${contenidoHtml}
+      </div>
+      <div class="footer">
+        Generado con <strong>Ward Commander</strong> • Guías de Práctica Clínica y Preparación EUNACOM.
+      </div>
+      <script>
+        window.onload = function() {
+          window.print();
+        }
+      </script>
+    </body>
+    </html>
+  `);
+  ventanaImpresion.document.close();
+}
+
+async function copiarParaGoogleDocs(contenidoMarkdown: string, espacioClinico: string): Promise<boolean> {
+  const contenidoHtml = `
+    <div style="font-family: Arial, sans-serif; font-size: 11pt; color: #202124; line-height: 1.5;">
+      <p style="color: #0d652d; font-weight: bold; font-size: 10pt; margin-bottom: 8px;">[Instructor Clínico - ${espacioClinico}]</p>
+      ${markdownClinicoAHtml(contenidoMarkdown)}
+    </div>
+  `;
+
+  try {
+    if (navigator.clipboard && (window as any).ClipboardItem) {
+      const blobHtml = new Blob([contenidoHtml], { type: "text/html" });
+      const blobText = new Blob([contenidoMarkdown], { type: "text/plain" });
+      const data = [new (window as any).ClipboardItem({ "text/html": blobHtml, "text/plain": blobText })];
+      await navigator.clipboard.write(data);
+      return true;
+    } else {
+      await navigator.clipboard.writeText(contenidoMarkdown);
+      return true;
+    }
+  } catch (err) {
+    try {
+      await navigator.clipboard.writeText(contenidoMarkdown);
+      return true;
+    } catch (e) {
+      return false;
+    }
+  }
+}
 
 export interface EspacioClinico {
   id: string;
@@ -128,6 +296,8 @@ export default function TutorClinico() {
   const [promptUsuario, setPromptUsuario] = useState("");
   const [cargando, setCargando] = useState(false);
   const [archivoAdjunto, setArchivoAdjunto] = useState<{ nombre: string, base64: string, mimeType: string } | null>(null);
+  const [copiadoId, setCopiadoId] = useState<string | null>(null);
+  const [menuExportarAbierto, setMenuExportarAbierto] = useState<boolean>(false);
   
   const [sidebarAbierto, setSidebarAbierto] = useState(true);
   const [sidebarMobileAbierto, setSidebarMobileAbierto] = useState(false);
@@ -138,6 +308,32 @@ export default function TutorClinico() {
 
   // Espacio seleccionado actualmente
   const espacioActivo = espacios.find(e => e.id === espacioActivoId) || espacios[0];
+
+  const exportarChatCompleto = async (formato: 'word' | 'pdf' | 'gdocs') => {
+    if (!sesionActiva || sesionActiva.mensajes.length === 0) {
+      alert("No hay mensajes para exportar en esta conversación.");
+      return;
+    }
+
+    const contenidoCompleto = sesionActiva.mensajes
+      .map(m => `### ${m.remitente === 'usuario' ? '👤 Consulta Clínica' : '🩺 Respuesta del Instructor'}\n\n${m.texto}`)
+      .join('\n\n---\n\n');
+
+    const titulo = sesionActiva.titulo || 'Conversacion_Clinica';
+
+    if (formato === 'word') {
+      exportarAWord(titulo, contenidoCompleto, espacioActivo.nombre);
+    } else if (formato === 'pdf') {
+      exportarAPdf(titulo, contenidoCompleto, espacioActivo.nombre);
+    } else {
+      const ok = await copiarParaGoogleDocs(contenidoCompleto, espacioActivo.nombre);
+      if (ok) {
+        setCopiadoId('chat-completo');
+        setTimeout(() => setCopiadoId(null), 2500);
+      }
+    }
+    setMenuExportarAbierto(false);
+  };
 
   // 1. CARGA INICIAL DESDE LA NUBE / LOCALSTORAGE
   useEffect(() => {
@@ -700,7 +896,47 @@ Consulta del usuario: ${textoPregunta}`;
               </h2>
             </div>
 
-            <div className="flex items-center gap-1.5 shrink-0">
+            <div className="flex items-center gap-1.5 shrink-0 relative">
+              {/* Botón Exportar Todo el Chat */}
+              <div className="relative">
+                <button
+                  onClick={() => setMenuExportarAbierto(!menuExportarAbierto)}
+                  className="px-2.5 py-1.5 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/50 dark:hover:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300 rounded-lg text-xs font-bold flex items-center gap-1 border border-emerald-200 dark:border-emerald-800 transition-colors shadow-2xs"
+                  title="Exportar toda la conversación clínica"
+                >
+                  <Download className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">Exportar Chat</span>
+                </button>
+
+                {/* Menú flotante de exportación de chat completo */}
+                {menuExportarAbierto && (
+                  <div className="absolute right-0 top-full mt-1 w-52 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-gray-200 dark:border-slate-700 p-1.5 z-30 flex flex-col gap-1 text-xs animate-in fade-in zoom-in-95">
+                    <span className="text-[10px] uppercase font-bold text-gray-400 dark:text-slate-400 px-2 py-1">Guardar Conversación:</span>
+                    <button
+                      onClick={() => exportarChatCompleto('word')}
+                      className="w-full text-left px-2.5 py-1.5 hover:bg-blue-50 dark:hover:bg-slate-700 text-blue-700 dark:text-blue-300 rounded-lg font-semibold flex items-center gap-2 transition-colors"
+                    >
+                      <FileDown className="w-4 h-4 text-blue-600" />
+                      <span>Documento Word (.doc)</span>
+                    </button>
+                    <button
+                      onClick={() => exportarChatCompleto('pdf')}
+                      className="w-full text-left px-2.5 py-1.5 hover:bg-rose-50 dark:hover:bg-slate-700 text-rose-700 dark:text-rose-300 rounded-lg font-semibold flex items-center gap-2 transition-colors"
+                    >
+                      <Printer className="w-4 h-4 text-rose-600" />
+                      <span>Imprimir / PDF</span>
+                    </button>
+                    <button
+                      onClick={() => exportarChatCompleto('gdocs')}
+                      className="w-full text-left px-2.5 py-1.5 hover:bg-emerald-50 dark:hover:bg-slate-700 text-emerald-700 dark:text-emerald-300 rounded-lg font-semibold flex items-center gap-2 transition-colors"
+                    >
+                      <Copy className="w-4 h-4 text-emerald-600" />
+                      <span>{copiadoId === 'chat-completo' ? '¡Copiado para Docs!' : 'Copiar para Google Docs'}</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+
               <button
                 onClick={vaciarChatActual}
                 className="p-1.5 text-gray-500 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-slate-700 rounded-lg text-xs font-semibold flex items-center gap-1 transition-colors"
@@ -733,7 +969,7 @@ Consulta del usuario: ${textoPregunta}`;
                   const esUsuario = msg.remitente === "usuario";
                   return (
                     <div key={index} className={`flex ${esUsuario ? 'justify-end' : 'justify-start'}`}>
-                      <div className={`flex items-start gap-2.5 max-w-[92%] sm:max-w-[82%] md:max-w-[78%] ${esUsuario ? 'flex-row-reverse' : 'flex-row'}`}>
+                      <div className={`flex items-start gap-2.5 max-w-[95%] sm:max-w-[85%] md:max-w-[80%] ${esUsuario ? 'flex-row-reverse' : 'flex-row'}`}>
                         
                         <div className={`hidden sm:flex w-8 h-8 rounded-full flex items-center justify-center shrink-0 mt-0.5 border ${
                           esUsuario 
@@ -749,8 +985,67 @@ Consulta del usuario: ${textoPregunta}`;
                             : 'bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 text-gray-850 dark:text-slate-100 rounded-bl-sm'
                         }`}>
                           <MarkdownClinico contenido={msg.texto} isUser={esUsuario} />
-                          {msg.timestamp && (
-                            <div className={`text-[9px] mt-1.5 text-right font-mono ${esUsuario ? 'text-blue-200' : 'text-gray-400 dark:text-slate-500'}`}>
+
+                          {/* Barra de Exportación de Respuestas del Instructor IA */}
+                          {!esUsuario && (
+                            <div className="mt-3 pt-2.5 border-t border-gray-100 dark:border-slate-700/70 flex flex-wrap items-center justify-between gap-2 text-xs">
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                {/* Botón Word */}
+                                <button
+                                  onClick={() => exportarAWord(sesionActiva?.titulo || "Consulta Clinica", msg.texto, espacioActivo.nombre)}
+                                  className="px-2.5 py-1 bg-blue-50 hover:bg-blue-100 dark:bg-blue-950/50 dark:hover:bg-blue-900/60 text-blue-700 dark:text-blue-300 rounded-lg text-[11px] font-bold flex items-center gap-1 border border-blue-200 dark:border-blue-800 transition-colors shadow-2xs active:scale-95"
+                                  title="Descargar este mensaje como documento de Word (.doc)"
+                                >
+                                  <FileDown className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400" />
+                                  <span>Word (.doc)</span>
+                                </button>
+
+                                {/* Botón PDF */}
+                                <button
+                                  onClick={() => exportarAPdf(sesionActiva?.titulo || "Consulta Clinica", msg.texto, espacioActivo.nombre)}
+                                  className="px-2.5 py-1 bg-rose-50 hover:bg-rose-100 dark:bg-rose-950/50 dark:hover:bg-rose-900/60 text-rose-700 dark:text-rose-300 rounded-lg text-[11px] font-bold flex items-center gap-1 border border-rose-200 dark:border-rose-800 transition-colors shadow-2xs active:scale-95"
+                                  title="Guardar o imprimir como PDF"
+                                >
+                                  <Printer className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />
+                                  <span>PDF</span>
+                                </button>
+
+                                {/* Botón Google Docs (Copiar con Formato) */}
+                                <button
+                                  onClick={async () => {
+                                    const ok = await copiarParaGoogleDocs(msg.texto, espacioActivo.nombre);
+                                    if (ok) {
+                                      setCopiadoId(`gdocs-${index}`);
+                                      setTimeout(() => setCopiadoId(null), 2500);
+                                    }
+                                  }}
+                                  className="px-2.5 py-1 bg-emerald-50 hover:bg-emerald-100 dark:bg-emerald-950/50 dark:hover:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300 rounded-lg text-[11px] font-bold flex items-center gap-1 border border-emerald-200 dark:border-emerald-800 transition-colors shadow-2xs active:scale-95"
+                                  title="Copiar texto con negritas, títulos y tablas para pegar en Google Docs (Ctrl + V)"
+                                >
+                                  {copiadoId === `gdocs-${index}` ? (
+                                    <>
+                                      <Check className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                                      <span className="text-emerald-600 dark:text-emerald-400 font-bold">¡Copiado para Docs!</span>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <Copy className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                                      <span>Google Docs</span>
+                                    </>
+                                  )}
+                                </button>
+                              </div>
+
+                              {msg.timestamp && (
+                                <div className="text-[10px] text-gray-400 dark:text-slate-500 font-mono">
+                                  {msg.timestamp}
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {esUsuario && msg.timestamp && (
+                            <div className="text-[9px] mt-1.5 text-right font-mono text-blue-200">
                               {msg.timestamp}
                             </div>
                           )}
