@@ -23,15 +23,13 @@ export const listarModelosDisponibles = async (apiKey: string): Promise<string[]
 export const obtenerMejorModelo = async (apiKey: string): Promise<string> => {
   const disponibles = await listarModelosDisponibles(apiKey);
   const preferencia = [
-    "gemini-3.6-flash",
-    "gemini-3.6-pro",
+    "gemini-2.5-flash",
     "gemini-2.0-flash",
-    "gemini-2.0-flash-exp",
-    "gemini-flash-latest",
-    "gemini-pro-latest",
     "gemini-1.5-flash",
-    "gemini-1.5-pro",
-    "gemini-2.5-flash"
+    "gemini-1.5-flash-latest",
+    "gemini-2.0-flash-lite",
+    "gemini-2.5-pro",
+    "gemini-1.5-pro"
   ];
 
   for (const pref of preferencia) {
@@ -43,7 +41,7 @@ export const obtenerMejorModelo = async (apiKey: string): Promise<string> => {
 
   if (disponibles.length > 0) return disponibles[0];
 
-  return "gemini-3.6-flash";
+  return "gemini-2.5-flash";
 };
 
 export const obtenerApiKeyGuardada = (apiKeyDada?: string): string => {

@@ -319,6 +319,8 @@ export default function Censo() {
   const [pacienteSeleccionadoEvolucion, setPacienteSeleccionadoEvolucion] = useState<PacienteCenso | null>(null);
   
   const [tipoNota, setTipoNota] = useState<"normal" | "ic">("normal");
+  const [fechaEvolucion, setFechaEvolucion] = useState<string>(hoyStr);
+  const [evolucionEditando, setEvolucionEditando] = useState<Evolucion | null>(null);
   const [nuevoTextoEvolucion, setNuevoTextoEvolucion] = useState("");
   const [especialidadIC, setEspecialidadIC] = useState("");
   const [medicoIC, setMedicoIC] = useState("");
@@ -549,6 +551,59 @@ export default function Censo() {
     setTextoNuevoPendiente(prev => ({ ...prev, [pacienteId]: "" }));
   };
 
+  const iniciarEdicionEvolucion = (evo: Evolucion) => {
+    setEvolucionEditando(evo);
+    setFechaEvolucion(evo.fecha || hoyStr);
+    setNuevoTextoEvolucion(evo.texto || "");
+    setTipoNota(evo.tipo === "ic" ? "ic" : "normal");
+    setEspecialidadIC(evo.especialidad || "");
+    setMedicoIC(evo.medico || "");
+  };
+
+  const cancelarEdicionEvolucion = () => {
+    setEvolucionEditando(null);
+    setFechaEvolucion(hoyStr);
+    setNuevoTextoEvolucion("");
+    setTipoNota("normal");
+    setEspecialidadIC("");
+    setMedicoIC("");
+  };
+
+  const eliminarEvolucion = (evoId: string, fechaEvo: string) => {
+    if (!pacienteSeleccionadoEvolucion) return;
+    if (window.confirm(`¿Seguro que deseas eliminar la evolución del ${fechaEvo.split('-').reverse().join('/')}?`)) {
+      setPacientes(prev => prev.map(p => {
+        if (p.id === pacienteSeleccionadoEvolucion.id) {
+          const lista = Array.isArray(p.evoluciones) ? p.evoluciones : [];
+          const filtradas = lista.filter(e => e.id !== evoId);
+          const tieneHoy = filtradas.some(e => e.fecha === hoyStr);
+          return {
+            ...p,
+            evoluciones: filtradas,
+            ultimaEvolucionFecha: tieneHoy ? hoyStr : (filtradas[0]?.fecha || undefined)
+          };
+        }
+        return p;
+      }));
+
+      setPacienteSeleccionadoEvolucion(prev => {
+        if (!prev) return null;
+        const lista = Array.isArray(prev.evoluciones) ? prev.evoluciones : [];
+        const filtradas = lista.filter(e => e.id !== evoId);
+        const tieneHoy = filtradas.some(e => e.fecha === hoyStr);
+        return {
+          ...prev,
+          evoluciones: filtradas,
+          ultimaEvolucionFecha: tieneHoy ? hoyStr : (filtradas[0]?.fecha || undefined)
+        };
+      });
+
+      if (evolucionEditando?.id === evoId) {
+        cancelarEdicionEvolucion();
+      }
+    }
+  };
+
   const guardarEvolucion = () => {
     if (!pacienteSeleccionadoEvolucion || !nuevoTextoEvolucion.trim()) return;
     if (tipoNota === "ic" && (!especialidadIC.trim() || !medicoIC.trim())) {
@@ -556,33 +611,83 @@ export default function Censo() {
       return;
     }
 
-    const nuevaEvo: Evolucion = {
-      id: Date.now().toString(),
-      fecha: hoyStr,
-      texto: nuevoTextoEvolucion.trim(),
-      tipo: tipoNota,
-      especialidad: tipoNota === "ic" ? especialidadIC.trim() : undefined,
-      medico: tipoNota === "ic" ? medicoIC.trim() : undefined
-    };
+    const fechaFinal = fechaEvolucion || hoyStr;
 
-    setPacientes(prev => prev.map(p => {
-      if (p.id === pacienteSeleccionadoEvolucion.id) {
-        const listaEvoluciones = Array.isArray(p.evoluciones) ? p.evoluciones : [];
+    if (evolucionEditando) {
+      const evoActualizada: Evolucion = {
+        ...evolucionEditando,
+        fecha: fechaFinal,
+        texto: nuevoTextoEvolucion.trim(),
+        tipo: tipoNota,
+        especialidad: tipoNota === "ic" ? especialidadIC.trim() : undefined,
+        medico: tipoNota === "ic" ? medicoIC.trim() : undefined
+      };
+
+      setPacientes(prev => prev.map(p => {
+        if (p.id === pacienteSeleccionadoEvolucion.id) {
+          const lista = Array.isArray(p.evoluciones) ? p.evoluciones : [];
+          const nuevas = lista.map(e => e.id === evolucionEditando.id ? evoActualizada : e);
+          const tieneHoy = nuevas.some(e => e.fecha === hoyStr);
+          return {
+            ...p,
+            evoluciones: nuevas,
+            ultimaEvolucionFecha: tieneHoy ? hoyStr : (nuevas[0]?.fecha || undefined)
+          };
+        }
+        return p;
+      }));
+
+      setPacienteSeleccionadoEvolucion(prev => {
+        if (!prev) return null;
+        const lista = Array.isArray(prev.evoluciones) ? prev.evoluciones : [];
+        const nuevas = lista.map(e => e.id === evolucionEditando.id ? evoActualizada : e);
+        const tieneHoy = nuevas.some(e => e.fecha === hoyStr);
         return {
-          ...p,
-          evoluciones: [nuevaEvo, ...listaEvoluciones],
-          ultimaEvolucionFecha: hoyStr
+          ...prev,
+          evoluciones: nuevas,
+          ultimaEvolucionFecha: tieneHoy ? hoyStr : (nuevas[0]?.fecha || undefined)
         };
-      }
-      return p;
-    }));
+      });
 
-    setNuevoTextoEvolucion("");
-    setEspecialidadIC("");
-    setMedicoIC("");
-    setTipoNota("normal");
-    setModalEvolucionAbierto(false);
-    setPacienteSeleccionadoEvolucion(null);
+      cancelarEdicionEvolucion();
+    } else {
+      const nuevaEvo: Evolucion = {
+        id: Date.now().toString(),
+        fecha: fechaFinal,
+        texto: nuevoTextoEvolucion.trim(),
+        tipo: tipoNota,
+        especialidad: tipoNota === "ic" ? especialidadIC.trim() : undefined,
+        medico: tipoNota === "ic" ? medicoIC.trim() : undefined
+      };
+
+      setPacientes(prev => prev.map(p => {
+        if (p.id === pacienteSeleccionadoEvolucion.id) {
+          const listaEvoluciones = Array.isArray(p.evoluciones) ? p.evoluciones : [];
+          const nuevas = [nuevaEvo, ...listaEvoluciones];
+          const tieneHoy = nuevas.some(e => e.fecha === hoyStr);
+          return {
+            ...p,
+            evoluciones: nuevas,
+            ultimaEvolucionFecha: tieneHoy ? hoyStr : p.ultimaEvolucionFecha
+          };
+        }
+        return p;
+      }));
+
+      setPacienteSeleccionadoEvolucion(prev => {
+        if (!prev) return null;
+        const lista = Array.isArray(prev.evoluciones) ? prev.evoluciones : [];
+        const nuevas = [nuevaEvo, ...lista];
+        const tieneHoy = nuevas.some(e => e.fecha === hoyStr);
+        return {
+          ...prev,
+          evoluciones: nuevas,
+          ultimaEvolucionFecha: tieneHoy ? hoyStr : prev.ultimaEvolucionFecha
+        };
+      });
+
+      cancelarEdicionEvolucion();
+    }
   };
 
   return (
@@ -1219,6 +1324,47 @@ export default function Censo() {
                     </div>
                   )}
 
+                  {/* Banner de Edición Activa */}
+                  {evolucionEditando && (
+                    <div className="bg-amber-50 dark:bg-amber-950/40 p-2.5 rounded-xl border border-amber-200 dark:border-amber-800 flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-1.5 text-amber-900 dark:text-amber-300 font-bold">
+                        <Edit3 className="w-4 h-4 text-amber-600" />
+                        <span>Editando nota del {evolucionEditando.fecha.split('-').reverse().join('/')}</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={cancelarEdicionEvolucion}
+                        className="text-xs bg-white dark:bg-slate-800 text-gray-700 dark:text-slate-300 px-2.5 py-1 rounded-lg border border-gray-200 dark:border-slate-700 font-semibold hover:bg-gray-100"
+                      >
+                        Cancelar Edición
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Selector de Fecha de la Evolución */}
+                  <div className="bg-white dark:bg-slate-900 p-2.5 rounded-xl border border-gray-200 dark:border-slate-700">
+                    <label className="block text-[10px] font-bold text-gray-600 dark:text-slate-400 uppercase tracking-wider mb-1 flex items-center gap-1.5">
+                      <Calendar className="w-3.5 h-3.5 text-blue-600" /> Fecha de la Evolución / Nota
+                    </label>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="date"
+                        value={fechaEvolucion}
+                        onChange={(e) => setFechaEvolucion(e.target.value)}
+                        className="p-2 border border-gray-300 dark:border-slate-700 rounded-lg text-xs bg-gray-50 dark:bg-slate-800 text-gray-900 dark:text-white outline-none focus:ring-2 focus:ring-blue-400 flex-1 font-mono"
+                      />
+                      {fechaEvolucion !== hoyStr && (
+                        <button
+                          type="button"
+                          onClick={() => setFechaEvolucion(hoyStr)}
+                          className="px-2.5 py-1.5 bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 text-[11px] font-bold rounded-lg border border-blue-200 dark:border-blue-800 hover:bg-blue-100 shrink-0"
+                        >
+                          Hoy ({hoyStr.split('-').reverse().join('/')})
+                        </button>
+                      )}
+                    </div>
+                  </div>
+
                   {tipoNota === "ic" && (
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-purple-50 p-3 rounded-lg border border-purple-200">
                       <div>
@@ -1232,12 +1378,27 @@ export default function Censo() {
                     </div>
                   )}
                   <div>
-                    <label className="block text-[10px] font-bold uppercase text-gray-600 tracking-wider mb-1.5">{tipoNota === "ic" ? "Sugerencias y Plan del Especialista:" : `Agregar Evolución de Hoy (${hoyStr.split('-').reverse().join('/')})`}</label>
+                    <label className="block text-[10px] font-bold uppercase text-gray-600 tracking-wider mb-1.5">
+                      {evolucionEditando 
+                        ? `Modificar Contenido de la Nota (${fechaEvolucion.split('-').reverse().join('/')}):` 
+                        : (tipoNota === "ic" ? "Sugerencias y Plan del Especialista:" : `Contenido de la Evolución (${fechaEvolucion.split('-').reverse().join('/')}):`)}
+                    </label>
                     <textarea rows={3} placeholder={tipoNota === "ic" ? "Pega aquí lo que recomendó el especialista..." : "Escribe la evolución clínica, notas de turno o plan del día..."} value={nuevoTextoEvolucion} onChange={e => setNuevoTextoEvolucion(e.target.value)} className="w-full p-3 border border-gray-300 rounded-xl text-sm bg-white outline-none focus:ring-2 focus:ring-blue-400 resize-none leading-relaxed" />
                   </div>
-                  <div className="flex justify-end">
-                    <button onClick={guardarEvolucion} className={`w-full sm:w-auto px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-white shadow-md transition-colors ${tipoNota === "ic" ? "bg-purple-600 hover:bg-purple-700" : "bg-blue-600 hover:bg-blue-700"}`}>
-                      {tipoNota === "ic" ? "Guardar Respuesta IC 🩺" : "Guardar y Marcar Evolucionado 🚀"}
+                  <div className="flex justify-end gap-2">
+                    {evolucionEditando && (
+                      <button
+                        type="button"
+                        onClick={cancelarEdicionEvolucion}
+                        className="px-4 py-2.5 rounded-xl text-xs sm:text-sm font-bold bg-gray-100 hover:bg-gray-200 text-gray-700 transition-colors"
+                      >
+                        Cancelar
+                      </button>
+                    )}
+                    <button onClick={guardarEvolucion} className={`w-full sm:w-auto px-5 py-2.5 rounded-xl text-xs sm:text-sm font-bold text-white shadow-md transition-colors ${evolucionEditando ? "bg-amber-600 hover:bg-amber-700" : (tipoNota === "ic" ? "bg-purple-600 hover:bg-purple-700" : "bg-blue-600 hover:bg-blue-700")}`}>
+                      {evolucionEditando 
+                        ? "Guardar Cambios 💾" 
+                        : (tipoNota === "ic" ? "Guardar Respuesta IC 🩺" : "Guardar y Registrar Nota 🚀")}
                     </button>
                   </div>
                 </div>
@@ -1249,12 +1410,34 @@ export default function Censo() {
                     return (
                         <div key={evo.id} className={`border p-3.5 rounded-xl space-y-2 text-xs shadow-sm ${esIC ? "bg-purple-50/50 border-purple-200" : "bg-white border-gray-200"}`}>
                         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 border-b border-gray-100 pb-2">
-                            <div className="flex items-center gap-1.5 text-gray-500 font-mono bg-gray-100 px-2 py-0.5 rounded w-fit text-[10px] md:text-xs">
-                            <Calendar className="w-3.5 h-3.5" /> {evo.fecha.split('-').reverse().join('/')}
+                            <div className="flex items-center gap-2">
+                              <div className="flex items-center gap-1.5 text-gray-700 font-mono bg-gray-100 px-2 py-0.5 rounded w-fit text-[10px] md:text-xs font-bold">
+                                <Calendar className="w-3.5 h-3.5 text-blue-600" /> {evo.fecha.split('-').reverse().join('/')}
+                              </div>
+                              {esIC && (
+                                <span className="bg-purple-100 text-purple-800 font-bold px-2 py-0.5 rounded-lg text-[10px] uppercase flex items-center gap-1 w-fit"><Stethoscope className="w-3.5 h-3.5" /> IC: {evo.especialidad} ({evo.medico})</span>
+                              )}
                             </div>
-                            {esIC && (
-                            <span className="bg-purple-100 text-purple-800 font-bold px-2 py-0.5 rounded-lg text-[10px] uppercase flex items-center gap-1 w-fit"><Stethoscope className="w-3.5 h-3.5" /> IC: {evo.especialidad} ({evo.medico})</span>
-                            )}
+                            <div className="flex items-center gap-1 self-end sm:self-auto">
+                              <button
+                                type="button"
+                                onClick={() => iniciarEdicionEvolucion(evo)}
+                                className="text-gray-500 hover:text-blue-600 p-1.5 bg-gray-50 hover:bg-blue-50 rounded-lg transition-colors flex items-center gap-1 text-[11px] font-medium"
+                                title="Editar esta evolución"
+                              >
+                                <Edit3 className="w-3.5 h-3.5" />
+                                <span>Editar</span>
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => eliminarEvolucion(evo.id, evo.fecha)}
+                                className="text-gray-400 hover:text-red-600 p-1.5 bg-gray-50 hover:bg-red-50 rounded-lg transition-colors flex items-center gap-1 text-[11px] font-medium"
+                                title="Eliminar esta evolución"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                                <span>Eliminar</span>
+                              </button>
+                            </div>
                         </div>
                         <p className="text-gray-800 font-sans whitespace-pre-wrap leading-relaxed text-sm">{evo.texto}</p>
                         </div>

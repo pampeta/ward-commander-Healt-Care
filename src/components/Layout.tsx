@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Users, CheckSquare, BookOpen, User, BrainCircuit, Calendar, FileText, Menu, X, Calculator, GraduationCap, Activity, Moon, Sun } from 'lucide-react';
+import { supabase } from '../Services/supabase';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -128,11 +129,12 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTa
           </nav>
         </div>
 
-        {/* PIE DE PÁGINA (Footer en PC con Toggle de Modo Noche) */}
-        <div className="p-3.5 bg-slate-950 border-t border-slate-800 text-xs text-slate-400 flex items-center justify-between">
+        {/* PIE DE PÁGINA: Toggle Modo Noche en PC y Cerrar Sesión */}
+        <div className="p-3.5 bg-slate-950 border-t border-slate-800 text-xs text-slate-400 flex flex-col gap-2 shrink-0">
+          {/* Toggle de Modo Noche (se muestra solo en PC ya que en móvil está en la barra superior) */}
           <button
             onClick={toggleDarkMode}
-            className="w-full flex items-center justify-center gap-2 py-2 px-3 bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-800 rounded-xl font-bold transition-all text-xs shadow-sm"
+            className="hidden md:flex w-full items-center justify-center gap-2 py-2 px-3 bg-slate-900 hover:bg-slate-800 text-slate-200 border border-slate-800 rounded-xl font-bold transition-all text-xs shadow-sm"
           >
             {isDarkMode ? (
               <>
@@ -145,6 +147,14 @@ export const Layout: React.FC<LayoutProps> = ({ children, activeTab, setActiveTa
                 <span>🌙 Modo Noche (Turno)</span>
               </>
             )}
+          </button>
+
+          {/* Botón de Cerrar Sesión */}
+          <button
+            onClick={() => supabase.auth.signOut()}
+            className="w-full flex items-center justify-center gap-2 py-2 px-3 bg-red-950/30 hover:bg-red-900/50 text-red-300 border border-red-900/40 rounded-xl font-bold transition-all text-xs shadow-sm"
+          >
+            <span>Cerrar Sesión 🚪</span>
           </button>
         </div>
       </aside>
