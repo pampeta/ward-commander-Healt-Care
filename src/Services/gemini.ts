@@ -23,6 +23,10 @@ export const listarModelosDisponibles = async (apiKey: string): Promise<string[]
 export const obtenerMejorModelo = async (apiKey: string): Promise<string> => {
   const disponibles = await listarModelosDisponibles(apiKey);
   const preferencia = [
+    "gemini-3.6-flash",
+    "gemini-3.5-flash",
+    "gemini-3.5-flash-lite",
+    "gemini-3.1-flash-lite",
     "gemini-2.5-flash",
     "gemini-2.0-flash",
     "gemini-1.5-flash",
@@ -41,7 +45,7 @@ export const obtenerMejorModelo = async (apiKey: string): Promise<string> => {
 
   if (disponibles.length > 0) return disponibles[0];
 
-  return "gemini-2.5-flash";
+  return "gemini-3.6-flash";
 };
 
 export const obtenerApiKeyGuardada = (apiKeyDada?: string): string => {
@@ -77,6 +81,7 @@ export const generateClinicalDocumentWithGemini = async (formData: {
   preferenciasEstilo: string;
   rawData: string;
   archivo?: { base64: string; mimeType: string } | null;
+  archivos?: Array<{ base64: string; mimeType: string }>;
   linkGoogleDocs?: string;
 }, apiKeyDada?: string) => {
   const apiKey = obtenerApiKeyGuardada(apiKeyDada);
@@ -113,14 +118,21 @@ Genera el documento completo listo para la ficha clínica, siguiendo rigurosamen
 
   const contents: any[] = [prompt];
 
-  if (formData.archivo && formData.archivo.base64) {
-    const base64Data = formData.archivo.base64.split(',')[1] || formData.archivo.base64;
-    contents.push({
-      inlineData: {
-        mimeType: formData.archivo.mimeType,
-        data: base64Data
-      }
-    });
+  // Soporte para múltiples archivos o archivo único
+  const listaArchivos = formData.archivos && formData.archivos.length > 0 
+    ? formData.archivos 
+    : (formData.archivo ? [formData.archivo] : []);
+
+  for (const arc of listaArchivos) {
+    if (arc && arc.base64) {
+      const base64Data = arc.base64.split(',')[1] || arc.base64;
+      contents.push({
+        inlineData: {
+          mimeType: arc.mimeType,
+          data: base64Data
+        }
+      });
+    }
   }
 
   const result = await model.generateContent(contents);
@@ -142,6 +154,7 @@ export const extraerEvolucionConGemini = async (
     base64?: string;
     mimeType?: string;
     textoPlano?: string;
+    archivos?: Array<{ base64: string; mimeType: string }>;
   },
   apiKeyDada?: string
 ): Promise<EvolucionExtraidaDetallada[]> => {
@@ -157,7 +170,7 @@ export const extraerEvolucionConGemini = async (
   }
 
   const prompt = `
-Eres un asistente médico clínico. Analiza la imagen, documento de Google Docs, nota o texto proporcionado y extrae las notas de evolución clínica diaria o respuestas de interconsulta del paciente.
+Eres un asistente médico clínico. Analiza las imágenes, documentos de Google Docs, notas o textos proporcionados y extrae las notas de evolución clínica diaria o respuestas de interconsulta del paciente.
 
 Debes responder ÚNICAMENTE con un JSON array válido con la siguiente estructura:
 [
@@ -185,14 +198,21 @@ Si solo hay una evolución del día, devuelve un array con 1 elemento.
     contents.push(`\n--- NOTAS / DOCUMENTO ---\n${textoFinal}`);
   }
 
-  if (archivoOTexto.base64 && archivoOTexto.mimeType) {
-    const base64Data = archivoOTexto.base64.split(',')[1] || archivoOTexto.base64;
-    contents.push({
-      inlineData: {
-        mimeType: archivoOTexto.mimeType,
-        data: base64Data
-      }
-    });
+  // Soporte para múltiples archivos o archivo único
+  const listaArchivos = archivoOTexto.archivos && archivoOTexto.archivos.length > 0
+    ? archivoOTexto.archivos
+    : (archivoOTexto.base64 && archivoOTexto.mimeType ? [{ base64: archivoOTexto.base64, mimeType: archivoOTexto.mimeType }] : []);
+
+  for (const arc of listaArchivos) {
+    if (arc && arc.base64) {
+      const base64Data = arc.base64.split(',')[1] || arc.base64;
+      contents.push({
+        inlineData: {
+          mimeType: arc.mimeType,
+          data: base64Data
+        }
+      });
+    }
   }
 
   const mejorModelo = await obtenerMejorModelo(apiKey);
@@ -214,7 +234,7 @@ Si solo hay una evolución del día, devuelve un array con 1 elemento.
 export const consultarGeminiConArchivo = async (
   prompt: string,
   apiKeyDada?: string,
-  archivo?: { base64: string; mimeType: string } | null
+  archivoOArchivos?: { base64: string; mimeType: string } | Array<{ base64: string; mimeType: string }> | null
 ) => {
   const apiKey = obtenerApiKeyGuardada(apiKeyDada);
 
@@ -230,11 +250,24 @@ export const consultarGeminiConArchivo = async (
 
   const contents: any[] = [promptAfinado];
 
-  if (archivo && archivo.base64) {
-    const base64Data = archivo.base64.split(',')[1] || archivo.base64;
+  // Soporte para múltiples archivos o archivo único
+  if (Array.isArray(archivoOArchivos)) {
+    for (const arc of archivoOArchivos) {
+      if (arc && arc.base64) {
+        const base64Data = arc.base64.split(',')[1] || arc.base64;
+        contents.push({
+          inlineData: {
+            mimeType: arc.mimeType,
+            data: base64Data
+          }
+        });
+      }
+    }
+  } else if (archivoOArchivos && archivoOArchivos.base64) {
+    const base64Data = archivoOArchivos.base64.split(',')[1] || archivoOArchivos.base64;
     contents.push({
       inlineData: {
-        mimeType: archivo.mimeType,
+        mimeType: archivoOArchivos.mimeType,
         data: base64Data
       }
     });
@@ -318,6 +351,7 @@ export const extraerPacienteDesdeDocumentoConGemini = async (
     base64?: string;
     mimeType?: string;
     textoPlano?: string;
+    archivos?: Array<{ base64: string; mimeType: string }>;
   },
   apiKeyDada?: string
 ): Promise<DatosPacienteExtraidos> => {
@@ -334,7 +368,7 @@ export const extraerPacienteDesdeDocumentoConGemini = async (
   }
 
   const prompt = `
-Eres un asistente médico clínico de alta precisión. Analiza la imagen, documento de Google Docs, ficha clínica, epicrisis, evolución diaria, reporte de enfermería o notas adjuntas y extrae TODOS los datos del paciente en formato JSON estricto.
+Eres un asistente médico clínico de alta precisión. Analiza las imágenes, documentos de Google Docs, fichas clínicas, epicrisis, evoluciones diarias, reportes de enfermería o notas adjuntas y extrae TODOS los datos del paciente en formato JSON estricto.
 
 Debes prestar especial atención a:
 1. Datos demográficos y de ingreso (Cama, Nombre, Edad, Fecha Ingreso, Diagnóstico principal, Antibióticos, Infección, Curaciones).
@@ -388,14 +422,21 @@ Si algún dato no está explícito en el documento, deja el valor como string va
     contents.push(`\n--- TEXTO CLÍNICO PROPORCIONADO ---\n${textoFinal}`);
   }
 
-  if (archivoOTexto.base64 && archivoOTexto.mimeType) {
-    const base64Data = archivoOTexto.base64.split(',')[1] || archivoOTexto.base64;
-    contents.push({
-      inlineData: {
-        mimeType: archivoOTexto.mimeType,
-        data: base64Data
-      }
-    });
+  // Soporte para múltiples archivos o archivo único
+  const listaArchivos = archivoOTexto.archivos && archivoOTexto.archivos.length > 0
+    ? archivoOTexto.archivos
+    : (archivoOTexto.base64 && archivoOTexto.mimeType ? [{ base64: archivoOTexto.base64, mimeType: archivoOTexto.mimeType }] : []);
+
+  for (const arc of listaArchivos) {
+    if (arc && arc.base64) {
+      const base64Data = arc.base64.split(',')[1] || arc.base64;
+      contents.push({
+        inlineData: {
+          mimeType: arc.mimeType,
+          data: base64Data
+        }
+      });
+    }
   }
 
   const genAI = new GoogleGenerativeAI(apiKey);

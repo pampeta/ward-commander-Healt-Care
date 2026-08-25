@@ -295,7 +295,7 @@ export default function TutorClinico() {
 
   const [promptUsuario, setPromptUsuario] = useState("");
   const [cargando, setCargando] = useState(false);
-  const [archivoAdjunto, setArchivoAdjunto] = useState<{ nombre: string, base64: string, mimeType: string } | null>(null);
+  const [archivosAdjuntos, setArchivosAdjuntos] = useState<Array<{ nombre: string, base64: string, mimeType: string }>>([]);
   const [copiadoId, setCopiadoId] = useState<string | null>(null);
   const [menuExportarAbierto, setMenuExportarAbierto] = useState<boolean>(false);
   
@@ -498,39 +498,54 @@ export default function TutorClinico() {
     } : s));
   };
 
-  // SUBIR ARCHIVOS
+  // SUBIR ARCHIVOS (Múltiples)
   const handleSubirArchivo = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    if (file.size > 20 * 1024 * 1024) {
-      alert("El archivo es muy pesado (máximo 20MB).");
-      return;
-    }
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      setArchivoAdjunto({ nombre: file.name, base64: reader.result as string, mimeType: file.type });
-    };
-    reader.readAsDataURL(file);
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    Array.from(files).forEach(file => {
+      if (file.size > 20 * 1024 * 1024) {
+        alert(`El archivo "${file.name}" es muy pesado (máximo 20MB).`);
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setArchivosAdjuntos(prev => [
+          ...prev,
+          { nombre: file.name, base64: reader.result as string, mimeType: file.type || "application/octet-stream" }
+        ]);
+      };
+      reader.readAsDataURL(file);
+    });
+
+    e.target.value = "";
+  };
+
+  const removerArchivoAdjunto = (index: number) => {
+    setArchivosAdjuntos(prev => prev.filter((_, i) => i !== index));
   };
 
   // ENVIAR CONSULTA A GEMINI
   const enviarConsulta = async () => {
-    if (!promptUsuario.trim() && !archivoAdjunto) return;
+    if (!promptUsuario.trim() && archivosAdjuntos.length === 0) return;
     if (!sesionActiva) return;
 
     const textoPregunta = promptUsuario.trim();
     setPromptUsuario("");
     
+    const nombresArchivos = archivosAdjuntos.map(a => `📄 ${a.nombre}`).join(", ");
     const nuevoMensajeUsuario: MensajeChat = { 
       remitente: "usuario", 
-      texto: textoPregunta + (archivoAdjunto ? ` [📄 ${archivoAdjunto.nombre}]` : ""),
+      texto: textoPregunta + (archivosAdjuntos.length > 0 ? ` [${nombresArchivos}]` : ""),
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     };
 
     // Auto-actualizar título si es la primera pregunta o genérico
     let tituloActualizado = sesionActiva.titulo;
     if (sesionActiva.mensajes.length <= 1 || sesionActiva.titulo.startsWith("Nueva sesión")) {
-      tituloActualizado = textoPregunta.length > 38 ? textoPregunta.slice(0, 38) + "..." : textoPregunta;
+      tituloActualizado = textoPregunta.length > 38 
+        ? textoPregunta.slice(0, 38) + "..." 
+        : (textoPregunta || (archivosAdjuntos[0] ? archivosAdjuntos[0].nombre : "Consulta"));
     }
 
     setSesiones(prev => prev.map(s => s.id === sesionActiva.id ? {
@@ -540,6 +555,8 @@ export default function TutorClinico() {
       mensajes: [...s.mensajes, nuevoMensajeUsuario]
     } : s));
 
+    const archivosParaEnviar = [...archivosAdjuntos];
+    setArchivosAdjuntos([]);
     setCargando(true);
 
     try {
@@ -559,7 +576,7 @@ REGLAS DE RIGOR CLÍNICO Y FORMATO:
 
 Consulta del usuario: ${textoPregunta}`;
 
-      const respuestaIA = await consultarGeminiConArchivo(promptSistema, undefined, archivoAdjunto || undefined);
+      const respuestaIA = await consultarGeminiConArchivo(promptSistema, undefined, archivosParaEnviar);
 
       const nuevoMensajeIA: MensajeChat = { 
         remitente: "ia", 
@@ -572,8 +589,6 @@ Consulta del usuario: ${textoPregunta}`;
         fechaActualizacion: new Date().toISOString(),
         mensajes: [...s.mensajes, nuevoMensajeIA]
       } : s));
-
-      setArchivoAdjunto(null); 
     } catch (e: any) {
       const mensajeError: MensajeChat = { 
         remitente: "ia", 
@@ -1080,23 +1095,32 @@ Consulta del usuario: ${textoPregunta}`;
           {/* ZONA DE ESCRITURA */}
           <div className="p-2.5 sm:p-3.5 bg-white dark:bg-slate-800 border-t border-gray-100 dark:border-slate-700 flex flex-col gap-2 shrink-0 shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.02)]">
             
-            {archivoAdjunto && (
-              <div className="flex items-center gap-2 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 px-3 py-1.5 rounded-lg text-xs border border-emerald-200 dark:border-emerald-800 w-fit shadow-xs">
-                <FileText className="w-3.5 h-3.5 shrink-0" /> 
-                <span className="font-semibold truncate max-w-[200px] sm:max-w-xs">{archivoAdjunto.nombre}</span>
-                <button onClick={() => setArchivoAdjunto(null)} className="ml-1 text-red-500 hover:bg-red-100 dark:hover:bg-red-950 p-1 rounded-md transition-colors">
-                  <X className="w-3.5 h-3.5" />
-                </button>
+            {archivosAdjuntos.length > 0 && (
+              <div className="flex flex-wrap items-center gap-1.5 p-1">
+                {archivosAdjuntos.map((arc, idx) => (
+                  <div key={idx} className="flex items-center gap-1.5 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-800 dark:text-emerald-300 px-2.5 py-1 rounded-lg text-xs border border-emerald-200 dark:border-emerald-800 shadow-2xs animate-in fade-in">
+                    <FileText className="w-3.5 h-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" /> 
+                    <span className="font-semibold truncate max-w-[150px] sm:max-w-xs">{arc.nombre}</span>
+                    <button 
+                      type="button" 
+                      onClick={() => removerArchivoAdjunto(idx)} 
+                      className="ml-0.5 text-red-500 hover:bg-red-100 dark:hover:bg-red-950 p-0.5 rounded transition-colors"
+                      title="Eliminar archivo adjunto"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
               </div>
             )}
             
             <div className="flex items-end gap-2 bg-gray-50 dark:bg-slate-900 border border-gray-200 dark:border-slate-700 rounded-2xl p-1.5 focus-within:ring-2 focus-within:ring-emerald-200 dark:focus-within:ring-emerald-800 focus-within:border-emerald-400 transition-all">
               
-              <input type="file" id="subir-doc-tutor" accept=".pdf, image/*, .txt" onChange={handleSubirArchivo} className="hidden" />
+              <input type="file" id="subir-doc-tutor" accept=".pdf, image/*, .txt, application/pdf" multiple onChange={handleSubirArchivo} className="hidden" />
               <label 
                 htmlFor="subir-doc-tutor" 
                 className="w-9 h-9 sm:w-10 sm:h-10 flex items-center justify-center text-gray-400 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-slate-800 rounded-xl cursor-pointer transition-colors shrink-0 mb-0.5" 
-                title="Adjuntar PDF, Imagen o TXT"
+                title="Adjuntar uno o varios archivos (PDFs, Fotos, TXT)"
               >
                 <Paperclip className="w-4 h-4 sm:w-5 sm:h-5" />
               </label>
@@ -1127,7 +1151,7 @@ Consulta del usuario: ${textoPregunta}`;
                   const textarea = document.querySelector('textarea');
                   if(textarea) textarea.style.height = 'auto';
                 }}
-                disabled={cargando || descargando || (!promptUsuario.trim() && !archivoAdjunto)}
+                disabled={cargando || descargando || (!promptUsuario.trim() && archivosAdjuntos.length === 0)}
                 className="w-9 h-9 sm:w-auto sm:px-4 flex items-center justify-center gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs sm:text-sm font-bold transition-all disabled:opacity-50 disabled:bg-gray-300 dark:disabled:bg-slate-700 shadow-xs shrink-0 mb-0.5"
               >
                 <SendHorizontal className="w-4 h-4" />

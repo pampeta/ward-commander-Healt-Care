@@ -169,7 +169,7 @@ export default function Censo() {
   // Estados para escaneo inteligente con IA (Foto / Archivo / Texto)
   const [modalEscaneoAbierto, setModalEscaneoAbierto] = useState(false);
   const [escaneandoIA, setEscaneandoIA] = useState(false);
-  const [archivoEscaneo, setArchivoEscaneo] = useState<{ base64: string; mimeType: string; nombre: string; vistaPrevia?: string } | null>(null);
+  const [archivosEscaneo, setArchivosEscaneo] = useState<Array<{ base64: string; mimeType: string; nombre: string; vistaPrevia?: string }>>([]);
   const [textoEscaneo, setTextoEscaneo] = useState("");
   const [errorEscaneo, setErrorEscaneo] = useState("");
   const [apiKeyLocal, setApiKeyLocal] = useState("");
@@ -187,45 +187,60 @@ export default function Censo() {
   };
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
 
     setErrorEscaneo("");
-    const reader = new FileReader();
 
-    if (file.type.startsWith("image/")) {
-      reader.onload = () => {
-        const result = reader.result as string;
-        setArchivoEscaneo({
-          base64: result,
-          mimeType: file.type,
-          nombre: file.name,
-          vistaPrevia: result,
-        });
-      };
-      reader.readAsDataURL(file);
-    } else if (file.type === "application/pdf") {
-      reader.onload = () => {
-        const result = reader.result as string;
-        setArchivoEscaneo({
-          base64: result,
-          mimeType: file.type,
-          nombre: file.name,
-        });
-      };
-      reader.readAsDataURL(file);
-    } else {
-      reader.onload = () => {
-        const result = reader.result as string;
-        setTextoEscaneo(result);
-      };
-      reader.readAsText(file);
-    }
+    Array.from(files).forEach(file => {
+      const reader = new FileReader();
+
+      if (file.type.startsWith("image/")) {
+        reader.onload = () => {
+          const result = reader.result as string;
+          setArchivosEscaneo(prev => [
+            ...prev,
+            {
+              base64: result,
+              mimeType: file.type,
+              nombre: file.name,
+              vistaPrevia: result,
+            }
+          ]);
+        };
+        reader.readAsDataURL(file);
+      } else if (file.type === "application/pdf") {
+        reader.onload = () => {
+          const result = reader.result as string;
+          setArchivosEscaneo(prev => [
+            ...prev,
+            {
+              base64: result,
+              mimeType: file.type,
+              nombre: file.name,
+            }
+          ]);
+        };
+        reader.readAsDataURL(file);
+      } else {
+        reader.onload = () => {
+          const result = reader.result as string;
+          setTextoEscaneo(prev => prev ? `${prev}\n\n${result}` : result);
+        };
+        reader.readAsText(file);
+      }
+    });
+
+    e.target.value = "";
+  };
+
+  const removerArchivoEscaneo = (index: number) => {
+    setArchivosEscaneo(prev => prev.filter((_, i) => i !== index));
   };
 
   const procesarDocumentoConIA = async () => {
-    if (!archivoEscaneo && !textoEscaneo.trim()) {
-      setErrorEscaneo("Por favor toma una foto, adjunta un archivo o pega el texto clínico del paciente.");
+    if (archivosEscaneo.length === 0 && !textoEscaneo.trim()) {
+      setErrorEscaneo("Por favor toma una foto, adjunta uno o varios archivos o pega el texto clínico del paciente.");
       return;
     }
 
@@ -241,8 +256,7 @@ export default function Censo() {
 
     try {
       const datosExtraidos = await extraerPacienteDesdeDocumentoConGemini({
-        base64: archivoEscaneo?.base64,
-        mimeType: archivoEscaneo?.mimeType,
+        archivos: archivosEscaneo,
         textoPlano: textoEscaneo.trim() || undefined,
       }, keyActual);
 
@@ -305,7 +319,7 @@ export default function Censo() {
       });
 
       setModalEscaneoAbierto(false);
-      setArchivoEscaneo(null);
+      setArchivosEscaneo([]);
       setTextoEscaneo("");
       setModalAbierto(true);
     } catch (err: any) {
@@ -328,50 +342,65 @@ export default function Censo() {
   // Estados para extracción de Evolución con IA
   const [mostrarEscaneoEvo, setMostrarEscaneoEvo] = useState(false);
   const [escaneandoEvoIA, setEscaneandoEvoIA] = useState(false);
-  const [archivoEvo, setArchivoEvo] = useState<{ base64: string; mimeType: string; nombre: string; vistaPrevia?: string } | null>(null);
+  const [archivosEvo, setArchivosEvo] = useState<Array<{ base64: string; mimeType: string; nombre: string; vistaPrevia?: string }>>([]);
   const [textoEvoAI, setTextoEvoAI] = useState("");
   const [errorEvoAI, setErrorEvoAI] = useState("");
 
   const handleFileSelectEvo = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
 
     setErrorEvoAI("");
-    const reader = new FileReader();
 
-    if (file.type.startsWith("image/")) {
-      reader.onload = () => {
-        const result = reader.result as string;
-        setArchivoEvo({
-          base64: result,
-          mimeType: file.type,
-          nombre: file.name,
-          vistaPrevia: result,
-        });
-      };
-      reader.readAsDataURL(file);
-    } else if (file.type === "application/pdf") {
-      reader.onload = () => {
-        const result = reader.result as string;
-        setArchivoEvo({
-          base64: result,
-          mimeType: file.type,
-          nombre: file.name,
-        });
-      };
-      reader.readAsDataURL(file);
-    } else {
-      reader.onload = () => {
-        const result = reader.result as string;
-        setTextoEvoAI(result);
-      };
-      reader.readAsText(file);
-    }
+    Array.from(files).forEach(file => {
+      const reader = new FileReader();
+
+      if (file.type.startsWith("image/")) {
+        reader.onload = () => {
+          const result = reader.result as string;
+          setArchivosEvo(prev => [
+            ...prev,
+            {
+              base64: result,
+              mimeType: file.type,
+              nombre: file.name,
+              vistaPrevia: result,
+            }
+          ]);
+        };
+        reader.readAsDataURL(file);
+      } else if (file.type === "application/pdf") {
+        reader.onload = () => {
+          const result = reader.result as string;
+          setArchivosEvo(prev => [
+            ...prev,
+            {
+              base64: result,
+              mimeType: file.type,
+              nombre: file.name,
+            }
+          ]);
+        };
+        reader.readAsDataURL(file);
+      } else {
+        reader.onload = () => {
+          const result = reader.result as string;
+          setTextoEvoAI(prev => prev ? `${prev}\n\n${result}` : result);
+        };
+        reader.readAsText(file);
+      }
+    });
+
+    e.target.value = "";
+  };
+
+  const removerArchivoEvo = (index: number) => {
+    setArchivosEvo(prev => prev.filter((_, i) => i !== index));
   };
 
   const procesarEvolucionConIA = async () => {
-    if (!archivoEvo && !textoEvoAI.trim()) {
-      setErrorEvoAI("Toma una foto, sube un archivo o pega el texto/link de Google Docs.");
+    if (archivosEvo.length === 0 && !textoEvoAI.trim()) {
+      setErrorEvoAI("Toma una foto, sube uno o varios archivos o pega el texto/link de Google Docs.");
       return;
     }
 
@@ -386,8 +415,7 @@ export default function Censo() {
 
     try {
       const resultado = await extraerEvolucionConGemini({
-        base64: archivoEvo?.base64,
-        mimeType: archivoEvo?.mimeType,
+        archivos: archivosEvo,
         textoPlano: textoEvoAI.trim() || undefined
       }, key);
 
@@ -399,7 +427,7 @@ export default function Censo() {
           if (evo.especialidad) setEspecialidadIC(evo.especialidad);
           if (evo.medico) setMedicoIC(evo.medico);
           setMostrarEscaneoEvo(false);
-          setArchivoEvo(null);
+          setArchivosEvo([]);
           setTextoEvoAI("");
         } else {
           if (pacienteSeleccionadoEvolucion) {
@@ -434,7 +462,7 @@ export default function Censo() {
             } : null);
 
             setMostrarEscaneoEvo(false);
-            setArchivoEvo(null);
+            setArchivosEvo([]);
             setTextoEvoAI("");
           }
         }
@@ -709,7 +737,7 @@ export default function Censo() {
         <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
           <button
             onClick={() => { 
-              setArchivoEscaneo(null);
+              setArchivosEscaneo([]);
               setTextoEscaneo("");
               setErrorEscaneo("");
               setModalEscaneoAbierto(true); 
@@ -908,6 +936,7 @@ export default function Censo() {
                     type="file"
                     accept="image/*"
                     capture="environment"
+                    multiple
                     className="hidden"
                     onChange={handleFileSelect}
                   />
@@ -915,43 +944,55 @@ export default function Censo() {
 
                 <label className="flex flex-col items-center justify-center gap-2 p-4 bg-blue-50 hover:bg-blue-100/80 border-2 border-dashed border-blue-300 rounded-xl cursor-pointer transition-all text-blue-900 text-center">
                   <FileUp className="w-7 h-7 text-blue-600" />
-                  <span className="text-xs font-bold">Adjuntar Imagen o PDF</span>
-                  <span className="text-[10px] text-blue-600/80">JPG, PNG, PDF o archivos de texto</span>
+                  <span className="text-xs font-bold">Adjuntar Fotos o PDFs</span>
+                  <span className="text-[10px] text-blue-600/80">JPG, PNG, PDF o archivos (múltiples)</span>
                   <input
                     type="file"
                     accept="image/*,application/pdf,.txt"
+                    multiple
                     className="hidden"
                     onChange={handleFileSelect}
                   />
                 </label>
               </div>
 
-              {/* Vista previa del archivo seleccionado */}
-              {archivoEscaneo && (
-                <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 flex items-center justify-between gap-3 animate-in fade-in">
-                  <div className="flex items-center gap-3 min-w-0">
-                    {archivoEscaneo.vistaPrevia ? (
-                      <img
-                        src={archivoEscaneo.vistaPrevia}
-                        alt="Vista previa"
-                        className="w-12 h-12 object-cover rounded-lg border border-slate-200 shrink-0"
-                      />
-                    ) : (
-                      <div className="w-12 h-12 bg-blue-100 text-blue-700 flex items-center justify-center rounded-lg shrink-0">
-                        <FileText className="w-6 h-6" />
+              {/* Vista previa de los archivos seleccionados */}
+              {archivosEscaneo.length > 0 && (
+                <div className="space-y-2">
+                  <span className="text-[11px] font-bold text-gray-600 uppercase tracking-wider">
+                    Archivos cargados ({archivosEscaneo.length}):
+                  </span>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto">
+                    {archivosEscaneo.map((arc, idx) => (
+                      <div key={idx} className="bg-slate-50 border border-slate-200 rounded-xl p-2.5 flex items-center justify-between gap-2 text-xs shadow-2xs">
+                        <div className="flex items-center gap-2 min-w-0">
+                          {arc.vistaPrevia ? (
+                            <img
+                              src={arc.vistaPrevia}
+                              alt="Vista previa"
+                              className="w-10 h-10 object-cover rounded-lg border border-slate-200 shrink-0"
+                            />
+                          ) : (
+                            <div className="w-10 h-10 bg-blue-100 text-blue-700 flex items-center justify-center rounded-lg shrink-0">
+                              <FileText className="w-5 h-5" />
+                            </div>
+                          )}
+                          <div className="truncate">
+                            <p className="font-bold text-gray-800 truncate">{arc.nombre}</p>
+                            <p className="text-[10px] text-gray-500 uppercase">{arc.mimeType || "Archivo"}</p>
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => removerArchivoEscaneo(idx)}
+                          className="text-gray-400 hover:text-red-600 p-1 rounded transition-colors"
+                          title="Quitar archivo"
+                        >
+                          <X className="w-4 h-4" />
+                        </button>
                       </div>
-                    )}
-                    <div className="truncate">
-                      <p className="text-xs font-bold text-gray-800 truncate">{archivoEscaneo.nombre}</p>
-                      <p className="text-[10px] text-gray-500 uppercase">{archivoEscaneo.mimeType || "Archivo"}</p>
-                    </div>
+                    ))}
                   </div>
-                  <button
-                    onClick={() => setArchivoEscaneo(null)}
-                    className="text-gray-400 hover:text-red-600 p-1 rounded transition-colors"
-                  >
-                    <X className="w-4 h-4" />
-                  </button>
                 </div>
               )}
 
@@ -1031,7 +1072,7 @@ export default function Censo() {
               <button
                 type="button"
                 onClick={procesarDocumentoConIA}
-                disabled={escaneandoIA || (!archivoEscaneo && !textoEscaneo.trim())}
+                disabled={escaneandoIA || (archivosEscaneo.length === 0 && !textoEscaneo.trim())}
                 className="order-1 sm:order-2 w-full sm:w-auto px-6 py-2.5 bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-700 hover:to-indigo-700 text-white text-xs sm:text-sm font-bold rounded-xl flex items-center justify-center gap-2 shadow-md disabled:opacity-50 disabled:cursor-not-allowed transition-all"
               >
                 {escaneandoIA ? (
@@ -1064,7 +1105,7 @@ export default function Censo() {
                   type="button"
                   onClick={() => {
                     setModalAbierto(false);
-                    setArchivoEscaneo(null);
+                    setArchivosEscaneo([]);
                     setTextoEscaneo("");
                     setErrorEscaneo("");
                     setModalEscaneoAbierto(true);
@@ -1275,19 +1316,35 @@ export default function Censo() {
                         <label className="flex items-center justify-center gap-1.5 p-2.5 bg-white border border-purple-200 rounded-lg cursor-pointer hover:bg-purple-50 text-purple-900 text-xs font-bold transition-colors">
                           <Camera className="w-4 h-4 text-purple-600" />
                           <span>Tomar Foto</span>
-                          <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleFileSelectEvo} />
+                          <input type="file" accept="image/*" capture="environment" multiple className="hidden" onChange={handleFileSelectEvo} />
                         </label>
                         <label className="flex items-center justify-center gap-1.5 p-2.5 bg-white border border-purple-200 rounded-lg cursor-pointer hover:bg-purple-50 text-purple-900 text-xs font-bold transition-colors">
                           <FileUp className="w-4 h-4 text-blue-600" />
-                          <span>Subir Archivo / PDF</span>
-                          <input type="file" accept="image/*,application/pdf,.txt" className="hidden" onChange={handleFileSelectEvo} />
+                          <span>Subir Archivos / PDFs</span>
+                          <input type="file" accept="image/*,application/pdf,.txt" multiple className="hidden" onChange={handleFileSelectEvo} />
                         </label>
                       </div>
 
-                      {archivoEvo && (
-                        <div className="bg-white p-2 rounded-lg border border-purple-100 flex items-center justify-between text-xs">
-                          <span className="truncate font-medium text-gray-700">📄 {archivoEvo.nombre}</span>
-                          <button type="button" onClick={() => setArchivoEvo(null)} className="text-red-500 font-bold ml-2">X</button>
+                      {archivosEvo.length > 0 && (
+                        <div className="space-y-1.5">
+                          <span className="text-[10px] font-bold text-purple-900 uppercase">
+                            Archivos listos para procesar ({archivosEvo.length}):
+                          </span>
+                          <div className="grid grid-cols-1 gap-1.5 max-h-36 overflow-y-auto">
+                            {archivosEvo.map((arc, idx) => (
+                              <div key={idx} className="bg-white p-2 rounded-lg border border-purple-100 flex items-center justify-between text-xs shadow-2xs">
+                                <span className="truncate font-medium text-gray-700">📄 {arc.nombre}</span>
+                                <button 
+                                  type="button" 
+                                  onClick={() => removerArchivoEvo(idx)} 
+                                  className="text-red-500 hover:bg-red-50 p-1 rounded font-bold ml-2 transition-colors"
+                                  title="Quitar este archivo"
+                                >
+                                  <X className="w-3.5 h-3.5" />
+                                </button>
+                              </div>
+                            ))}
+                          </div>
                         </div>
                       )}
 
@@ -1306,7 +1363,7 @@ export default function Censo() {
                       <button
                         type="button"
                         onClick={procesarEvolucionConIA}
-                        disabled={escaneandoEvoIA || (!archivoEvo && !textoEvoAI.trim())}
+                        disabled={escaneandoEvoIA || (archivosEvo.length === 0 && !textoEvoAI.trim())}
                         className="w-full py-2 bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs rounded-lg flex items-center justify-center gap-1.5 disabled:opacity-50 transition-colors shadow-sm"
                       >
                         {escaneandoEvoIA ? (

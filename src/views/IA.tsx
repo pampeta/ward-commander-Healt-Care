@@ -216,7 +216,7 @@ export const IAModuleDesktop: React.FC = () => {
   
   const [esqueletoActual, setEsqueletoActual] = useState<string>(PLANTILLAS_POR_DEFECTO['Epicrisis']);
   const [rawData, setRawData] = useState<string>('');
-  const [archivoAdjunto, setArchivoAdjunto] = useState<{ base64: string; mimeType: string; nombre: string; vistaPrevia?: string } | null>(null);
+  const [archivosAdjuntos, setArchivosAdjuntos] = useState<Array<{ base64: string; mimeType: string; nombre: string; vistaPrevia?: string }>>([]);
   const [linkGoogleDocs, setLinkGoogleDocs] = useState<string>('');
   
   const [sanitizedPreview, setSanitizedPreview] = useState<any>(null);
@@ -232,35 +232,49 @@ export const IAModuleDesktop: React.FC = () => {
   }, [tipoDoc]);
 
   const handleSubirArchivo = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
 
-    const reader = new FileReader();
-    if (file.type.startsWith('image/')) {
-      reader.onload = () => {
-        setArchivoAdjunto({
-          base64: reader.result as string,
-          mimeType: file.type,
-          nombre: file.name,
-          vistaPrevia: reader.result as string
-        });
-      };
-      reader.readAsDataURL(file);
-    } else if (file.type === 'application/pdf') {
-      reader.onload = () => {
-        setArchivoAdjunto({
-          base64: reader.result as string,
-          mimeType: file.type,
-          nombre: file.name
-        });
-      };
-      reader.readAsDataURL(file);
-    } else {
-      reader.onload = () => {
-        setRawData(prev => prev ? `${prev}\n\n--- ARCHIVO ADJUNTO ---\n${reader.result}` : String(reader.result));
-      };
-      reader.readAsText(file);
-    }
+    Array.from(files).forEach(file => {
+      const reader = new FileReader();
+      if (file.type.startsWith('image/')) {
+        reader.onload = () => {
+          setArchivosAdjuntos(prev => [
+            ...prev,
+            {
+              base64: reader.result as string,
+              mimeType: file.type,
+              nombre: file.name,
+              vistaPrevia: reader.result as string
+            }
+          ]);
+        };
+        reader.readAsDataURL(file);
+      } else if (file.type === 'application/pdf') {
+        reader.onload = () => {
+          setArchivosAdjuntos(prev => [
+            ...prev,
+            {
+              base64: reader.result as string,
+              mimeType: file.type,
+              nombre: file.name
+            }
+          ]);
+        };
+        reader.readAsDataURL(file);
+      } else {
+        reader.onload = () => {
+          setRawData(prev => prev ? `${prev}\n\n--- ARCHIVO ADJUNTO (${file.name}) ---\n${reader.result}` : String(reader.result));
+        };
+        reader.readAsText(file);
+      }
+    });
+
+    e.target.value = '';
+  };
+
+  const removerArchivoAdjunto = (index: number) => {
+    setArchivosAdjuntos(prev => prev.filter((_, i) => i !== index));
   };
 
   const cargarDatosCensoEnRawData = (pacienteId: string) => {
@@ -291,8 +305,8 @@ export const IAModuleDesktop: React.FC = () => {
   };
 
   const handleVerifySanitization = () => {
-    if (!rawData.trim() && !archivoAdjunto && !linkGoogleDocs.trim()) return;
-    const result = sanitizeClinicalText(rawData || 'Datos clínicos adjuntos en imagen o enlace.');
+    if (!rawData.trim() && archivosAdjuntos.length === 0 && !linkGoogleDocs.trim()) return;
+    const result = sanitizeClinicalText(rawData || 'Datos clínicos adjuntos en imágenes, documentos o enlace.');
     setSanitizedPreview(result);
   };
 
@@ -323,7 +337,7 @@ export const IAModuleDesktop: React.FC = () => {
         esqueletoFormat: customizedEsqueleto,
         preferenciasEstilo: doc?.estilo || 'Formato estándar formal.',
         rawData: sanitizedPreview ? sanitizedPreview.textSanitized : rawData,
-        archivo: archivoAdjunto,
+        archivos: archivosAdjuntos,
         linkGoogleDocs: linkGoogleDocs.trim() || undefined
       }, apiKey || undefined);
 
@@ -354,65 +368,77 @@ export const IAModuleDesktop: React.FC = () => {
   };
 
   return (
-    <div className="p-3 md:p-6 max-w-[1600px] mx-auto space-y-4 md:space-y-6 bg-gray-50 min-h-screen md:min-h-0 md:h-full flex flex-col">
+    <div className="p-3 md:p-6 max-w-7xl mx-auto space-y-4 md:space-y-6">
       
-      <div className="bg-red-50/80 border-l-4 border-red-500 p-3 md:p-4 rounded-r-xl flex items-start gap-3 shadow-sm shrink-0">
-        <ShieldAlert className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
-        <p className="text-[11px] md:text-xs text-red-800 leading-relaxed">
-          <strong className="text-red-900">Borrador generado por IA:</strong> Verificar cada dato clínico antes de usar. Los formatos se adaptan rigurosamente al estilo del médico emisor seleccionado.
-        </p>
+      <div className="bg-white p-4 md:p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col md:flex-row md:items-center justify-between gap-3">
+        <div>
+          <h1 className="text-xl md:text-2xl font-black text-gray-900 flex items-center gap-2">
+            <Wand2 className="w-6 h-6 text-purple-600" /> Redactor Clínico IA
+          </h1>
+          <p className="text-xs md:text-sm text-gray-500">
+            Generación asistida de Epicrisis, Ingresos y Evoluciones basada en el estilo de médicos del HCM.
+          </p>
+        </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 md:gap-6 items-start flex-1 md:overflow-hidden">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-6">
         
-        <div className="space-y-4 md:space-y-5 bg-white p-4 md:p-6 rounded-2xl border border-gray-100 shadow-sm flex flex-col lg:max-h-full md:overflow-y-auto">
+        <div className="lg:col-span-6 bg-white p-4 md:p-5 rounded-2xl shadow-sm border border-gray-100 flex flex-col gap-4">
           
-          <div className="flex items-center gap-2 border-b border-gray-100 pb-3 shrink-0">
-            <Wand2 className="w-5 h-5 text-blue-600" />
-            <h2 className="text-lg md:text-xl font-bold text-gray-900">Generador por Médico Emisor</h2>
-          </div>
-          
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4 shrink-0">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
-              <div className="flex justify-between items-center mb-1.5">
-                <label className="block text-[10px] md:text-[11px] font-bold uppercase text-gray-500 tracking-wider">Paciente (Censo)</label>
-              </div>
+              <label className="block text-[10px] md:text-[11px] font-bold uppercase text-gray-500 mb-1 tracking-wider">Tipo de Documento</label>
               <select 
-                className="w-full p-2.5 md:p-3 bg-gray-50 border border-gray-200 rounded-xl text-xs md:text-sm outline-none focus:ring-2 focus:ring-blue-400 text-gray-800 transition-shadow appearance-none cursor-pointer" 
-                value={selectedPacienteId} 
+                value={tipoDoc} 
+                onChange={e => setTipoDoc(e.target.value)}
+                className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs md:text-sm font-semibold outline-none focus:ring-2 focus:ring-purple-400"
+              >
+                <option value="Epicrisis">Epicrisis Médica</option>
+                <option value="Ingreso">Ficha de Ingreso</option>
+                <option value="Evolución">Evolución Diaria</option>
+              </select>
+            </div>
+
+            <div>
+              <label className="block text-[10px] md:text-[11px] font-bold uppercase text-gray-500 mb-1 tracking-wider">Estilo / Médico HCM</label>
+              <select 
+                value={selectedDoctorId} 
+                onChange={e => setSelectedDoctorId(e.target.value)}
+                className="w-full p-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs md:text-sm font-semibold outline-none focus:ring-2 focus:ring-purple-400"
+              >
+                <option value="">-- Estilo General / Estándar --</option>
+                {doctores.map(doc => (
+                  <option key={doc.id} value={doc.id}>{doc.nombre} ({doc.especialidad})</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {pacientes.length > 0 && (
+            <div className="bg-purple-50/50 p-3 rounded-xl border border-purple-100">
+              <label className="block text-[10px] md:text-[11px] font-bold uppercase text-purple-900 mb-1 tracking-wider">
+                Vincular Paciente del Censo (Opcional)
+              </label>
+              <select
+                value={selectedPacienteId}
                 onChange={e => {
                   setSelectedPacienteId(e.target.value);
                   if (e.target.value) cargarDatosCensoEnRawData(e.target.value);
                 }}
+                className="w-full p-2 bg-white border border-purple-200 rounded-lg text-xs outline-none focus:ring-2 focus:ring-purple-400 font-medium text-gray-800"
               >
-                <option value="">Seleccionar del Censo...</option>
-                {pacientes.map((p, idx) => (
-                  <option key={p.id || idx} value={p.id || p.cama}>
-                    {p.cama ? `Cama ${p.cama}` : ''} - {p.nombre || 'Sin nombre'}
+                <option value="">-- Seleccionar paciente para importar antecedentes --</option>
+                {pacientes.map(p => (
+                  <option key={p.id} value={p.id}>
+                    Cama {p.cama} - {p.nombre} ({p.diagnostico || 'Sin Dx'})
                   </option>
                 ))}
               </select>
             </div>
-            <div>
-              <label className="block text-[10px] md:text-[11px] font-bold uppercase text-gray-500 mb-1.5 tracking-wider">Documento</label>
-              <select className="w-full p-2.5 md:p-3 bg-gray-50 border border-gray-200 rounded-xl text-xs md:text-sm outline-none focus:ring-2 focus:ring-blue-400 text-gray-800 transition-shadow appearance-none cursor-pointer" value={tipoDoc} onChange={e => setTipoDoc(e.target.value)}>
-                <option value="Epicrisis">Epicrisis</option>
-                <option value="Ingreso">Ingreso</option>
-                <option value="Evolución">Evolución</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-[10px] md:text-[11px] font-bold uppercase text-gray-500 mb-1.5 tracking-wider">Médico Emisor</label>
-              <select className="w-full p-2.5 md:p-3 bg-gray-50 border border-gray-200 rounded-xl text-xs md:text-sm outline-none focus:ring-2 focus:ring-blue-400 text-gray-800 transition-shadow appearance-none cursor-pointer" value={selectedDoctorId} onChange={e => setSelectedDoctorId(e.target.value)}>
-                <option value="">Seleccionar doctor...</option>
-                {doctores.map(d => <option key={d.id} value={d.id}>{d.nombre} ({d.especialidad})</option>)}
-              </select>
-            </div>
-          </div>
+          )}
 
-          {/* Adjuntar Archivos / Fotos / Google Docs */}
-          <div className="bg-slate-50 border border-slate-200 rounded-xl p-3 space-y-3 shrink-0">
-            <span className="text-[11px] font-bold uppercase text-gray-700 flex items-center gap-1.5 tracking-wider">
+          <div className="bg-gray-50 p-3 rounded-xl border border-gray-200 space-y-2.5">
+            <span className="text-[10px] md:text-[11px] font-bold uppercase text-gray-700 tracking-wider flex items-center gap-1.5">
               <Sparkles className="w-3.5 h-3.5 text-purple-600" /> Adjuntar Fotos, PDFs o Google Docs
             </span>
 
@@ -420,29 +446,43 @@ export const IAModuleDesktop: React.FC = () => {
               <label className="flex items-center justify-center gap-1.5 p-2 bg-white border border-gray-200 rounded-lg cursor-pointer hover:bg-purple-50 hover:border-purple-300 text-gray-700 hover:text-purple-900 text-xs font-bold transition-all shadow-sm">
                 <Camera className="w-4 h-4 text-purple-600" />
                 <span>Tomar Foto</span>
-                <input type="file" accept="image/*" capture="environment" className="hidden" onChange={handleSubirArchivo} />
+                <input type="file" accept="image/*" capture="environment" multiple className="hidden" onChange={handleSubirArchivo} />
               </label>
 
               <label className="flex items-center justify-center gap-1.5 p-2 bg-white border border-gray-200 rounded-lg cursor-pointer hover:bg-blue-50 hover:border-blue-300 text-gray-700 hover:text-blue-900 text-xs font-bold transition-all shadow-sm">
                 <FileUp className="w-4 h-4 text-blue-600" />
-                <span>Subir PDF / Imagen</span>
-                <input type="file" accept="image/*,application/pdf,.txt" className="hidden" onChange={handleSubirArchivo} />
+                <span>Subir PDFs / Fotos</span>
+                <input type="file" accept="image/*,application/pdf,.txt" multiple className="hidden" onChange={handleSubirArchivo} />
               </label>
             </div>
 
-            {archivoAdjunto && (
-              <div className="bg-white p-2.5 rounded-lg border border-purple-200 flex items-center justify-between gap-2 animate-in fade-in">
-                <div className="flex items-center gap-2 truncate">
-                  {archivoAdjunto.vistaPrevia ? (
-                    <img src={archivoAdjunto.vistaPrevia} alt="Adjunto" className="w-8 h-8 object-cover rounded border" />
-                  ) : (
-                    <FileText className="w-6 h-6 text-blue-600" />
-                  )}
-                  <span className="text-xs font-bold text-gray-800 truncate">{archivoAdjunto.nombre}</span>
+            {archivosAdjuntos.length > 0 && (
+              <div className="space-y-1.5">
+                <span className="text-[10px] font-bold text-gray-600 uppercase">
+                  Archivos adjuntos ({archivosAdjuntos.length}):
+                </span>
+                <div className="grid grid-cols-1 gap-1.5 max-h-36 overflow-y-auto">
+                  {archivosAdjuntos.map((arc, idx) => (
+                    <div key={idx} className="bg-white p-2 rounded-lg border border-purple-200 flex items-center justify-between gap-2 shadow-2xs">
+                      <div className="flex items-center gap-2 truncate">
+                        {arc.vistaPrevia ? (
+                          <img src={arc.vistaPrevia} alt="Adjunto" className="w-7 h-7 object-cover rounded border" />
+                        ) : (
+                          <FileText className="w-5 h-5 text-blue-600 shrink-0" />
+                        )}
+                        <span className="text-xs font-bold text-gray-800 truncate">{arc.nombre}</span>
+                      </div>
+                      <button 
+                        type="button" 
+                        onClick={() => removerArchivoAdjunto(idx)} 
+                        className="text-gray-400 hover:text-red-600 p-1 rounded transition-colors"
+                        title="Quitar archivo"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ))}
                 </div>
-                <button type="button" onClick={() => setArchivoAdjunto(null)} className="text-gray-400 hover:text-red-600 p-1">
-                  <X className="w-4 h-4" />
-                </button>
               </div>
             )}
 
@@ -450,7 +490,7 @@ export const IAModuleDesktop: React.FC = () => {
               <Link className="w-4 h-4 text-gray-400 shrink-0" />
               <input
                 type="text"
-                placeholder="Pega aquí el enlace de Google Docs (opcional)..."
+                placeholder="Pega aquí el enlace de Google Docs..."
                 value={linkGoogleDocs}
                 onChange={e => setLinkGoogleDocs(e.target.value)}
                 className="w-full text-xs outline-none text-gray-800"
@@ -504,7 +544,7 @@ export const IAModuleDesktop: React.FC = () => {
           {!sanitizedPreview && (
             <button 
               onClick={handleVerifySanitization}
-              disabled={(!rawData.trim() && !archivoAdjunto && !linkGoogleDocs.trim()) || isGenerating}
+              disabled={(!rawData.trim() && archivosAdjuntos.length === 0 && !linkGoogleDocs.trim()) || isGenerating}
               className="w-full flex items-center justify-center gap-2 bg-blue-600 text-white font-bold py-3 md:py-3.5 rounded-xl text-sm hover:bg-blue-700 disabled:opacity-50 transition-all shadow-md shrink-0"
             >
               <ShieldAlert className="w-4 h-4" /> Sanitizar y Revisar Privacidad
